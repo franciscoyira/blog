@@ -10,7 +10,7 @@ tags:
 - theme
 - html
 - css
-title: Creating a New Theme
+title: Probando un título personalizado
 weight: 10
 ---
 

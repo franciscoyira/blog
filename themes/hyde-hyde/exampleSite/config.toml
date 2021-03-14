@@ -1,8 +1,8 @@
 ## Basic Configuration
-baseurl = "https://example.com/"
+baseurl = "https://www.franciscoyira.com/"
 languageCode = "en"
 
-title = "Title"
+title = "Francisco Yirá's blog"
 theme = "hyde-hyde"
 
 ## Hugo Built-in Features
