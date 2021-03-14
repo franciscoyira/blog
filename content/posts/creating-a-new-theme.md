@@ -56,6 +56,8 @@ $
 
 There are a few concepts that you need to understand before creating a theme.
 
+![](/posts/creating-a-new-theme_files/WP_20140220_8204.jpg)
+
 ### Skins
 
 Skins are the files responsible for the look and feel of your site. It’s the CSS that controls colors and fonts, it’s the Javascript that determines actions and reactions. It’s also the rules that Hugo uses to transform your content into the HTML that the site will serve to visitors.
