@@ -25,9 +25,9 @@ params:
   title: Title
 menu:
   main:
-    - identifier: posts
+    - identifier: post
       name: Posts
-      url: /posts/
+      url: /post/
       weight: 100
     - identifier: portfolio
       name: Portfolio
