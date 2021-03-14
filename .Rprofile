@@ -21,3 +21,6 @@ options(
 
 # fix Hugo version
 options(blogdown.hugo.version = "0.81.0")
+
+# Author
+options(blogdown.author = "Francisco Yirá")
