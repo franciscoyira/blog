@@ -1,5 +1,5 @@
 ## Basic Configuration
-baseurl = "https://www.franciscoyira.com/"
+baseurl = "/"
 languageCode = "en"
 
 title = "Francisco Yirá's blog"

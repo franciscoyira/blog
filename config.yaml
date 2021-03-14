@@ -29,10 +29,10 @@ menu:
       name: Posts
       url: /posts/
       weight: 100
-    # - identifier: portfolio
-    #   name: Portfolio
-    #   url: /portfolio/
-    #   weight: 200
+    - identifier: portfolio
+      name: Portfolio
+      url: /portfolio/
+      weight: 200
     - identifier: about
       name: About
       url: /about/
