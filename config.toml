@@ -1,0 +1,83 @@
+baseurl = "https://franciscoyira.com/"
+languageCode = "en-us"
+theme = "hugo-theme-hello-friend"
+paginate = 5
+
+[params]
+  # dir name of your blog content (default is `content/posts`)
+  contentTypeName = "post"
+  # "light" or "dark"
+  defaultTheme = "light"
+  # if you set this to 0, only submenu trigger will be visible
+  showMenuItems = 2
+  # Enable to show reading time in minutes for posts
+  showReadingTime = true
+  rssFullText = true
+
+[languages]
+  [languages.en]
+    title = "francisco yirá's blog"
+    subtitle = "data science, tech, and other stuff"
+    keywords = ""
+    copyright = ""
+    menuMore = "Show more"
+    writtenBy = "Written by"
+    readMore = "Read more"
+    readOtherPosts = "Read other posts"
+    newerPosts = "Newer posts"
+    olderPosts = "Older posts"
+    minuteReadingTime = "min read"
+    dateFormatSingle = "2006-01-02"
+    dateFormatList = "2006-01-02"
+
+    [languages.en.params.logo]
+      logoText = "francisco yirá's blog"
+      logoHomeLink = "/"
+    # or
+    #
+    # path = "/img/your-example-logo.svg"
+    # alt = "Your example logo alt text"
+
+    [languages.en.menu]
+      [[languages.en.menu.main]]
+        identifier = "about"
+        name = "About"
+        url = "/about"
+      #[[languages.en.menu.main]]
+       # identifier = "showcase"
+        #name = "Showcase"
+        #url = "/showcase"
+        
+  [languages.es]
+      title = "blog de francisco yirá"
+      subtitle = "ciencia de datos, tecnología y otras cosas"
+      keywords = ""
+      copyright = ""
+      menuMore = "Mostrar más"
+      writtenBy = "Escrito por"
+      readMore = "Leer más"
+      readOtherPosts = "Leer otros posts"
+      newerPosts = "Posts más recientes"
+      olderPosts = "Posts más antiguos"
+      minuteReadingTime = "min de lectura"
+      dateFormatSingle = "2006-01-02"
+      dateFormatList = "2006-01-02"
+  
+      [languages.es.params.logo]
+        logoText = "blog de francisco yirá"
+        logoHomeLink = "/es/"
+      # or
+      #
+      # path = "/img/your-example-logo.svg"
+      # alt = "Your example logo alt text"
+  
+      [languages.es.menu]
+        [[languages.es.menu.main]]
+          identifier = "About"
+          name = "Acerca de"
+          url = "/es/about"
+        #[[languages.en.menu.main]]
+         # identifier = "showcase"
+          #name = "Showcase"
+          #url = "/showcase"
+
