@@ -1,0 +1,226 @@
+---
+title: 'Introducción a los diagramas de causalidad (DAGs)'
+author: Francisco Yira
+date: '2021-07-19'
+slug: [dags-causalidad-causal-inference-mixtape-cap-3]
+cover: "alice_in_wonderland.jpg"
+useRelativeCover: true
+categories:
+  - inferencia-causal
+  - libros
+tags:
+  - resumenes
+  - dags
+  - causal-inference-the-mixtape
+---
+
+<script src="{{< blogdown/postref >}}index.es_files/header-attrs/header-attrs.js"></script>
+
+
+<p><em>Este artículo es el primero de una serie dedicada al contenido del libro <a href="https://mixtape.scunning.com/">Causal Inference: The Mixtape</a>, en la cual buscaré resumir los principales temas y metodologías expuestos allí.</em></p>
+<p>Los DAGs (<em>Directed Acyclic Graphs</em> o grafos acíclicos dirigidos) son un tipo de visualización que cuenta con múltiples aplicaciones, una de las cuales es el modelamiento de relaciones de causalidad.</p>
+<p>Aplicados a causalidad, <em>los DAGs sirven para representar las relaciones causales que creemos que existen entre las variables de interés</em>. Al dibujar un diagrama de este tipo, estamos plasmando todo el conocimiento teórico y empírico previo que poseemos sobre un determinado problema.</p>
+<p>Una ventaja de dedicar tiempo a dibujar un DAG es que mediante este diagrama se vuelve más claro el cómo aislar un efecto causal dentro de un conjunto de relaciones más complejas.</p>
+<p>La otra cara de esto es que el DAG que dibujemos será tan bueno como lo sea el conocimiento teórico previo. Si algunas de nuestras creencias sobre la naturaleza del problema son falsas (ej. asumimos que una variable del DAG es exógena o independiente cuando en realidad depende de otras), el DAG no hará más que replicar esta falsa creencia en un formato distinto.</p>
+<blockquote>
+<p>Querámoslo o no, detrás de toda estrategia de identificación existe un DAG subyacente.</p>
+</blockquote>
+<p>Querámoslo o no, <a href="https://nickchk.com/causalgraphs.html">detrás de toda estrategia de identificación causal existe un DAG subyacente</a>. Aún si el DAG no está expresado de forma explícita, existe siempre un DAG implícito al aplicarse estrategias como Efectos Fijos, Diferencias en Diferencias, o Variables Instrumentales.</p>
+<div class="figure">
+<img src="images/dags_examples.png" width="813" alt="" />
+<p class="caption"><em>Ejemplos de DAGs de causalidad aplicados a distintas metodologías cuasi-experimentales. Desde arriba a la derecha en sentido de las agujas del reloj: Regresión Discontinua, Diferencias en Diferencias, Variables Instrumentales, y Efectos Fijos. Fuente: <a href="https://nickchk.com/causalgraphs.html">Causal Inference Animated Plots, nickhk.com</a>.</em></p>
+</div>
+<p>Si ese DAG implícito se ajusta a la realidad (es una representación adecuada de las relaciones causales reales), entonces la estrategia de identificación aplicada será válida. Dado ello, conviene sacar a este DAG de las sombras y hacerlo explícito, para así juzgar más fácilmente la verosimilitud de nuestros supuestos (y también facilitar que estos supuestos sean juzgados por terceros).</p>
+<div id="notación-de-dags" class="section level2">
+<h2>Notación de DAGs</h2>
+<p>Un DAG se compone de:</p>
+<ul>
+<li><strong>Nodos</strong>, que en el modelamiento de causalidad representan variables aleatorias, creadas a partir de un cierto proceso generador de datos.</li>
+<li><strong>Flechas o vectores de una sola dirección</strong>, que conectan los nodos representando relaciones causales entre las variables.</li>
+<li><strong>Caminos</strong> (o <em>paths</em>), que son secuencias de nodos y vectores que conectan nodos.</li>
+</ul>
+<div class="figure">
+<img src="images/simple_dag.png" width="400" alt="" />
+<p class="caption"><em>Ejemplo de un DAG con 4 nodos. Fuente: <a href="https://towardsdatascience.com/beyond-a-b-testing-primer-on-causal-inference-d8e462d90a0b">Beyond A/B Testing: Primer on Causal Inference</a></em></p>
+</div>
+<p>En la figura de arriba, X, Y, U y Z son nodos o variables aleatorias. A partir de las fechas sabemos que existen los siguientes efectos causales:</p>
+<ul>
+<li>X causa Y</li>
+<li>Y causa Z</li>
+<li>U causa Y</li>
+<li>U causa Z</li>
+</ul>
+<p>Y además hay caminos tales como X→Y→Z y X→Y←U→Z<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+<p>Los efectos causales dentro de un DAG pueden ser directos (un vector que conecta dos nodos sin intermediarios, por ej. Y→Z en la figura de arriba) o ser mediados por una o más variables a lo largo de un camino (por ej. X→Y→Z). Para que un camino tenga asociado un efecto causal es necesario que las flechas dentro de él apunten en una misma dirección.</p>
+<p>Una característica clave de los DAGs es que <strong>en ellos los procesos siempre van en una sola dirección</strong> (la dirección del transcurso del tiempo) y <strong>no hay ciclos</strong> (de ahí la A de <em>acyclic</em> en el nombre). Para mostrar una relación de causalidad inversa es posible crear múltiples nodos que representan la misma variable en distintos momentos del tiempo (por ej: un nodo para <em>el ingreso de una persona en T</em> y otro para la misma variable en <em>T+1</em>).<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a></p>
+<blockquote>
+<p>El que dos nodos no estén conectados por un vector representa la creencia de que no existe una relación causal que conecte esas variables de forma directa.</p>
+</blockquote>
+<p>Otro concepto clave es que la <strong>ausencia de flechas entre nodos</strong> también implica un supuesto sobre relaciones causales: el que dos nodos no estén conectados por un vector representa la creencia de que no existe una relación causal que conecte esas variables de forma directa (es decir, que son variables independientes).</p>
+</div>
+<div id="backdoors-puertas-traseras" class="section level2">
+<h2>Backdoors (puertas traseras)</h2>
+<p>Después de ver los fundamentos, es hora de aprender los conceptos de <strong>backdoor path</strong> (camino de puerta trasera) y <strong>backdoor criterion</strong> (criterio de puerta trasera). Para explicar esto el libro se apoya en el siguiente DAG de ejemplo:</p>
+<div class="figure">
+<img src="images/simple_dag-1.png" alt="" />
+<p class="caption"><em>DAG de ejemplo para explicar backdoor paths y backdoor criterion. Créditos: <a href="https://mixtape.scunning.com/dag.html#a-simple-dag">Causal Inference - The Mixtape</a>.</em></p>
+</div>
+<p>Aquí <strong>D</strong> representa la variable de interés, <strong>Y</strong> es una variable de resultados, y <strong>X</strong> representa una tercera variable, que probablemente no es el foco del análisis. Quien se enfrente a DAG probablemente busca conocer el efecto causal de <strong>D sobre Y</strong>.</p>
+<p>Dicho efecto está representado en el camino D→Y. Pero a la vez existe un segundo camino entre D e Y: D←X→Y.</p>
+<p>Este segundo camino se conoce como <strong>camino de puerta trasera</strong> (o <em>backdoor path</em>). Su existencia hace más difícil la vida de quien desee conocer el efecto causal D→Y, ya que al haber un <em>backdoor path</em> aparecerá correlación espúrea entre D e Y producto de las relaciones X→D y X→Y.</p>
+<p>Dicho de otra forma, los valores de D e Y variarán de forma sistemática o conjunta tanto debido a la relación causal D→Y (variabilidad que nos interesa estimar), como debido a la puerta trasera D←X→Y (variabilidad que no nos interesa). La correlación simple entre D e Y será una combinación de estas 2 relaciones, lo cual imposibilitará interpretar la correlación observada como un efecto causal de D sobre Y.</p>
+<p>Para quienes vengan del mundo del análisis de regresión, la variable X en este DAG podría entenderse como una <strong>variable relevante omitida</strong>: una variable que determina conjuntamente la variable independiente (D) y la dependiente (Y), y que al no ser considerada en el análisis generará sesgo: la correlación estimada entre D e Y no corresponderá al efecto causal real, sino que estará “confundida” por la correlación atribuible al efecto de X sobre D e Y. Por esto último a la variable X también se le llama <strong>confounder</strong> o <strong>variable de confusión</strong>.</p>
+<p><strong>Las puertas traseras se pueden cerrar</strong> mediante condicionar o controlar por una variable ubicada a lo largo de ese camino. Condicionar o controlar por X puede implicar cosas como:</p>
+<ul>
+<li>Agregar X como variable explicativa a la regresión</li>
+<li>Aplicar alguna técnica de matching según los valores de la variable X</li>
+<li>Estratificar los datos según los valores de X y luego obtener correlaciones entre D e Y dentro de cada estrato</li>
+</ul>
+<p>En cualquiera de estos casos se podrá afirmar que el <em>backdoor path</em> D←X→Y está cerrado.</p>
+<blockquote>
+<p>El intento de identificar efectos causales puede entenderse como una cruzada por cerrar todas las puertas traseras en un DAG</p>
+</blockquote>
+<p>Si todas las puertas traseras están cerradas, se puede afirmar que el DAG de nuestro análisis cumple con el <strong>backdoor criterion</strong>, y esto implica que podremos aislar el efecto causal de la variable de interés (D) sobre la variable de resultados (Y).</p>
+<div id="la-maldición-de-los-no-observables" class="section level3">
+<h3>La maldición de los no observables</h3>
+<p>Dado que un DAG debería contener todas las relaciones que suponemos que afectan a nuestras variables de interés, es perfectamente posible que algunas de estas relaciones involucren variables no disponibles en los datos.</p>
+<p>Por tanto, un problema que podemos encontrar en nuestra cruzada por cerrar las puertas traseras es que una de las variables de confusión sea <strong>no observable</strong>, en cuyo caso es imposible cerrar esa puerta trasera mediante condicionar por dicha variable<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</p>
+</div>
+<div id="ejemplo-con-educación-universitaria-e-ingresos" class="section level3">
+<h3>Ejemplo con educación universitaria e ingresos</h3>
+<p>Para ejemplificar los conceptos ya vistos tratemos de descifrar la información que nos entrega el DAG de abajo:</p>
+<div class="figure">
+<img src="images/dag_parent_education.png" width="400" alt="" />
+<p class="caption"><em>Fuente: <a href="https://mixtape.scunning.com/dag.html">Causal Inference - The Mixtape</a> (página 100)</em>.</p>
+</div>
+<p>Este DAG muestra un conjunto de hipótesis sobre la relación entre educación e ingresos. Las variables representan lo siguiente:</p>
+<ul>
+<li><strong>D</strong> es la variable de tratamiento, que en este caso corresponde a educación universitaria.</li>
+<li><strong>Y</strong> es la variable de resultados, en este caso el ingreso de la persona que recibió (o no) la educación universitaria.</li>
+<li><strong>PE</strong> es la educación de los padres de la persona (PE = <em>Parents Education</em>).</li>
+<li><strong>I</strong> es el ingreso de la familia.</li>
+<li><strong>B</strong> son factores no observados que afectan tanto la educación de los padres como la educación de la persona (genética, entorno familiar, habilidad mental, etc). B = <em>Background factors</em>.</li>
+</ul>
+<p>La relación entre estas variables ilustrada por el DAG puede resumirse así: la educación universitaria afecta los ingresos de la persona, pero estos ingresos también son afectados directamente por los ingresos de la familia (por ejemplo, mediante transferencias o herencias), y por factores no observados (por ejemplo, habilidad, que podría hacer que alguien se desempeñe mejor en un trabajo, independiente del nivel de educación). Estos factores no observados también inciden en la decisión de la persona de obtener educación universitaria (por ejemplo, en una familia podría existir más presión o expectativa para que un hijo persiga estudios universitarios), e incluso algunos de estos factores podrían estar detrás del nivel de educación que recibieron los padres de la persona.</p>
+<p>El DAG también nos <em>plantea</em><a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a> que el nivel de educación de los padres afecta el nivel de educación obtenido por la persona, tanto de forma directa (PE→D), como mediante afectar el ingreso de la familia, el cual a su vez afecta el nivel de educación de la persona (PE→I→D). Esto último podría explicarse como una mayor facilidad de acceso a la universidad al contar con mayores ingresos.</p>
+<p>Este DAG nos sirve también para introducir <strong>nueva notación</strong>:</p>
+<ul>
+<li><strong>Las flechas punteadas</strong> representan relaciones que involucran variables <strong>no observables</strong> (en este caso, las relaciones asociadas a <em>B</em>).</li>
+<li>El <strong>encerrar una variable en un cuadrado</strong> indica que se está <strong>condicionando o controlando</strong> por esa variable (en este caso, se está condicionando por el ingreso de la familia, ¿por qué? lo veremos de inmediato).</li>
+</ul>
+<p>La relación de interés aquí es el <strong>efecto de la educación universitaria sobre los ingresos de la persona (D→Y)</strong>, pero existen varios caminos de puerta trasera, así que la correlación simple entre D e Y muy probablemente no aísla el efecto causal de interés.</p>
+<p>Las puertas traseras aquí son las siguientes:</p>
+<ol style="list-style-type: decimal">
+<li>D←I→Y</li>
+<li>D←PE→I→Y</li>
+<li>D←B→PE→I→Y</li>
+<li>D←B→Y</li>
+</ol>
+<p>De estas, las primeras 3 pueden cerrarse fácilmente mediante condicionar por el ingreso de la familia (I), que en este caso corresponde a una variable observable.</p>
+<p>Desafortunadamente, <strong>la cuarta puerta trasera no se puede cerrar</strong> (al menos no con la información disponible hasta aquí), ya que B es una variable (o conjunto de variables) no observada(s), y no sabemos nada más sobre el tipo de correlación que tiene con D e Y.</p>
+<p>Por ende, en este ejemplo no se cumpliría el <em>backdoor criterion</em> y no se podrá hacer interpretación causal de la correlación entre D e Y (incluso después de condicionar por I).</p>
+</div>
+</div>
+<div id="colliders" class="section level2">
+<h2>Colliders</h2>
+<p>Existe otra situación en la cual las puertas traseras son cerradas: cuando existe un <strong>collider</strong> a lo largo de un <em>backdoor path</em> o camino de puerta trasera.</p>
+<p>¿Y qué es exactamente un <em>collider</em>? Básicamente es una variable que tiene dos flechas apuntando <em>hacia</em> ella (así: X→Collider←Y) dentro de un camino en un DAG (se lo denomina así porque <em>collide</em> en inglés significa chocar, y en un <em>collider</em> los efectos causales de otras 2 variables chocan entre sí).</p>
+<p>La existencia de un <em>collider</em> en un camino automáticamente cierra ese camino, sin que sea necesario hacer nada más. ¿Cool, cierto?</p>
+<div class="figure">
+<img src="images/collider_simple.png" width="317" alt="" />
+<p class="caption"><em>Ejemplo de DAG con un collider. Fuente: <a href="https://www.researchgate.net/figure/DAG-with-a-collider-E-exposure-O-outcome-and-C-collider-For-example-in-the_fig2_339986743">researchgate.net</a>.</em></p>
+</div>
+<p>Por ejemplo, en la imagen de arriba el <em>collider</em> C cierra la puerta trasera E→C←O, por lo que la correlación observada entre E y O representa el efecto causal E→O.</p>
+<p>El problema aquí es que al controlar o condicionar por un <em>collider</em> el camino que estaba cerrado se vuelve a abrir. Por esto es crítico para cualquier estrategia de identificación el diferenciar entre <em>colliders</em> y <em>variables de confusión</em>, y controlar por estas últimas pero NO por los primeros.</p>
+<p>Esto representa un quiebre en el hábito que existe en varias disciplinas de agregar tantos controles o covariables como sea posible a una regresión múltiple. El modelamiento en base a DAGs nos propone algo distinto:</p>
+<ol style="list-style-type: decimal">
+<li>Dibujar cuidadosamente un DAG que represente todas las relaciones causales involucradas en el fenómeno de interés, a partir de todo el conocimiento teórico e institucional disponible (por ej., una revisión de literatura, una serie de conversaciones con <em>stakeholders</em> o expertos del negocio, etc).</li>
+<li>Listar todos los caminos que conecten la variable de tratamiento (usualmente denominada <em>D</em>) con la variable de resultados (usualmente denominada <em>Y</em>).</li>
+<li>De estos caminos uno será el que represente la relación causal de interés (por ej. D→Y), y los otros serán puertas traseras. <a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a></li>
+<li>Identificar qué puertas traseras están cerradas gracias a <em>colliders</em> (a los cuales hay que “dejar en paz”), y qué puertas traseras debemos cerrar nosotres mediante condicionar o controlar por <em>confounders</em> a lo largo de esos caminos.</li>
+</ol>
+<div id="ejemplo-de-sesgo-de-colliders-belleza-y-talento-en-estrellas-de-cine" class="section level3">
+<h3>Ejemplo de sesgo de <em>colliders</em>: belleza y talento en estrellas de cine</h3>
+<p>La idea de que los <em>colliders</em> cierran las puertas traseras y de que, al condicionar por ellos, estas se vuelven a abrir es poco intuitiva, por ello no está de más revisar un ejemplo al respecto presentado en el capítulo del libro.</p>
+<p>Algunas personas tienen la hipótesis de que el talento para la actuación y la belleza están negativamente correlacionados, a raíz de casos de actores y actrices que, según el público, son muy atractivos o atractivas pero tienen poco talento<a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a>. Sin embargo, una posible explicación para esta correlación es que talento y belleza no estén correlacionados en la población general, pero sí en la submuestra de actores y actrices, debido a un caso de <em>sesgo de colliders</em>.</p>
+<p>El DAG que representa esta hipótesis es el siguiente:</p>
+<div class="figure">
+<img src="images/moviestar-dag-1.png" width="400" alt="" />
+<p class="caption"><em>Fuente: <a href="https://mixtape.scunning.com/dag.html#sample-selection-and-collider-bias">Causal Inference - The Mixtape</a>. Página 110.</em></p>
+</div>
+<p>Según este DAG, Talento y Belleza serían dos variables independientes, que, por separado, aumentan la probabilidad de que alguien sea una estrella de cine. Ser estrella de cine en este caso es un <em>collider</em> a lo largo del camino entre Talento y Belleza.</p>
+<p>Sucede que al analizar un dataset que contiene solamente casos de estrellas de cine (dejando fuera a la población que no pertenece a ese grupo), en la práctica se está <em>condicionando</em> por la variable <em>Estrella de cine</em>, lo cual genera que aparezca una correlación espúrea entre talento y belleza dentro del dataset<a href="#fn7" class="footnote-ref" id="fnref7"><sup>7</sup></a>.</p>
+<p>Para ilustrar más claramente esta idea se puede recurrir a la siguiente visualización de datos simulados:</p>
+<pre class="r"><code>library(tidyverse)
+library(patchwork)
+set.seed(1989)
+
+estrellas_de_cine &lt;- 
+  tibble(
+    # Generamos una muestra de 2500 observaciones donde la belleza y el talento
+    # se distribuyen de forma normal e independiente
+    belleza = rnorm(2500),
+    talento = rnorm(2500),
+    # La probabilidad de ser estrella de cine depende de una combinación lineal
+    # de talento y belleza
+    puntaje = belleza + talento,
+    # Sólo las personas en el 15% superior de la combinación belleza+talento
+    # logran ser estrellas de cine
+    c85 = quantile(puntaje, .85),
+    estrella = ifelse(puntaje &gt;= c85, &quot;Sí&quot;, &quot;No&quot;))
+
+plot_global &lt;- 
+  ggplot(estrellas_de_cine,
+       aes(belleza, talento)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = &quot;lm&quot;,
+              color = &quot;grey20&quot;) +
+  annotate(geom = &quot;label&quot;,
+           x = -2,
+           y = -0.6,
+           label = &quot;No existe correlación\nentre Talento y Belleza\nen el total de la muestra&quot;,
+           size = 2.8,
+           color = &quot;grey20&quot;) +
+  theme_minimal()
+
+plot_colliders &lt;- 
+  ggplot(estrellas_de_cine,
+       aes(belleza, talento, color = estrella)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = &quot;lm&quot;, se = FALSE, show.legend = FALSE) +
+  annotate(geom = &quot;label&quot;,
+           x = 2,
+           y = 2.5,
+           label = &quot;Existe correlación espúrea\nentre Talento y Belleza en \nsubmuestra de estrellas de cine&quot;,
+           size = 2.8,
+           color = &quot;#008D91&quot;) +
+  theme_minimal() +
+  labs(color = &quot;¿Es estrella de cine?&quot;) +
+  guides(color = guide_legend(override.aes = list(alpha=1)))
+  
+# Combinando ambos gráficos mediante patchwork
+(plot_global / plot_colliders) +
+  plot_annotation(
+    title = &quot;Sesgo de colliders&quot;,
+       subtitle = str_wrap(&quot;Ser Estrella de Cine es un collider en la relación entre Talento y Belleza.\nAl condicionar por ser Estrella de Cine aparece una correlación espúrea entre ambas variables&quot;)
+  )</code></pre>
+<p><img src="{{< blogdown/postref >}}index.es_files/figure-html/plot-colliders-1.png" width="100%" /></p>
+</div>
+</div>
+<div id="resumen" class="section level2">
+<h2>Resumen</h2>
+<p><img src="images/cheat_sheet_dags.png" title="Cheat Sheet de diagramas de causalidad" /></p>
+<p><em>Para más información recomiendo leer <a href="https://mixtape.scunning.com/dag.html">el capítulo original de DAGs en Causal Inference: The Mixtape</a>, sobre el que está hecho este resumen.</em></p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>Estos caminos son de naturaleza distinta, por razones que se explicarán después en este mismo post. Por ahora basta con reconocerlos como <em>caminos.</em><a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>Las relaciones de simultaneidad (por ejemplo, las de un modelo de oferta y demanda) son más complejas de expresar en DAGs y el capítulo del libro deja fuera el tema.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>Esto no significa que todo esté perdido: dependiendo del caso puede que existan observables que sí permitan cerrar estas puertas traseras. Por ejemplo, si la variable no observable <em>habilidad</em> es constante en el tiempo para cada individuo, entonces un conjunto de variables que identifiquen a cada individuo determinan perfectamente la habilidad, y tales variable pueden incorporarse en una regresión con datos de panel bajo la metodología de <em>efectos fijos</em>. Metodologías de este tipo constituyen el grueso del libro y las estaré resumiendo y explicando en futuros posts.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>Enfatizo la palabra <em>plantea</em> porque todas estas relaciones son sólo eso, planteamientos o supuestos, que idealmente representan el “estado del arte” de la investigación en este tema, pero que perfectamente podrían ser objetados o estar equivocados. El expresar estos supuestos en formato de DAG no los hace más válidos, pero sí los hace explícitos, facilita debatir acerca de ellos, y nos hace ser conscientes de que nuestro análisis parte sobre la base de tales supuestos.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="fn5"><p>En realidad también puede ocurrir que nos interesen varios caminos causales, particularmente en el caso donde el efecto de D sobre Y se de mediante varios canales de transmisión sobre los que no hay confounders. Dependiendo de la pregunta de investigación, la correlación causada por estos canales secundarios puede ser o no de interés. Este tema no se cubre tan en detalle en el capítulo del libro y podría ser tema para otro post.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn6"><p>El ejemplo que se cita en el libro es el de Megan Fox, actriz de Transformers que <a href="https://marquee.blogs.cnn.com/2009/12/30/megan-fox-voted-worst-but-sexiest-actress-of-2009/">fue escogida en una encuesta de 2009</a> como la peor actriz y a la vez la más atractiva.<a href="#fnref6" class="footnote-back">↩︎</a></p></li>
+<li id="fn7"><p>Otro elemento valioso de este ejemplo es que muestra que el condicionamiento de variables (incluido el problemático condicionamiento por <em>colliders</em>) puede estar incrustado en el mismísimo dataset con que estamos trabajando, incluso antes de que realizar cualquier manipulación de variables, debido a sesgos de selección en la forma en que se recolectaron los datos.<a href="#fnref7" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
