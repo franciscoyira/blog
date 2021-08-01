@@ -50,7 +50,7 @@ paginate = 5
       [[languages.en.menu.main]]
         identifier = "subscribe"
         name = "Subscribe"
-        url = "/subscribe"
+        url = "https://buttondown.email/franciscoyira"
       [[languages.en.menu.main]]
         identifier = "change_lang"
         name = "Español"
