@@ -69,7 +69,7 @@ Después de ver los fundamentos, es hora de aprender los conceptos de **backdoor
 
 ![*DAG de ejemplo para explicar backdoor paths y backdoor criterion. Créditos: [Causal Inference - The Mixtape](https://mixtape.scunning.com/dag.html#a-simple-dag).*](images/simple_dag-1.png)
 
-Aquí **D** representa la variable de interés, **Y** es una variable de resultados, y **X** representa una tercera variable, que probablemente no es el foco del análisis. Quien se enfrente a DAG probablemente busca conocer el efecto causal de **D sobre Y**.
+Aquí **D** representa la variable de interés, **Y** es una variable de resultados, y **X** representa una tercera variable, que probablemente no es el foco del análisis. Quien se enfrente a este DAG probablemente busca conocer el efecto causal de **D sobre Y**.
 
 Dicho efecto está representado en el camino D→Y. Pero a la vez existe un segundo camino entre D e Y: D←X→Y.
 

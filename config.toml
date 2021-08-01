@@ -41,12 +41,12 @@ paginate = 5
     [languages.en.menu]
       [[languages.en.menu.main]]
         identifier = "about"
-        name = "About"
+        name = "About me"
         url = "/about"
-      #[[languages.en.menu.main]]
-       # identifier = "showcase"
-        #name = "Showcase"
-        #url = "/showcase"
+      [[languages.en.menu.main]]
+        identifier = "change_lang"
+        name = "Español"
+        url = "/es"
         
   [languages.es]
       title = "blog de francisco yirá"
@@ -76,8 +76,8 @@ paginate = 5
           identifier = "About"
           name = "Acerca de"
           url = "/es/about"
-        #[[languages.en.menu.main]]
-         # identifier = "showcase"
-          #name = "Showcase"
-          #url = "/showcase"
+        [[languages.es.menu.main]]
+          identifier = "change_lang"
+          name = "English"
+          url = "/"
 
