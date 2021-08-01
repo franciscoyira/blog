@@ -8,6 +8,7 @@ useRelativeCover: true
 categories:
   - inferencia-causal
   - libros
+  - data-science
 tags:
   - resumenes
   - dags

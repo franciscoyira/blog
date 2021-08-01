@@ -8,6 +8,7 @@ useRelativeCover: true
 categories:
   - inferencia-causal
   - libros
+  - data-science
 tags:
   - resumenes
   - dags
@@ -65,7 +66,7 @@ tags:
 <img src="images/simple_dag-1.png" alt="" />
 <p class="caption"><em>DAG de ejemplo para explicar backdoor paths y backdoor criterion. Créditos: <a href="https://mixtape.scunning.com/dag.html#a-simple-dag">Causal Inference - The Mixtape</a>.</em></p>
 </div>
-<p>Aquí <strong>D</strong> representa la variable de interés, <strong>Y</strong> es una variable de resultados, y <strong>X</strong> representa una tercera variable, que probablemente no es el foco del análisis. Quien se enfrente a DAG probablemente busca conocer el efecto causal de <strong>D sobre Y</strong>.</p>
+<p>Aquí <strong>D</strong> representa la variable de interés, <strong>Y</strong> es una variable de resultados, y <strong>X</strong> representa una tercera variable, que probablemente no es el foco del análisis. Quien se enfrente a este DAG probablemente busca conocer el efecto causal de <strong>D sobre Y</strong>.</p>
 <p>Dicho efecto está representado en el camino D→Y. Pero a la vez existe un segundo camino entre D e Y: D←X→Y.</p>
 <p>Este segundo camino se conoce como <strong>camino de puerta trasera</strong> (o <em>backdoor path</em>). Su existencia hace más difícil la vida de quien desee conocer el efecto causal D→Y, ya que al haber un <em>backdoor path</em> aparecerá correlación espúrea entre D e Y producto de las relaciones X→D y X→Y.</p>
 <p>Dicho de otra forma, los valores de D e Y variarán de forma sistemática o conjunta tanto debido a la relación causal D→Y (variabilidad que nos interesa estimar), como debido a la puerta trasera D←X→Y (variabilidad que no nos interesa). La correlación simple entre D e Y será una combinación de estas 2 relaciones, lo cual imposibilitará interpretar la correlación observada como un efecto causal de D sobre Y.</p>
