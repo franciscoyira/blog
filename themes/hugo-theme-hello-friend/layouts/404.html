@@ -8,14 +8,14 @@
         {{ "Hmm... Sorry, this page seems to be missing." | markdownify }}
       </p>
 
-      {{ if .Site.Taxonomies.tags }}
+      {{ if .Site.Taxonomies.categories }}
         <p>
-          {{ "Maybe these tags will help you find what you're looking for. :smile:" | markdownify | emojify }}
+          {{ "Maybe these categories will help you find what you're looking for. :smile:" | markdownify | emojify }}
         </p>
-        <h2>Tags</h2>
+        <h2>Categories</h2>
         <div class="terms">
           <ul class="terms__list">
-            {{ range .Site.Taxonomies.tags }}
+            {{ range .Site.Taxonomies.categories }}
               <li class="terms__term">
                 <a href="{{ .Page.Permalink }}">#{{ .Page.Title }}</a
                 ><span class="terms__term-count">{{ .Count }}</span>

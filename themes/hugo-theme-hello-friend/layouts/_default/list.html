@@ -26,10 +26,10 @@
           {{ end }}
         </div>
 
-        {{ if .Params.tags }}
+        {{ if .Params.categories }}
           <span class="post-tags">
-            {{ range .Params.tags }}
-              <a href="{{ (urlize (printf "tags/%s" . )) | absURL }}/">#{{ . }}</a>&nbsp;
+            {{ range .Params.categories }}
+              <a href="{{ (urlize (printf "categories/%s" . )) | absLangURL }}/">#{{ . }}</a>&nbsp;
             {{ end }}
           </span>
         {{ end }}
