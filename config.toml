@@ -9,7 +9,7 @@ paginate = 5
   # "light" or "dark"
   defaultTheme = "light"
   # if you set this to 0, only submenu trigger will be visible
-  showMenuItems = 2
+  showMenuItems = 4
   # Enable to show reading time in minutes for posts
   showReadingTime = true
   rssFullText = true
@@ -40,13 +40,22 @@ paginate = 5
 
     [languages.en.menu]
       [[languages.en.menu.main]]
+        identifier = "archive"
+        name = "Archive"
+        url = "/archive"
+      [[languages.en.menu.main]]
         identifier = "about"
         name = "About me"
         url = "/about"
       [[languages.en.menu.main]]
+        identifier = "subscribe"
+        name = "Subscribe"
+        url = "/subscribe"
+      [[languages.en.menu.main]]
         identifier = "change_lang"
         name = "Español"
         url = "/es"
+
         
   [languages.es]
       title = "blog de francisco yirá"
@@ -72,6 +81,10 @@ paginate = 5
       # alt = "Your example logo alt text"
   
       [languages.es.menu]
+        [[languages.es.menu.main]]
+          identifier = "archive"
+          name = "Archivo"
+          url = "/es/archive"
         [[languages.es.menu.main]]
           identifier = "About"
           name = "Acerca de"
