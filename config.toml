@@ -13,6 +13,11 @@ paginate = 5
   # Enable to show reading time in minutes for posts
   showReadingTime = true
   rssFullText = true
+  
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
 
 [languages]
   [languages.en]
@@ -50,7 +55,7 @@ paginate = 5
       [[languages.en.menu.main]]
         identifier = "subscribe"
         name = "Subscribe"
-        url = "https://buttondown.email/franciscoyira"
+        url = "/subscribe"
       [[languages.en.menu.main]]
         identifier = "change_lang"
         name = "Español"

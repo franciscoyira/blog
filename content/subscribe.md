@@ -16,6 +16,14 @@ Sign up to get my latest blog posts directly to your inbox.
   <input type="email" name="email" id="bd-email" />
   <input type="hidden" value="1" name="embed" />
   <input type="submit" value="Subscribe" />
+
+   <p>
+   <br />
+  <strong>Which content do you want to subscribe to?</strong><br>
+  <input type="radio" name="tag" value="data-science-only-en">Data science posts only<br>
+  <input type="radio" name="tag" value="all-posts-en" checked>All content (ocasional posts about consumer technology, productivity and other topics)<br />
+  </p>
+  
   <p>
     <a href="https://buttondown.email" target="_blank">Powered by Buttondown.</a>
   </p>
