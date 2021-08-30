@@ -1,0 +1,240 @@
+---
+title: 'Introduction to causal diagrams (DAGs)'
+author: Francisco Yira
+date: '2021-07-31'
+slug: [dags-causality-causal-inference-mixtape-cap-3]
+cover: "alice_in_wonderland.jpg"
+useRelativeCover: true
+categories:
+  - causal-inference
+  - books
+  - data-science
+tags:
+  - dags
+  - causal-inference-the-mixtape
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p><em>This article is the first in a series dedicated to the content of the book <a href="https://mixtape.scunning.com/">Causal Inference: The Mixtape</a>, in which I will try to summarize the main topics and methodologies exposed in the book.</em></p>
+<p>DAGs (Directed Acyclic Graphs) are a type of visualization that has multiple applications, one of which is the modeling of causal relationships.</p>
+<p>We can use DAGs to <em>represent the causal relationships that we believe exist between the variables of interest</em>. By drawing a diagram like this, we’re making explicit all the previous theoretical and empirical knowledge we have about a specific problem.</p>
+<p>Drawing a DAG is also helpful because it makes clearer how to isolate a causal effect within a set of more complex relationships.</p>
+<p>The flip side of the coin is that the DAG we draw will be only as good as our prior theoretical knowledge. If any of our beliefs about the problem nature and the relationships between the variables are false (e.g., we’re assuming some variable is exogenous when it depends on other variables), then the drawn DAG will only replicate this false belief in a different format.</p>
+<blockquote>
+<p>There is an underlying DAG behind every identification strategy, whether we like it or not.</p>
+</blockquote>
+<p>Whether we like it or not, <a href="(https://nickchk.com/causalgraphs.html)">there is an underlying DAG behind every identification strategy</a>. Even if we don’t represent it explicitly, there is always an implicit assumed DAG when we apply causal inference strategies such as Fixed Effects, Differences in differences, or Instrumental Variables.</p>
+<div class="figure">
+<img src="images/dags_examples.png" width="813" alt="" />
+<p class="caption"><em>Examples of causal DAGs applied to quasi-experimental methodologies. From top right in clockwise direction: Regression discontinuity design, Differences in differences, Instrumental Variables and Fixed Effects. Source: <a href="https://nickchk.com/causalgraphs.html">Causal Inference Animated Plots, nickhk.com</a>.</em></p>
+</div>
+<p>If the implicit assumed DAG is an appropriate representation of the true causal relationships, then the chosen identification strategy will be valid. So, given that the underlying DAG is so important, we’re better off by taking it out of the shadows and making it explicit. By doing so we will be making it easy (for ourselves and others) to judge the plausibility of our assumptions.</p>
+<div id="dag-notation" class="section level2">
+<h2>DAG Notation</h2>
+<p>A DAG has the following components:</p>
+<ul>
+<li><strong>Nodes</strong>. In the context of causal modeling these represent random variables produced from a given data-generating process.</li>
+<li><strong>One-way arrows or vectors</strong>, that connect the nodes and represent causal relationships between the variables.</li>
+<li><strong>Paths</strong>, sequences of adjacent nodes and vectors that connect non-adjacent nodes.</li>
+</ul>
+<div class="figure">
+<img src="images/simple_dag.png" width="400" alt="" />
+<p class="caption">Example of a DAG with 4 nodes. Source: <a href="https://towardsdatascience.com/beyond-a-b-testing-primer-on-causal-inference-d8e462d90a0b">Beyond A/B Testing: Primer on Causal Inference</a></p>
+</div>
+<p>In the figure above, X, Y, U, and Z are nodes or random variables. The arrows tell us about the following causal effects:</p>
+<ul>
+<li>X causes Y</li>
+<li>Y causes Z</li>
+<li>U causes Y</li>
+<li>U causes Z</li>
+</ul>
+<p>Also there are paths such as X→Y→Z and X→Y←U→Z<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+<p>Causal effects in a DAG can be direct (a vector that connects two nodes without intermediaries, e.g., Y→Z in the figure above) or indirect and mediated through one or more variables along a path (e.g., X→Y→Z). A path represents a mediated causal effect when all the arrows along it go in the same direction.</p>
+<p>A key characteristic of DAGs is that in them <strong>all the processes and effects always go forward in time</strong>, there are no cycles (an effect “coming back” to a variable that originated it). If we want to represent an inverse causality relationship, we can draw multiple nodes representing the same variable in different moments (for example, we can draw a node for the income of a person in period T and another for the income in T+1).<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a></p>
+<blockquote>
+<p>The absence of a vector connecting two nodes represents the belief that there are no direct causal relationships between those variables.</p>
+</blockquote>
+<p>The <strong>absence of a vector between two nodes</strong> it’s also an assumption about causal relationships. If two nodes are not directly connected, we’re saying that there are no direct causal relationships between those variables.</p>
+</div>
+<div id="backdoors" class="section level2">
+<h2>Backdoors</h2>
+<p>After looking at the fundamentals of DAGs, it’s time to learn about the <strong>backdoor paths</strong> and the <strong>backdoor criterion</strong>. The book’s chapter uses the following example DAG to explain these concepts:</p>
+<div class="figure">
+<img src="images/simple_dag-1.png" alt="" />
+<p class="caption"><em>DAG example for explaining backdoor paths and the backdoor criterion. Créditos: <a href="https://mixtape.scunning.com/dag.html#a-simple-dag">Causal Inference - The Mixtape</a>.</em></p>
+</div>
+<p>Here <strong>D</strong> is the variable of interest, <strong>Y</strong> is the outcome variable, and <strong>X</strong> represents a third variable that probably isn’t the focus of our analysis. Whoever has to deal with this DAG probably wants to know <strong>the causal effect of D on Y</strong>.</p>
+<p>This effect it’s represented by the path D→Y. But there is also a second path between D and Y: D←X→Y.</p>
+<p>This latter path is known as <strong>backdoor path</strong>. It’s called <em>backdoor</em> path because it goes from the variable of interest to the outcome variable <strong>bypassing our main path</strong> (D→Y). The existence of this backdoor path makes more difficult the life of whoever wants to know the causal effect of D on Y because it creates a spurious correlation between D and Y, generated by the relationships X→D and X→Y.</p>
+<p>In other words, there will be systematic and joint variation between D and Y generated by both the causal relationship D→Y (which is our relationship of interest) and the backdoor path D←X→Y (variability that is not of interest to us). The simple correlation between D and Y will be a combination of these two relationships, which will make it impossible to interpret such correlation as a causal effect of D on Y.</p>
+<p>Those who are familiar with regression analysis may as well interpret X in this DAG as a <strong>relevant omitted variable</strong>: a variable that determines both the independent variable (D) and the dependent one (Y), and whose exclusion will be a source of bias when estimating the coefficient of D on Y. In this case, the coefficient of D on Y will be “confounded” by the effects of X on D and Y. Because of that, variables like X are called <strong>confounders</strong>.</p>
+<p><strong>Las puertas traseras se pueden cerrar</strong> mediante condicionar o controlar por una variable ubicada a lo largo de ese camino. Condicionar o controlar por X puede implicar cosas como:</p>
+<p>The good news is that <strong>backdoor paths can be closed</strong> by conditioning on (or control by) a variable along that path. Conditioning on X can mean things like:</p>
+<ul>
+<li>Add X as an independent variable to the regression.</li>
+<li>Apply a matching technique using the values of X.</li>
+<li>Stratify the data according to the values of X and then obtain correlations between D and Y inside each stratum.</li>
+</ul>
+<p>In all these cases, we would be able to say that the backdoor path D←X→Y is closed.</p>
+<blockquote>
+<p>We can understand the attempt of identifying causal effects as a crusade for closing all the backdoor paths in a DAG</p>
+</blockquote>
+<p>Si todas las puertas traseras están cerradas, se puede afirmar que el DAG de nuestro análisis cumple con el <strong>backdoor criterion</strong>, y esto implica que podremos aislar el efecto causal de la variable de interés (D) sobre la variable de resultados (Y).</p>
+<p>If all the backdoor paths in our DAG are closed, we can say that our analysis meets the <strong>backdoor criterion</strong>. Meeting the backdoor criterion means that we can isolate the causal effect of the variable of interest on the outcome variable.</p>
+<div id="the-curse-of-the-unobservables" class="section level3">
+<h3>The curse of the unobservables</h3>
+<p>Given that a DAG should contain <em>all</em> the relationships we assume affect our variables of interest, it’s perfectly possible that some of these relationships involve variables not available in our data (a.k.a. <em>unobservables</em>).</p>
+<p>Our crusade for closing the backdoor paths may find an obstacle in these unobservable variables because we can’t condition on them. Therefore, a backdoor path containing an unobservable confounder can’t be closed using a conditioning strategy<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</p>
+</div>
+<div id="example-effect-of-college-education-on-income" class="section level3">
+<h3>Example: effect of college education on income</h3>
+<p>To exemplify the concepts we’ve already seen, let’s try to decode the information provided by the DAG below:</p>
+<div class="figure">
+<img src="images/dag_parent_education.png" width="400" alt="" />
+<p class="caption"><em>Source: <a href="https://mixtape.scunning.com/dag.html">Causal Inference - The Mixtape</a> (page 100)</em>.</p>
+</div>
+<p>This DAG shows us a set of hypotheses about the relationships between college education and income. The variables or nodes have the following meanings:</p>
+<ul>
+<li><strong>D</strong> is the treatment variable. In this case, the treatment is receiving or completing college education.</li>
+<li><strong>Y</strong> is the outcome variable: the person’s income (who may have received college education or not).</li>
+<li><strong>PE</strong> is the education of the person’s parents (PE = <em>Parents Education</em>).</li>
+<li><strong>I</strong> is the income of the person’s family.</li>
+<li><strong>B</strong> are unobserved background factors that may affect both person’s education and parents’ education (e.g. genetics, family environment, mental ability, and so on). B = <em>Background factors</em>.</li>
+</ul>
+<p>We can summarise the relationship between these variables (illustrated by the DAG) like this:
+college education affects the person’s income, but this outcome is also directly affected by their family’s income (for example, through money transfers or inheritances), and by unobserved factors (such as ability, that may cause someone to perform better in a job, regardless of their educational level).
+These unobserved factors may also influence the person’s decision to pursue a college education (for instance, in a family there may be more social pressure or expectations for a daughter/son to go to college).
+Some of these unobserved factors may even influence the parents’ educational level.</p>
+<p>This DAG also <em>proposes</em><a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a> that parents’ educational level affects the education level obtained by the person, both directly (PE→D), and indirectly (through the family income, which in turn affects the person’s college education: PE→I→D). This last idea can be intuitively explained as increased ease of access to college due to higher income.</p>
+<p>Moreover, this DAG helps us to introduce <strong>new notation</strong>:</p>
+<ul>
+<li>The <strong>dotted arrows</strong> represent relationships involving <em>unobservable</em> variables (in this case, relationships associated with <em>B</em>).</li>
+<li>When a variable is <strong>surrounded by a square</strong>, it means that we’re <strong>conditioning or controlling for</strong> that variable (in this example, we’re conditioning the family’s income, why? We’ll see it immediately).</li>
+</ul>
+<p>The relationship of interest here is <strong>the effect of college education on personal income (D→Y)</strong>.
+However, there’re several backdoors paths between those variables, so the simple correlation between D and Y most likely does not isolate this causal effect.</p>
+<p>The backdoors in this DAG are:</p>
+<ol style="list-style-type: decimal">
+<li>D←I→Y</li>
+<li>D←PE→I→Y</li>
+<li>D←B→PE→I→Y</li>
+<li>D←B→Y</li>
+</ol>
+<p>We can easily close the first three by conditioning on family income (I), which is an observable variable in this example.</p>
+<p>Unfortunately, <strong>the fourth backdoor can’t be closed</strong> (at least not with the information available until now) because B is an unobservable variable (or set of variables), and we don’t know anything about what kind of correlation it has with D and Y.</p>
+<p>Therefore, in this example, the backdoor criterion is not met, and we can’t give a causal interpretation to the correlation between D and Y (even after conditioning on I)</p>
+</div>
+</div>
+<div id="colliders" class="section level2">
+<h2>Colliders</h2>
+<p>There is another situation in which backdoors are closed: when there is a <strong>collider</strong> along the backdoor path.</p>
+<p>What exactly is a collider? Basically, it is a variable that has two arrows pointing <em>to</em> it (like this: X→Collider←Y) in a DAG path.
+It’s named like that because the causal effects of two other variables are <em>colliding</em> with each other.</p>
+<p>The existence of a collider in a path automatically closes that path without us having to do anything else. Cool, right?</p>
+<div class="figure">
+<img src="images/collider_simple.png" width="317" alt="" />
+<p class="caption"><em>Example of a DAG with a collider. Source: <a href="https://www.researchgate.net/figure/DAG-with-a-collider-E-exposure-O-outcome-and-C-collider-For-example-in-the_fig2_339986743">researchgate.net</a>.</em></p>
+</div>
+<p>For example, in the image above the collider C closes the backdoor E→C←O.
+Therefore, the observed correlation between E and O represents the causal effect E→O (since there are no open backdoors between E and O).</p>
+<p>The problem with colliders is that when we condition on them, <strong>a backdoor that was closed opens up again</strong>. That’s why it’s critical for any identification strategy to differentiate between colliders and confounders, and condition on the latter but not on the former.</p>
+<p>This is a break from the habit that exists in some disciplines of adding as many covariates as possible to regressions. The DAG-based modelling proposes something different:</p>
+<ol style="list-style-type: decimal">
+<li>Carefully draw a DAG representing all the known causal relationships involved in the phenomenon of interest, using all the institutional and theoretical knowledge available (e.g., literature review, conversations with stakeholders or business experts, etc.)</li>
+<li>List all the paths connecting the treatment variable (usually named <em>D</em>) with the outcome variable (usually named <em>Y</em>).</li>
+<li>Of these paths, one will represent the causal relationship of interest (e.g. D→Y), and the others will be backdoors. <a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a></li>
+<li>Identify which backdoors paths are closed due to colliders (and “leave them alone”) and which we must close ourselves by conditioning on confounders along those paths.</li>
+</ol>
+<div id="example-of-collider-bias-beaty-and-talent-in-movie-stars" class="section level3">
+<h3>Example of collider bias: beaty and talent in movie stars</h3>
+<p>The idea that colliders close backdoors and that, when conditioning on them, backdoors reopen is not very intuitive.
+Because of that, I will cover an additional example regarding collider bias included in the book’s chapter.</p>
+<p>Some people have the hypothesis that beauty and talent for acting are inversely correlated.
+This idea comes from cases of actors and actresses who, according to the public, are very attractive but have little talent<a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a>.
+However, a possible explanation for this correlation is that beauty and talent are not correlated in the general population, but only in the sub-sample of actors and actresses, due to <em>collider bias</em>.</p>
+<p>The following DAG represents the previous hypothesis:</p>
+<div class="figure">
+<img src="images/moviestar-dag-1.png" width="400" alt="" />
+<p class="caption"><em>Source: <a href="https://mixtape.scunning.com/dag.html#sample-selection-and-collider-bias">Causal Inference - The Mixtape</a>. Page 110.</em></p>
+</div>
+<p>According to this DAG, Talent and Beauty are independent variables, which, separately, increase the likelihood of someone being a movie star. In this case, <em>being a movie star is a collider along the path</em> between Talent and Beauty.</p>
+<p>By analyzing a dataset which only contains cases of movie stars (and leaving out all the population who doesn’t belong to this group) we’re actually <strong>conditioning on the collider <em>Movie Star</em></strong>.
+This generates a spurious correlation between Talent and Beauty in the analyzed data<a href="#fn7" class="footnote-ref" id="fnref7"><sup>7</sup></a>.</p>
+<p>We can see the idea above more clearly in the following visualization with simulated data:</p>
+<pre class="r"><code>library(tidyverse)
+library(patchwork)
+set.seed(1989)
+
+movie_stars &lt;- 
+  tibble(
+    # We generate a sample of 2500 observations where beauty and talent are
+    # normally distributed and independent
+    beauty = rnorm(2500),
+    talent = rnorm(2500),
+    # The likelihood of being a movie star depends on a linear combination of
+    # talent and beauty
+    score = beauty + talent,
+    # Only the people in the top 15% of the score distribution are movie stars
+    c85 = quantile(score, .85),
+    star = ifelse(score &gt;= c85, &quot;Yes&quot;, &quot;No&quot;))
+
+plot_global &lt;- 
+  ggplot(movie_stars,
+       aes(beauty, talent)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = &quot;lm&quot;,
+              color = &quot;grey20&quot;) +
+  annotate(geom = &quot;label&quot;,
+           x = -2,
+           y = -0.6,
+           label = &quot;There is no correlation\nbetween Beauty and Talent in\nthe total sample&quot;,
+           size = 2.8,
+           color = &quot;grey20&quot;) +
+  theme_minimal()
+
+plot_colliders &lt;- 
+  ggplot(movie_stars,
+       aes(beauty, talent, color = star)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = &quot;lm&quot;, se = FALSE, show.legend = FALSE) +
+  annotate(geom = &quot;label&quot;,
+           x = 2,
+           y = 2.5,
+           label = &quot;There is (spurious) correlation\nbetween Beauty and Talent in\nthe movie stars sub-sample&quot;,
+           size = 2.8,
+           color = &quot;#008D91&quot;) +
+  theme_minimal() +
+  labs(color = &quot;Is Movie Star?&quot;) +
+  guides(color = guide_legend(override.aes = list(alpha=1)))
+  
+# Combining both plots with {patchwork}
+(plot_global / plot_colliders) +
+  plot_annotation(
+    title = &quot;Collider bias&quot;,
+       subtitle = str_wrap(&quot;Being a Movie Star is a collider in the relationship between Talent and Beauty. By conditioning on being a Movie Star, we&#39;re creating a spurious correlation between both variables.&quot;)
+  )</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/plot-colliders-1.png" width="100%" /></p>
+</div>
+</div>
+<div id="summary" class="section level2">
+<h2>Summary</h2>
+<p><img src="images/cheat_sheet_dags_en.png" title="DAGs Cheat sheet" /></p>
+<p><em>For more information, I recommend reading <a href="https://mixtape.scunning.com/dag.html">the original DAGs chapter in Causal Inference: The Mixtape</a>, from which I made this summary.</em></p>
+<p><em>Your feedback is welcome! You can send me comments about this article by <a href="mailto:francisco.yira@outlook.com">e-mail</a>.</em></p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>The nature of these paths is different for reasons to be explained later on in this post. For now, it suffices to recognize them all as <em>paths</em>.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>Simultaneity relationships (e.g., those in a supply and demand model) are more complex to express in DAG format, and the book’s chapter doesn’t cover them.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p><a href="https://www.youtube.com/watch?v=0IywjWWlxF8">Everything’s not lost</a> in this case: depending on the context (given by the DAG), there could be other observable variables that allow us to close the backdoor path. For example, if we have <em>individual ability</em> as an unobservable confounder, but we know (or we can reasonably assume) that it’s constant in time for each individual, then a set of variables identifying each individual (i.e. dummy or binary variables) can close a backdoor path containing ability. Methodologies such as this made most of the book, and I will be explaining them in future posts.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>I emphasize the word <em>proposes</em> because all these relationships are just that, posits or assumptions, which ideally should represent the “state of the art” of the research in this topic, but they could well be objected to or even be simply wrong.
+Expressing these assumptions in DAG format doesn’t make them more valid, but it does make them explicit, making it easier to discuss them and making ourselves more aware that we’re basing our analysis on such assumptions.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="fn5"><p>#Actually we may be interested in several causal paths, particularly in the case where the effect of D on Y happens through several transmission channels on which there are no confounders.
+Depending on the research question, the correlation between D and Y generated by these secondary causal paths may or may not be of interest. This subject is not covered in depth in the book’s chapter and could be a topic for another blog post.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn6"><p>The example shown in the book for this idea was Megan Fox, an actress from Transformers <a href="https://marquee.blogs.cnn.com/2009/12/30/megan-fox-voted-worst-but-sexiest-actress-of-2009/">who was chosen in a 2009 poll</a> as the worst <em>and</em> most attractive actress.<a href="#fnref6" class="footnote-back">↩︎</a></p></li>
+<li id="fn7"><p>Another interesting feature of this example: it shows that covariate conditioning (including the problematic conditioning on colliders) can be embedded in the “raw” data itself, even before doing any data manipulation, due to selection bias in the way the data was collected.<a href="#fnref7" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
