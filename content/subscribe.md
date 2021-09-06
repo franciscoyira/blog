@@ -17,9 +17,9 @@ Sign up to get my latest blog posts directly to your inbox.
 <br>
 
 <div class="mc-field-group input-group">
-    <strong>Which content do you want to subscribe to? </strong>
-    <br><input type="radio" value="Data science posts only" name="CHANNEL" id="mce-CHANNEL-0"><label for="mce-CHANNEL-0">Data science posts only</label>
-<br><input type="radio" value="All content (ocasional posts about consumer technology, productivity and other topics)" name="CHANNEL" id="mce-CHANNEL-1" checked><label for="mce-CHANNEL-1">All content (ocasional posts about consumer technology, productivity and other topics)</label>
+    <strong>Which content do you want to subscribe to?</strong>
+    <br><input type="radio" value="1" name="group[30037]" id="mce-group[30037]-30037-0"><label for="mce-group[30037]-30037-0">Data science only</label>
+<br><input type="radio" value="2" name="group[30037]" id="mce-group[30037]-30037-1"><label for="mce-group[30037]-30037-1">All content (ocasional posts about consumer technology, productivity and other topics)</label>
 </div></br>
 	<div id="mce-responses" class="clear">
 		<div class="response" id="mce-error-response" style="display:none"></div>
