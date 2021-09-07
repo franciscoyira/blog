@@ -9,7 +9,7 @@ editor_options:
 
 <img src="/about.es_files/myself.jpg" class="portrait" align="right" width="20%"/>
 
-¡Hola! Soy Francisco Yirá Albornoz, economista, nacido en 1991. Inicié
+¡Hola! Soy Francisco Yirá Albornoz, economista y data scientist. Inicié
 mi carrera profesional con una pasantía en Oracle en 2016. Desde 2017 he
 trabajado en roles de análisis y ciencia de datos en áreas de Marketing
 de empresas como [Walmart
@@ -39,6 +39,8 @@ aprendizaje en Data Science con quien le pueda ser de interés (aunque
 muy ocasionalmente publicaré artículos sobre otros temas relevantes para
 mi).
 
+## Contáctame
+
 Si tienes cualquier comentario o feedback, siéntete libre de contactarme
 por alguno de los siguientes canales (o simplemente agregarme para estar
 en contacto).
@@ -55,3 +57,6 @@ en contacto).
 -   🐙GitHub:
     [franciscoyira](https://github.com/franciscoyira "Mi perfil de GitHub")
 
+Si lo deseas también puedes
+[suscribirte](https://www.franciscoyira.com/es/subscribe/) para recibir
+por correo los nuevos artículos que publique.
