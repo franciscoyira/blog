@@ -41,3 +41,11 @@ Si no puedes ver el formulario de registro, [puedes suscribirte desde acá](http
 * Tu correo NO será compartido con nadie más.
 * Solo recibirás el contenido al que te estás suscribiendo.
 * Puedes desuscribirte o cambiar tus preferencias en cualquier momento.
+
+## Subscribirse via RSS
+
+También puedes suscribirte mediante RSS usando los siguientes feeds:
+
+-   📰 [Todo el contenido](https://www.franciscoyira.com/es/post/index.xml)
+
+-   📰 [Sólo Data Science](https://www.franciscoyira.com/es/categories/data-science/index.xml)
