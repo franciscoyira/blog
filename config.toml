@@ -95,6 +95,10 @@ paginate = 5
           name = "Acerca de"
           url = "/es/about"
         [[languages.es.menu.main]]
+          identifier = "subscribe"
+          name = "Suscribirse"
+          url = "/es/subscribe"
+        [[languages.es.menu.main]]
           identifier = "change_lang"
           name = "English"
           url = "/"
