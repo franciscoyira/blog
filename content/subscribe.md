@@ -24,8 +24,7 @@ Sign up to get my latest blog posts directly to your inbox.
 	<div id="mce-responses" class="clear">
 		<div class="response" id="mce-error-response" style="display:none"></div>
 		<div class="response" id="mce-success-response" style="display:none"></div>
-			<input type="checkbox" value="4" name="group[30041][4]" id="mce-group[30041]-30041-0" style="display:none" checked><label for="mce-group[30041]-30041-0" style="display:none">English</label>
-	</div>    <!-- real people should not fill this in and expect good things - do not remove this or risk form bot signups-->
+		<!-- real people should not fill this in and expect good things - do not remove this or risk form bot signups-->
     <div style="position: absolute; left: -5000px;" aria-hidden="true"><input type="text" name="b_88de9b935b8985cfde91ed5fa_190d593590" tabindex="-1" value=""></div>
 <div class="clear"><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" style="height:27px; width:100px; font-size:16px"></div>
     </div>
