@@ -195,7 +195,7 @@ According to this DAG, Talent and Beauty are independent variables, which, separ
 By analyzing a dataset which only contains cases of movie stars (and leaving out all the population who doesn't belong to this group) we're actually **conditioning on the collider _Movie Star_**.
 This generates a spurious correlation between Talent and Beauty in the analyzed data[^7].
 
-[^7]: Another interesting feature of this example: it shows that covariate conditioning (including the problematic conditioning on colliders) can be embedded in the "raw" data itself, even before doing any data manipulation, due to selection bias in the way the data was collected.
+[^7]: Another interesting feature of this example: it shows that covariate conditioning (including the problematic conditioning on colliders) can be embedded in the raw data itself, even before doing any data manipulation, due to selection bias in the way the data was collected.
 
 We can see the idea above more clearly in the following visualization with simulated data: 
 
