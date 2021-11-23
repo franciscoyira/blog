@@ -1,0 +1,376 @@
+---
+title: Formas de agregar un newsletter a tu sitio web blogdown
+author: Francisco Yirá
+date: '2021-11-11'
+slug: newsletters-blogdown
+cover: "images/cover_newsletter.jpg"
+useRelativeCover: true
+categories:
+  - data-science
+  - rmarkdown
+  - tutorial
+tags:
+  - blogdown
+  - mailchimp
+  - buttondown
+  - newsletter
+---
+
+<script src="{{< blogdown/postref >}}index.es_files/header-attrs/header-attrs.js"></script>
+
+
+<p>Este post es un poco <em>meta</em> (al hablar en el blog sobre algo del mismo blog), pero lo escribí porque al buscar tutoriales sobre cómo implementar mi propio newsletter encontré muy poco materia: tuve que averiguar cómo hacerlo mediante prueba y error, y adaptando instrucciones no pensadas para <code>hugo</code>/<code>blogdown</code>.</p>
+<p>Me gustaría que quienes están buscando lograr lo mismo tengan las cosas más fáciles, y para ello explico aquí, paso a paso, <strong>3 formas distintas de implementar un newsletter en un sitio <code>blogdown</code></strong>.</p>
+<p>Estas 3 formas de implementar un newsletter difieren en <strong>nivel de dificultad</strong>, y en qué tanta <strong>automatización y personalización</strong> permiten en el resultado final.</p>
+<p>Debido a que es un tutorial paso a paso, el artículo es bastante largo. Mi recomendación es NO leerlo completo, sino que decidir primero cuál de los 3 métodos se ajusta más a lo que buscas, y luego ir directo a la sección donde se explica ese método.</p>
+<p>Estos 3 métodos son:</p>
+<ol style="list-style-type: decimal">
+<li><a href="#método-1-newsletter-manual-con-buttondown">Método 1: newsletter manual con Buttondown</a>. Con este método cada vez que publiquemos un nuevo post tendremos que escribir manualmente el texto de un correo anunciando el artículo, invitando a los suscriptores a hacer clic en un enlace y leerlo.</li>
+<li><a href="#método-2-newsletter-automatizado-con-mailchimp-sin-segmentación">Método 2: newsletter automatizado con MailChimp, sin segmentación</a>. Con este método usaremos el feed RSS del blog para crear una automatización en MailChimp, la cual enviará un correo a todos los suscriptores cada vez que se publique un nuevo artículo.</li>
+<li><a href="#método-3-newsletter-automatizado-y-segmentado-con-mailchimp">Método 3: newsletter automatizado y segmentado con MailChimp</a>. Similar al método 2, pero con la sofisticación de que los suscriptores pueden auto-seleccionarse en distintas listas de distribución por tema o idioma (por ej, elegir recibir sólo posts de Data Science en inglés). Requiere crear una automatización por cada lista de distribución segmentada, identificar feeds RSS específicos para cada tema, y hacer ajustes en el gestor de audiencias de MailChimp, por lo que es más complejo que el método 2.</li>
+</ol>
+<p>Abajo pueden un ver un cuadro resumen con las ventajas y desventajas de estos 3 métodos.</p>
+<p><img src="images/summary__3ways_es.png" /></p>
+<p>Los 3 métodos ofrecen formularios de suscripción para que los lectores se den de alta en el newsletter, así que no hay mucha diferencia entre ellos en este plano.</p>
+<p>Además, notar que <strong>el método 1, el más simple, sí permite tener segmentación de suscriptores</strong> (algo que el método 2 no tiene). La trampa aquí es que se trata de una segmentación <em>manual</em>, en el sentido de que tendremos que escribir a mano los correos personalizados para cada segmento (no se enviarán automáticamente a medida que publiquemos contenido en el blog).</p>
+<p>Finalmente (antes de partir con los tutoriales en sí) añadir un par de consideraciones:</p>
+<ul>
+<li><p>En <code>blogdown</code> existen muchos casos particulares debido a que los distintos temas de <code>hugo</code> tienen diferentes características/funcionalidades, y puede que en algunos temas los pasos mostrados acá requieran de cierta adaptación. Pero en la mayoría de los casos todo debería funcionar de forma muy parecida (🤞🏼).</p></li>
+<li><p>El post no se llama “<em>Todas</em> las formas de agregar un newsletter…”. Si buscan en la web probablemente encontrarán muchos otros servicios de newsletter que también podrían integrarse con <code>blogdown</code> con algo de esfuerzo, y quizás algunos de ellos sean más sencillos o más potentes que los mostrados acá. <strong>Mi intención no es hacer una revisión exhaustiva de todos los métodos existentes para hacer un newsletter</strong> (eso sería un e-book, no un blogpost) sino que simplemente compartir con la comunidad los 3 métodos que encontré yo, con la idea de facilitar las cosas a quienes deseen hacer algo parecido.</p></li>
+<li><p>El artículo no asume conocimiento previo sobre Buttondown o MailChimp, pero sí asume que tienes un buen manejo de <code>blogdown</code>, es decir, que sabes como crear y personalizar un sitio web mediante ese paquete. Si ese no es tu caso, puedes encontrar una muy buena introducción al tema en el libro <a href="https://bookdown.org/yihui/blogdown/"><em>blogdown: Creating Websites with R Markdown</em></a>.</p></li>
+<li><p>Es un artículo “opinionado”. Cuando me propuse implementar un newsletter tenía una idea muy clara de lo que quería lograr, y por ende los métodos que encontré y que estoy compartiendo ahora están “sesgados” en esa dirección.</p></li>
+</ul>
+<p>Y ya sin más que agregar, paso a mostrarles los tutoriales de cada uno de los métodos.</p>
+<div id="método-1-newsletter-manual-con-buttondown" class="section level2">
+<h2>Método 1: newsletter manual con Buttondown</h2>
+<p>Si tienes un sitio en <code>blogdown</code> a modo de side-project y publicas ahí sólo ocasionalmente (una vez al mes o menos), tal vez no sea tan necesario tener un newsletter automatizado y puedes darte el lujo de anunciar tus nuevos posts de forma manual: escribiendo a mano correos invitando a leer cada nuevo artículo y enviándolos a una lista de distribución de personas suscritas.</p>
+<p>Si un newsletter de este tipo te suena bien, entonces quizás <a href="https://buttondown.email/">Buttondown</a>, un servicio sencillo y fácil de configurar, sea la opción correcta para ti.</p>
+<p>A continuación explico el paso a paso de como usarlo:</p>
+<div id="paso-a-paso" class="section level3">
+<h3>Paso a paso</h3>
+<div id="paso-1-crear-la-cuenta-y-el-newsletter" class="section level4">
+<h4>Paso 1: Crear la cuenta y el newsletter</h4>
+<p>Puedes crearte una cuenta de Buttondown desde <a href="https://buttondown.email/login">aquí</a>. Luego de hacerlo serás redirigido de inmediato a una página donde configurar el newsletter, indicando el título, descripción, y otras opciones (por ejemplo, si tener un archivo o un feed RSS para los correos enviados previadamente)<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+<div class="figure">
+<img src="images/buttondown_setup.png" width="650" alt="" />
+<p class="caption">Así es la página de configuración del newsletter en Buttondown. Esta aparecerá justo después de crear tu cuenta.</p>
+</div>
+<p>Finalmente, en esta página es posible importar suscriptores en formato CSV, algo útil si estás migrando un newsletter desde otra plataforma, o si ya tienes una lista de personas que desean suscribirse.</p>
+<p><img src="images/import_subscribers_buttondown.png" title="Importar suscriptores en Buttondown" width="450" /></p>
+</div>
+<div id="paso-2-implementar-el-formulario-de-suscripción" class="section level4">
+<h4>Paso 2: Implementar el formulario de suscripción</h4>
+<p>Una vez creada la cuenta y configurado el newsletter es necesario habilitar un mecanismo para que las personas se suscriban. En Buttondown esto se puede hacer en <a href="https://buttondown.email/share">la sección “Embedding &amp; sharing”</a> del Menú principal.</p>
+<p><img src="images/embed_share_buttondown.png" title="Embedding and sharing en Buttondown" width="450" /></p>
+<p>Desde aquí puedes elegir entre varios tipos de formularios de suscripción:</p>
+<ul>
+<li><p><strong>Formulario en Buttondown.email</strong>, con una URL única que puedes compartir o linkear desde tu blog (<a href="https://buttondown.email/franciscoyira">aquí un ejemplo</a>). Esta es la opción más fácil: solo hay que tomar la URL y crear un link desde algún lugar visible en tu blog (por ej., la barra de navegación).</p></li>
+<li><p><strong>Formularios HTML/iFrame que puedes incrustar dentro de tu propio blog</strong>, así no es necesario que lectores vayan hacia una URL externa para suscribirse. Si vas por esta opción, recomendaría escoger el formulario <strong>HTML</strong> (sección <em>“Share as a form”</em> dentro de Buttondown) y no el iFrame. Para implementarlo hay que copiar el código que sale ahí, y pegarlo en un archivo <code>.md</code> dentro de la carpeta con las páginas de tu blog (usualmente es la carpeta <code>~/content</code>).</p></li>
+</ul>
+<p><a href="images/html_form_buttondown.png"><img src="images/html_form_buttondown.png" title="Código a copiar para tener formulario de suscripción incrustado con Buttondown. Clic para ver la imagen a tamaño completo." width="750" /></a></p>
+<p>Luego hay que hacer que la página con el formulario sea accesible desde la navegación del blog, linkeandola desde la barra de navegación o algún otro lugar visible.</p>
+<p>Aquí recomendaría nombrar <code>subscribe.md</code> o <code>suscribirse.md</code> a la página con el formulario. Así dicha página será accesible desde una URL como <code>baseURL/subscribe</code> (donde <code>baseURL</code> es la URL que nos lleva a la página de inicio del blog), la cual es fácil de compartir o agregar a la barra navegación.</p>
+<p>Un detalle importante respecto a los formularios HTML es que <strong>a veces no cargan, debido a una restricción del motor de renderizado de <code>hugo</code></strong>. Si te encuentras con este problema, puedes solucionarlo agregando esta porción de código al final del archivo <code>config.toml</code> de tu sitio <code>blogdown</code>.</p>
+<pre eval="FALSE"><code>[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true</code></pre>
+</div>
+<div id="paso-3-listo-a-enviar-correos-manualmente" class="section level4">
+<h4>Paso 3: ¡Listo! A enviar correos (manualmente)</h4>
+<p>Teniendo ya el newsletter configurado y una lista de suscriptores cargada, puedes empezar de inmediato a <strong>enviar boletines con los nuevos posts de tu blog</strong>. Para esto hay que ir al Menú -&gt; opción <em>“Write”</em> (o directamente a <a href="buttondown.email/emails">buttondown.email/emails</a>) y escribir y enviar el boletín desde ahí. Incluso es posible programar el envío para un momento posterior.</p>
+<p><img src="images/escribir_correo_buttondown.png" title="Sección de redactar newsletters en Buttondown" width="750" /></p>
+</div>
+<div id="bonus-habilitar-tags-o-listas-de-suscriptores" class="section level4">
+<h4>Bonus: Habilitar tags o listas de suscriptores</h4>
+<p>Una funcionalidad interesante que ofrece Buttondown es la de segmentar la audiencia mediante <em>tags</em>. Esto es, agregar <em>etiquetas</em> a cada suscriptor para después enviar ciertos boletines sólo a quienes poseen una determinada etiqueta.</p>
+<p><img src="images/tags_idioma_buttondown.png" title="Usando tags para tener newsletter multilingue en buttondown" width="750" /></p>
+<p>Un posible uso de esto es tener un <strong>newsletter multilingue</strong>, clasificando a los suscriptores según su idioma de preferencia y luego enviando distintos correos a cada uno en el idioma correspondiente.</p>
+<p>Mejor todavía, se pueden crear distintos formularios de suscripción de forma tal que los tags se apliquen de forma automática según el formulario utilizado. Para lograr esto solo hay que crear los tags y luego regresar al paso 2, donde ahora aparecerá una opción para elegir el tag asociado al formulario que estamos creando.</p>
+<p>Esto último funciona muy bien al combinarse con <a href="https://www.rstudio.com/resources/rstudioglobal-2021/an-easy-and-friendly-way-to-build-your-multilingual-website/">la funcionalidad multilingue de <code>hugo</code> y <code>blogdown</code></a>, permitiendo tener una página de suscripción distinta para cada idioma del sitio (por ejemplo, en mi blog tengo el formulario <a href="franciscoyira.com/subscribe">franciscoyira.com/subscribe</a> en inglés y <a href="franciscoyira.com/es/subscribe">franciscoyira.com/es/subscribe</a> en español).</p>
+</div>
+</div>
+<div id="limitaciones-de-buttondown" class="section level3">
+<h3>Limitaciones de Buttondown</h3>
+<p>Un argumento en contra de usar Buttondown es que <strong>hace difícil o casi imposible tener newsletters automatizados con el contenido completo de los artículos</strong>: al usar este servicio estamos “condenados” a escribir manualmente un correo cada vez que queramos anunciar un nuevo post.</p>
+<p>Para lograr envíos automatizados en Buttondown es necesario conectarse con Zapier (servicio externo, que en muchas circunstancias termina siendo de pago), y cuando intenté hacerlo, el correo automatizado que se generó no estaba bien formateado ni incluía imágenes.</p>
+<p>Quizás investigando un poco más sea posible corregir estos problemas, pero si ya te decidiste a tener un newsletter automatizado creo que <strong>MailChimp es mejor opción en ese caso</strong>, y por eso es el servicio que utilizaremos en el método 2.</p>
+</div>
+</div>
+<div id="método-2-newsletter-automatizado-con-mailchimp-sin-segmentación" class="section level2">
+<h2>Método 2: newsletter automatizado con MailChimp, sin segmentación</h2>
+<p>Ahora veremos cómo implementar en MailChimp un newsletter que notifique automáticamente a tus suscriptores cada vez que publiques un nuevo blogpost, sin necesidad de escribir correos manualmente.</p>
+<p>Debido a que MailChimp es más complejo de usar que Buttondown, intentaré mantener esta sección fácil de seguir enfocándome primero en el caso más básico: <strong>una única lista de distribución con todos los artículos del blog</strong>. Posteriormente (en el método 3) cubriré el caso de listas de distribución segmentadas (análogas a los tags de Buttondown) para enviar artículos de distintos idiomas o temas según las preferencias de tu audiencia.</p>
+<p>Otra consideración con MailChimp es que <strong>el contenido del newsletter estará determinado por el <a href="https://es.wikipedia.org/wiki/RSS">feed RSS</a> de tu blog</strong>. Si tu blog dispone de feeds RSS con contenido completo, entonces los suscriptores recibirán los posts completos en cada correo. Si no, los correos mostrarán solo un fragmento con el comienzo de cada artículo, y los suscriptores tendrán que ir al blog para leer el resto<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.</p>
+<div id="paso-a-paso-1" class="section level3">
+<h3>Paso a paso</h3>
+<div id="paso-1-registrarse-en-mailchimp-y-dar-una-dirección-física" class="section level4">
+<h4>Paso 1: Registrarse en MailChimp (y dar una dirección física)</h4>
+<p>Al igual que con Buttondown, el primer paso para usar MailChimp es <a href="https://login.mailchimp.com/signup/">crear una cuenta</a>. Sin embargo, aquí aparece una consideración adicional: a causa del carácter más “profesional” de este servicio <strong>se nos solicita registrar una dirección física</strong>, debido a leyes anti-spam internacionales que obligan a dar tal información a quienes envíen correos masivos.</p>
+<p>Esta dirección luego aparecerá por defecto al pie de los correos enviados y en algunos formularios del flujo de suscripción (por ejemplo, cuando un suscriptor cambia sus preferencias). Es posible <a href="https://www.denisejoanne.com/remove-address-from-mailchimp-footer-confirmation/">ocultarla en algunos lugares</a>, pero no en todos, por lo que siempre habrá páginas públicas que muestren la dirección registrada.</p>
+<p><strong>¿Qué hacer aquí?</strong> Es natural que nos cause incomodidad publicar un dato así de sensible, pero si no ingresamos nada en ese campo, MailChimp simplemente no nos deja seguir.</p>
+<p>Las <a href="https://eepurl.com/dyikOT">recomendaciones oficiales de MailChimp</a> para evitar dar la dirección de nuestro hogar son las siguientes:</p>
+<ul>
+<li><p>Dar la dirección de una universidad, en caso de ser estudiantes o estar afiliados a una institución académica.</p></li>
+<li><p>Dar la dirección de nuestro lugar de trabajo o de un espacio de <em>cowork</em>.</p></li>
+<li><p>Contratar una casilla postal y usar esa dirección como información de contacto.</p></li>
+</ul>
+<p>En general, <strong>cualquier dirección donde podamos recibir y recoger correo físico será una opción válida</strong> que cumplirá con la legislación anti-spam.</p>
+<p>Además de la disyuntiva de la dirección física, al registrarnos en MailChimp también debemos escoger el plan a contratar (aquí el gratuito debería ser suficiente si la lista de suscripción es pequeña), y un “Nombre del negocio”, que debería ser el nombre de nuestro sitio web o blog.</p>
+<div class="figure">
+<img src="images/planes_mailchimp.png" alt="" />
+<p class="caption"><em>Los planes que ofrece MailChimp. Si recién estamos empezando nuestro newsletter, el plan gratuito debería ser suficiente.</em></p>
+</div>
+<p>Finalmente (e igual que en Buttondown), se muestra una opción para importar direcciones de correo, útil si es que estamos migrando un newsletter existente. En caso contrario se puede omitir.</p>
+<p>Y listo, con eso finaliza el registro y podemos avanzar al paso 2.</p>
+</div>
+<div id="paso-2-obtener-la-url-del-feed-rss-del-blog" class="section level4">
+<h4>Paso 2: Obtener la URL del feed RSS del blog</h4>
+<p>Para poder enviar los posts de forma automática a tus suscriptores es necesario contar con un feed RSS que se actualice cada vez que se publica un nuevo artículo.</p>
+<p>La mayoría de los templates de <code>hugo</code> usados para <code>blogdown</code> entregan soporte nativo para RSS, disponibilizando un feed con los blogposts en una URL de este tipo:</p>
+<p><code>baseURL/post/index.xml</code></p>
+<p>Donde <code>baseURL</code> corresponde a la URL que nos lleva a la página principal del blog, y <code>post</code> es el nombre de la carpeta que contiene los artículos en el repositorio del blog, y usualmente ubicada dentro de <a href="https://bookdown.org/yihui/blogdown/content.html"><code>~/content</code></a>. Por ejemplo, en este blog la <code>baseURL</code> es <code>franciscoyira.com/es</code> y el feed con los posts es <code>franciscoyira.com/es/post/index.xml</code>.</p>
+<p>En otros templates de blogdown esta carpeta puede tener otro nombre, pero el rasgo distintivo que permite identificarla es que <strong>dentro de ella se guardan los artículos del blog</strong> (archivos en formato <code>.Rmd</code>, <code>.Rmarkdown</code> o <code>.md</code>). A veces el nombre de esta carpeta está especificado en un archivo <code>config.toml</code> en el directorio raíz del repositorio<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</p>
+<div class="figure">
+<img src="images/feed_the_rss_aggregator.png" alt="" />
+<p class="caption"><em>Feed RSS de mi blog previsualizado con The RSS Aggregator</em></p>
+</div>
+<p>Una vez obtenida la URL del feed RSS puede ser buena idea <strong>previsualizarla</strong> para así validar su contenido. Para ello se pueden usar opciones como estas:</p>
+<ul>
+<li><p><a href="https://codebeautify.org/rssviewer">RSS Viewer</a>: una herramienta web en la cual se ingresa la URL del feed y se obtiene una vista HTML de este.</p></li>
+<li><p><a href="https://chrome.google.com/webstore/detail/the-rss-aggregator/ffhafkagcdhnhamiaecajogjcfgienom">The RSS Aggregator</a>: un lector RSS disponible como extensión para Chrome y Edge (Chromium). Al instalarlo podremos visualizar los feeds RSS directamente en el navegador.</p></li>
+<li><p><a href="https://feedly.com/">Feedly</a>: un lector RSS disponible como servicio web. Es muy completo y popular pero requiere crear una cuenta.</p></li>
+</ul>
+</div>
+<div id="paso-3-crear-el-newsletter-automatizado-a-partir-del-feed-rss" class="section level4">
+<h4>Paso 3: Crear el newsletter automatizado a partir del feed RSS</h4>
+<p>Ya con la URL del feed RSS en mano, procedemos a crear la automatización de MailChimp para enviar un correo cada vez que se publique un nuevo artículo.</p>
+<p>Para ello hay que ir a <a href="https://mailchimp.com/features/rss-to-email/">esta página</a> y hacer clic en el botón <strong>“Turn On RSS-to-Email”</strong>.</p>
+<p><img src="images/turn_on_rss_to_email.png" /></p>
+<p>Luego aparecerá una vista como esta, donde se le debe asignar un nombre a la “campaña” (<strong><em>“Campaign Name”</em></strong>). Este nombre es interno y tiene como fin distinguir este envío recurrente de otros envíos (manuales o automatizados) que implementemos en el futuro.</p>
+<p><img src="images/share_blog_updates.png" /></p>
+<p>Presionamos “Begin”, y en la siguiente página hay que <strong>ingresar la famosa URL del feed RSS</strong> obtenida en el paso anterior. Además, se puede configurar a qué hora se enviarán los correos automatizados<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>. Si todo está OK, hay que presionar <strong>“Next”</strong> en la esquina inferior derecha.</p>
+<p><img src="images/step1_newsletter_general.png" /></p>
+<p>En la siguiente pantalla hay que <strong>seleccionar la audiencia a la que le llegará el newsletter</strong>. Aquí dejaremos el valor por defecto (<em>“Entire audience”</em>) ya que estamos creando un newsletter único (no segmentado) para todos los suscriptores<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>.</p>
+<p><img src="images/step_select_audience.png" /></p>
+<p>Luego de presionar <strong>“Next”</strong> aparecerá la sección de “Información de campaña”, donde se pueden personalizar otros parámetros del newsletter.</p>
+<p><img src="images/campaign_info_es.png" /></p>
+<p>El primer campo (<strong><em>“Campaign name”</em></strong>) corresponde al mismo “nombre de campaña” que ingresamos en la primera parte del asistente, y que es solo de uso interno.</p>
+<p>El segundo campo (<strong><em>“Email subject”</em></strong>) sí es relevante para los suscriptores: es el <strong>título o asunto de los correos que recibirán</strong>. Aquí es posible usar los llamados <a href="https://mailchimp.com/help/rss-merge-tags/">“<em>merge tags</em>” de MailChimp</a>: variables que son reemplazadas por atributos provenientes desde el feed RSS, o del gestor de audiencias de MailChimp (por ej, el nombre o apellido de cada suscriptor, o la fecha de publicación del artículo). En mi caso, uso el tag <code>*|RSSITEM:TITLE|*</code> que corresponde al <strong>título de cada nuevo artículo</strong>.</p>
+<p>El tercer campo (<strong><em>“Preview text”</em></strong>) corresponde al fragmento que aparece debajo del asunto en las apps de correo electrónico.</p>
+<div class="figure">
+<img src="images/previewtext01.png" alt="" />
+<p class="caption"><em>Así se ve el “Preview text” en las apps de correo electrónico. Fuente: <a href="https://kb.benchmarkemail.com/en/what-is-preview-text-and-how-can-it-benefit-my-email/">benchmarkemail.com</a></em></p>
+</div>
+<p>No logré encontrar un merge tag útil para personalizar el <em>preview text</em>, así que opté por un mensaje estático: “<em>Abre este correo para leer el artículo completo</em>”, pensando en incrementar la tasa de apertura del newsletter.</p>
+<p>Los últimos 2 campos de esta sección corresponden al <strong>remitente</strong>: el nombre (<strong><em>“From name”</em></strong>) y correo (<strong><em>“From email address”</em></strong>) que aparecerán en el “De:” o “From:” cuando los suscriptores reciban el newsletter. Aquí la idea es usar algo fácilmente reconocible para evitar que los suscriptores se confundan y piensen que es spam.</p>
+<p>Más abajo en la misma página hay algunas opciones adicionales, pero que pueden dejarse con sus valores por defecto sin modificar.</p>
+<p>A continuación presionamos <strong>Next</strong> y pasamos a la siguiente sección: <strong>escoger la plantilla para el newsletter</strong>. En esta sección mi recomendación es elegir <em>“1 Column”</em> o <em>“Simple Text”</em>, que tienen lo justo y necesario para que nuestros posts se muestren correctamente. Para este tutorial elegiré <em>“Simple Text”</em>.</p>
+<div class="figure">
+<img src="images/select_template_es.png" alt="" />
+<p class="caption"><em>Las plantilla básicas “1 Column” y “Simple Text” son buenas opciones para un Newsletter de blogposts.</em></p>
+</div>
+<p>Habiendo seleccionado la plantilla, aparecerá la vista de <strong>Diseño (<em>“Design”</em>)</strong> donde hay que hacer algunos cambios para que el newsletter funcione de manera adecuada.</p>
+<div class="figure">
+<img src="images/design_mail_start_es.png" alt="" />
+<p class="caption"><em>Así luce la vista de Diseño del newsletter luego de haber escogido la plantilla “Simple Text”</em></p>
+</div>
+<p>En particular, debemos insertar una serie de <em>merge tags RSS</em> para que contenido del newsletter se alimente de los nuevos posts del blog.</p>
+<p>Para mí, la forma más sencilla de hacer esto fue <strong>borrar todos los bloques que vienen con la plantilla</strong>, e <strong>insertar 3 nuevos bloques de texto</strong> (<em>“Text”</em> desde la galería de contenido de la derecha). Luego seleccioné y edité estos bloques, e inserté ahí los merge tags correspondientes.</p>
+<p>A continuación describo cada uno de estos bloques (junto al código HTML para replicarlos):</p>
+<p>Primero, un <strong>bloque de cabecera</strong>, muy simple, en un tamaño de letra pequeño y con un link directo al post en el blog. ¿Por qué? Debido a que a veces los clientes de correo no muestran correctamente el contenido de los newsletters y en estos casos queremos que el lector pueda ir fácilmente al artículo original usando un navegador web<a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a>.</p>
+<p>El HTML para este bloque es el siguiente:</p>
+<p><code>&lt;span style="font-size:12px"&gt;&lt;a href="*|RSSITEM:URL|*" target="_blank"&gt;Ver el post en tu navegador&lt;/a&gt;&amp;nbsp;(recomendado).&lt;/span&gt;</code></p>
+<p>Y debería verse así en el panel de la izquierda:</p>
+<p><img src="images/cabecera_es.png" /></p>
+<p>Nótese la presencia del merge tag <code>*|RSSITEM:URL|*</code> en el link. Este merge tag se reemplazará por la URL correspondiente al post en cada envío del newsletter.</p>
+<p>Luego viene un <strong>bloque de contenido</strong>, cuyo código es el siguiente:</p>
+<pre><code>&lt;h2 class=&quot;mc-toc-title&quot;&gt;&lt;span style=&quot;font-family:helvetica neue,helvetica,arial,verdana,sans-serif&quot;&gt;&lt;a href=&quot;*|RSSITEM:URL|*&quot; target=&quot;_blank&quot;&gt;*|RSSITEM:TITLE|*&lt;/a&gt;&lt;/span&gt;&lt;/h2&gt;
+&lt;span style=&quot;font-family:helvetica neue,helvetica,arial,verdana,sans-serif&quot;&gt;*|RSSITEM:CONTENT_FULL|*&lt;/span&gt;
+
+&lt;pre&gt;
+&lt;span style=&quot;font-family:helvetica neue,helvetica,arial,verdana,sans-serif&quot;&gt;*|END:RSSITEMS|*&lt;/span&gt;
+&lt;/pre&gt;</code></pre>
+<p>Y debería verse así en el panel de la izquierda:</p>
+<p><img src="images/content_block_es.png" /></p>
+<p>Y finalmente un <strong>bloque <em>footer</em></strong>, con elementos obligatorios como la licencia del contenido y el link de desuscripción. El código que usé para este bloque es el siguiente:</p>
+<pre><code>&lt;em&gt;Este trabajo est&amp;aacute; licenciado bajo &amp;nbsp;&lt;a href=&quot;http://creativecommons.org/licenses/by/4.0/&quot; rel=&quot;license&quot;&gt;Creative Commons Attribution 4.0 International License&lt;/a&gt;.&lt;/em&gt;&lt;br /&gt;
+&lt;br /&gt;
+*|LIST:DESCRIPTION|*&lt;br /&gt;
+&lt;br /&gt;
+&amp;iquest;Quieres cambiar como recibes estos e-mails?&lt;br /&gt;
+Puedes &lt;a href=&quot;*|UPDATE_PROFILE|*&quot;&gt;actualizar tus preferencias&lt;/a&gt; o &lt;a href=&quot;*|UNSUB|*&quot;&gt;desuscribirte de esta lista&lt;/a&gt;.&lt;br /&gt;
+&lt;br /&gt;
+*|REWARDS|*</code></pre>
+<p>Y debería verse así en el panel de la izquierda:</p>
+<p><img src="images/footer_block_es.png" /></p>
+<p>Por supuesto, en este último bloque deberías modificar la parte de la licencia en caso de que quieras usar una distinta a <a href="https://creativecommons.org/licenses/by/4.0/">CC 4.0</a>.</p>
+<p>Notar que MailChimp ofrece un editor visual para los bloques de texto, por lo que <em>técnicamente</em> no es necesario manipular HTML: los merge tags se pueden insertar “tal cual” en este editor visual, y su formato (fuente, tamaño) se puede modificar desde ahí. Pero yo <strong>prefiero compartirles los bloques de código porque así es más fácil seguir las instrucciones</strong>: solo basta copiar y pegar. Una vez copiados los bloques se puede cambiar sin problemas al editor visual para seguir personalizándolos.</p>
+<p>Y listo, habiendo ya diseñado y personalizado el newsletter podemos echarle un vistazo a como lucirá en las bandejas de entrada de nuestros suscriptores ✨. Para esto existe el menú <em>“<strong>Preview and Test</strong>”</em> en la esquina superior derecha, dentro de la misma sección <em>Design</em>. Este menú permite previsualizar un correo de prueba en la web de MailChimp o en la aplicación móvil, e incluso enviarnos un correo de prueba a nosotros mismos (o a amigos dispuestos a ser conejillos de indias).</p>
+<p><img src="images/previsualizacion_modos.png" /></p>
+<p>Una vez conformes con cómo se verá el newsletter presionamos <strong><em>“Next”</em></strong> y avanzamos al último paso de esta sección: <strong>Confirmar que todo esté OK y dar luz verde a los envíos automáticos</strong>.</p>
+<p><img src="images/confirm_nresletter_es.png" /></p>
+<p>En esta página se puede dar un último vistazo a las opciones del envío, y volver atrás si es que aun queremos cambiar algo. Si todo nos parece bien, hay 2 opciones para que el newsletter empiece a operar:</p>
+<ul>
+<li><p><strong><em>Start RSS</em></strong> (botón abajo a la derecha): pone en marcha la automatización, pero a partir del próximo post que se publique en blog. Es decir, <strong>no se enviará nada al momento de presionarlo</strong>, pero sí cuando publiquemos nuevos artículos en el futuro.</p></li>
+<li><p><strong><em>Send now and Start RSS campaign</em></strong> (disponible al hacer clic en flecha al lado de <em>“Start RSS”</em>): también pone en marcha la automatización, pero realiza de inmediato un primer envío con el último post disponible en el blog.</p></li>
+</ul>
+<p>Hay que elegir una de las 2 opciones y presionar el botón correspondiente, ¡y listo! Nuestro newsletter automatizado ya está funcionando.</p>
+<p>Pero aún falta una parte muy importante: implementar el formulario de suscripción para que nuevos lectores puedan darse de alta.</p>
+</div>
+<div id="paso-4-implementar-el-formulario-de-suscripción" class="section level4">
+<h4>Paso 4: Implementar el formulario de suscripción</h4>
+<p>Mientras que en Buttondown el formulario de suscripción viene configurado por defecto y sin muchas opciones de personalización, en MailChimp se nos da la posibilidad de <strong>diseñarlo nosotros mismos</strong>. El proceso de diseño es relativamente sencillo ya que contamos con un editor visual: para acceder a él solo hay que ir a <strong><em>Audience &gt; Signup forms</em></strong> y ahí hacer clic en <strong>“Form Builder”</strong>.</p>
+<p><img src="images/form_builder_es.png" /></p>
+<p>Lo primero que veremos dentro del editor visual será el <strong>formulario de suscripción predeterminado de MailChimp</strong>. Este incluye el campo de correo electrónico, que es el único estrictamente necesario, y también otros como fecha de nacimiento, nombre, y apellido. Depende de nosotros cuáles de estos campos adicionales conservar y cuáles eliminar.</p>
+<p>Para eliminar un campo hay que seleccionarlo y luego presionar <strong><em>“Delete”</em></strong> en la parte inferior del panel de la derecha. Se nos mostrará una advertencia ya que eliminar el campo implica también eliminar los datos vinculados a este (en el gestor de audiencias de MailChimp). Si ya hay datos asociados a este campo puede convenir simplemente ocultarlo (opción también disponible en el panel de la derecha).</p>
+<p>Además, se pueden agregar campos nuevos para recolectar información adicional. Esto lo usaremos en la siguiente sección para implementar los newsletters segmentados, pero para el newsletter simple nos basta y sobra con el campo de correo electrónico.</p>
+<div class="figure">
+<img src="images/subscription_form.png" alt="" />
+<p class="caption"><em>Así se ve un formulario simple (sólo con un campo de correo) dentro del editor visual de MailChimp.</em></p>
+</div>
+<p>Una vez personalizado el formulario de suscripción tenemos 2 opciones para agregarlo a nuestro blog:</p>
+<ol style="list-style-type: decimal">
+<li><p>La más simple: <strong>usar el enlace directo al formulario de suscripción</strong>. Este enlace apunta a un formulario alojado en MailChimp que luce idéntico al diseñado/previsualizado en el editor visual. Este se puede obtener en la sección <strong><em>“Signup form URL”</em></strong> dentro del editor visual de formularios. Con esta URL se puede crear un link desde cualquier lugar visible del blog (por ej., la barra de navegación).</p>
+<p><img src="images/get_url_signup.png" /></p></li>
+<li><p><strong>Incrustar el formulario en nuestro blog mediante código HTML</strong>. Esto es más complejo, pero evita que lectores tengan que ir a una URL externa para suscribirse, y además da al formulario una apariencia más consistente con el resto de nuestro blog.</p></li>
+</ol>
+<p>Para implementar el formulario HTML incrustado hay que volver a <em>Audience &gt; Signup forms</em>, pero ahora entrando en la sección <strong>“Embedded forms”</strong>.</p>
+<p>En esta sección hay varias opciones de formularios incrustados, algunas con CSS y JavaScript, pero recomendaría usar la opción <em>Unstyled</em>: un formulario HTML básico que reduce la posibilidad de conflicto con el tema del blog.</p>
+<p>Luego de seleccionar el formulario <em>Unstyled</em> recomiendo además desactivar la opción <em>Include form title</em>, porque el formulario se incrustará en una página Markdown que ya tiene su propio título.</p>
+<p><img src="images/get_embeded_form1-01.png" /></p>
+<p>Es importante mencionar que los campos de este formulario y los del formulario que diseñamos en el editor visual son los mismos. <strong>No estamos creando un formulario distinto</strong>, sino que usando otra forma de acceder a él.</p>
+<p>Luego de configurar las opciones, hay que ir al final de la página y presionar el botón <strong>“Generate Embed Code”</strong>.</p>
+<p><img src="images/get_embed_form2.png" /></p>
+<p>Se debe copiar el código que aparecerá ahí, y pegarlo en el archivo <code>.md</code> correspondiente (aquel donde queremos que se muestre el formulario de suscripción). El código debe ir debajo de la cabecera YAML (en mi caso agregué también un pequeño texto explicativo entre la cabecera y el formulario).</p>
+<p><img src="images/paste_embed_code_mailchimp.png" /></p>
+<p>Al hacer <em>knit</em> del blog, la página con el formulario de suscripción debería lucir así:</p>
+<p><img src="images/embed_form_inblog.png" /></p>
+<p><em>¡Y listo!</em> Aquí ya tenemos un formulario de suscripción totalmente funcional, conectado al newsletter automatizado que creamos en la sección anterior.</p>
+<p>Sin embargo, yo hice 2 ajustes adicionales, totalmente opcionales, que creo que mejoran la apariencia y funcionalidad del formulario.</p>
+<p>Primero, <strong>cambiar el estilo del botón “Subscribe”</strong>. El por defecto no tiene mucha apariencia de botón, y además le falta un salto de línea que lo separe del campo <em>Email Address</em>. Para esto hay que buscar este código:</p>
+<pre class="HTML"><code>&lt;input type=&quot;submit&quot; value=&quot;Subscribe&quot; name=&quot;subscribe&quot; id=&quot;mc-embedded-subscribe&quot; class=&quot;button&quot;&gt;</code></pre>
+<p>Y reemplazarlo por este código:</p>
+<pre class="HTML"><code>&lt;/br&gt; &lt;div class=&quot;clear&quot;&gt;&lt;input type=&quot;submit&quot; value=&quot;Subscribe&quot; name=&quot;subscribe&quot; id=&quot;mc-embedded-subscribe&quot; style=&quot;height:27px; width:100px; font-size:16px&quot;&gt;&lt;/div&gt;</code></pre>
+<p>Segundo, <strong>agregar al final de la página un link al formulario alojado en MailChimp</strong> (el enlace directo que vimos en la sección anterior). ¿Por qué? Por la eventualidad de alguien que desee suscribirse pero use algún bloqueador de contenido (por ej., uBlock Origin) que le impida visualizar el formulario incrustado. Con este link esas personas tendrán una forma alternativa de darse de alta en el newsletter.</p>
+<p>Para hacer este cambio basta con agregar un texto con el link correspondiente <em>después</em> de que termine el código del formulario incrustado (es decir, después de esta línea: <code>&lt;!--End mc_embed_signup--&gt;</code>).</p>
+<p>Al hacer estos cambios la apariencia del formulario quedará así:</p>
+<p><img src="images/embeded_form_v2-01.png" /></p>
+</div>
+</div>
+</div>
+<div id="método-3-newsletter-automatizado-y-segmentado-con-mailchimp" class="section level2">
+<h2>Método 3: newsletter automatizado y segmentado con MailChimp</h2>
+<p>Estamos llegando a la parte final de este tutorial. Si sigues leyendo hasta aquí es porque no te basta con tener un único newsletter con todo el contenido de tu blog, sino que deseas tener <strong>varias listas de distribución, segmentadas por idioma, por tema, o ambas</strong>.</p>
+<p>Para no extender tanto este artículo (que ya esta siendo bastante largo), aquí no haré una explicación “paso por paso” como en secciones anteriores, sino que <strong>será una especie de anexo de la sección anterior</strong> (método 2), mostrando qué cosas hay que hacer distinto para obtener un newsletter segmentado (eso implica que si saltaste directo desde la introducción hasta acá, tendrás que subir y leer primero la parte del método 2, lo siento 😅).</p>
+<div id="conseguir-los-feed-rss-específicos-para-cada-tema-yo-idioma" class="section level3">
+<h3>Conseguir los feed RSS específicos para cada tema y/o idioma</h3>
+<p>El primer cambio necesario para tener listas de distribución segmentadas es <strong>usar feeds RSS específicos</strong> con el contenido que recibirá cada segmento.</p>
+<p>Ilustraré esto con un ejemplo de este mismo blog: aquí implementé listas de distribución exclusivas para el contenido de Data Science, una en inglés y otra en español. Para esto fue necesario obtener 2 feeds RSS:</p>
+<ol style="list-style-type: decimal">
+<li><p>Feed con el contenido de Data Science en inglés</p></li>
+<li><p>Feed con el contenido de Data Science en español</p></li>
+</ol>
+<p>Al tener un sitio multilingüe con <code>blogdown</code> es muy sencillo obtener feeds RSS específicos para cada idioma: basta con <strong>agregar el código del idioma</strong> (por ej., <em>es</em>, <em>fr</em>, <em>en</em>) <strong>justo después de la <code>baseURL</code></strong>. En el caso de este blog los feeds con contenido en español e inglés son los siguientes:</p>
+<ul>
+<li><p>Español: <code>franciscoyira.com/es/post/index.xml</code></p></li>
+<li><p>Inglés: <code>franciscoyira.com/post/index.xml</code></p></li>
+</ul>
+<p>Donde <code>franciscoyira.com</code> corresponde a la <code>baseURL</code>. Notar el sufijo <code>es/</code> en el feed en español (en el feed en inglés no hay sufijo porque <a href="https://github.com/franciscoyira/personalblog_hugo/blob/8ad38636ed080424babeef37d15d3eca344d0815/config.toml#L2">está configurado como el idioma “base” del blog</a>).</p>
+<p>OK, ahí ya tenemos una regla para obtener los feeds correspondientes a cada idioma, pero ¿cómo obtener un feed que tenga sólo los posts sobre Data Science (o cualquier otro tema)?</p>
+<p>Para esto debemos usar la <strong>estructura de tags y categorías</strong> de nuestro blog. En mi caso simplemente creé una categoría denominada <code>data-science</code> y empecé a marcar todos los posts de Data Science con esta categoría.</p>
+<p>Aquí entra la magia de <code>hugo</code>, que automáticamente genera páginas para cada tag y categoría. En el caso de este ejemplo, se generaron las siguientes páginas con los posts de la categoría <code>data-science</code>:</p>
+<p><code>franciscoyira.com/es/categories/data-science/</code> para los posts en español, y…</p>
+<p><code>franciscoyira.com/categories/data-science/</code> para los posts en inglés.</p>
+<p>Y como vimos en la sección anterior, <code>hugo</code> también crea automáticamente feeds RSS para las páginas de este tipo. <strong>Para acceder a estos feeds simplemente hay agregar el sufijo <code>index.xml</code> al final</strong>, por lo que los feeds de la categoría <code>data-science</code> serán estos:</p>
+<p><code>franciscoyira.com/es/categories/data-science/index.xml</code> para los posts en español, y…</p>
+<p><code>franciscoyira.com/categories/data-science/index.xml</code> para los posts en inglés.</p>
+<p>Las instrucciones son muy similares si queremos usar tags en vez de categorías: por lo general bastará con reemplazar <code>categories</code> por <code>tags</code> en las URLs.</p>
+<p>Como consideración, mencionar que <strong>los tags/categorías en distintos idiomas no tienen por qué llamarse igual</strong>, de hecho se configuran por separado y el que aquí tengan el mismo nombre es solo coincidencia. En mi blog quise que la categoría de Data Science tuviera el mismo nombre en español e inglés, pero perfectamente los posts en español podrían estar categorizados como <code>ciencia-de-datos</code> en cuyo caso la URL del feed sería así:</p>
+<p><code>franciscoyira.com/es/categories/ciencia-de-datos/index.xml</code></p>
+<p>Y esto no afectaría en nada la URL del feed de Data Science en inglés.</p>
+<div id="tldr" class="section level4">
+<h4>TL;DR</h4>
+<p>En resumen, <strong>depende de nosotros mismos crear una estructura de tags o categorías acorde a las listas de distribución que queramos tener</strong>. Una vez definida esta estructura, es sencillo obtener las URLs de los feeds RSS correspondientes: basta con encontrar la pagina del tag o categoría respectiva (para lo cual incluso se puede usar la navegación del blog) y agregar <code>index.xml</code> al final.</p>
+<p>Y para especificar un idioma particular (en el caso de blogs multilingües) solo hace falta agregar el código de idioma después de la <code>baseURL</code>, siempre que se trate de un idioma distinto del “idioma base”.</p>
+</div>
+</div>
+<div id="crear-segmentos-para-cada-lista-de-distribución" class="section level3">
+<h3>Crear segmentos para cada lista de distribución</h3>
+<p>Otro ingrediente necesario para segmentar un newsletter es contar con las respectivos <em>campos de datos</em> o <em>columnas</em> en el gestor de audiencias de MailChimp, indicando a qué segmento pertenece cada suscriptor.</p>
+<p>MailChimp ofrece varias formas de crear categorías de suscriptores, y una de ellas literalmente se llama <em>Segmentos</em>, pero <strong>la que en realidad nos conviene usar se llama <em>Grupos</em></strong> (es confuso, lo sé), ya que está directamente vinculada con los formularios de suscripción.</p>
+<p>Para crear grupos hay que ir a <em>Audience &gt; All Contacts</em>, ahí seleccionar el menú drop-down <strong>“Manage contacts”</strong> y hacer clic en “Groups”.</p>
+<p><img src="images/create_groups.png" /></p>
+<p>Dentro de la sección <em>“Groups”</em> hay que presionar el botón <strong><em>“Create Groups”</em></strong>, a la derecha de la pantalla.</p>
+<p>Ahí aparecerá la siguiente página de configuración, donde se debe ingresar el <strong>nombre</strong> (<em>Group category</em>) y <strong>posibles valores</strong> (<em>Group names</em>) del grupo a crear. También se debe elegir cómo aparecerán estas opciones dentro del formulario de suscripción (radio buttons, dropdown, checkboxes, etc).</p>
+<p><img src="images/create_groups2.png" /></p>
+<p>Aquí existe mucha libertad para crear distintos arreglos, dependiendo de cómo queremos que sea el flujo para enrolarse en cada lista de distribución<a href="#fn7" class="footnote-ref" id="fnref7"><sup>7</sup></a>.</p>
+<p>Para ejemplificar los pasos que vienen después, replicaré los mismos grupos que implementé en mi propio blog, pero ahora usando <em>radio buttons</em> para todos ellos:</p>
+<ul>
+<li><p>Grupos según temas/contenido:</p>
+<ol style="list-style-type: decimal">
+<li><p>Todo el contenido: para quienes deseen recibir todos los posts que publique</p></li>
+<li><p>Sólo Data Science: para quienes deseen recibir exclusivamente los posts con la categoría <code>data-science</code>.</p></li>
+</ol></li>
+<li><p>Grupos según idioma:</p>
+<ol style="list-style-type: decimal">
+<li><p>Español</p></li>
+<li><p>Inglés</p></li>
+</ol></li>
+</ul>
+<p>Para implementar esta segmentación hay que dirigirse a la sección <em>“Create groups”</em> ya mencionada y crear los 2 tipos de grupos, escogiendo <em>As radio buttons…</em> para ambos.</p>
+<p>Hecho esto, la sección de grupos debería verse así:</p>
+<p><img src="images/groups_created.png" /></p>
+<p>Ahora hay que disponibilizar un formulario que permita elegir entre estos grupos. Para esto, igual que antes, tenemos 2 opciones:</p>
+<ul>
+<li><p><strong>Usar un link directo a un formulario alojado en MailChimp.</strong> Los pasos para hacer esto son idénticos que los para el newsletter no segmentado.</p></li>
+<li><p><strong>Incrustar un formulario en nuestro blog.</strong> Aquí los pasos son muy similares a los del newsletter no segmentado, con una sola diferencia: dentro de <em>Audience &gt; Signup forms &gt; Embedded Forms &gt; Unstyled</em> hay que asegurarse de activar la casilla <strong><em>“Show interest group fields”</em></strong>. Lo demás es todo igual: obtener el código HTML y pegarlo en un archivo <code>.md</code> de nuestra preferencia, dentro del repositorio del blog.</p></li>
+</ul>
+<p>En ambos casos los grupos creados en el paso anterior se agregarán automáticamente al formulario.</p>
+<p>Si seguimos la opción del formulario incrustado, el resultado debería lucir así:</p>
+<p><img src="images/form_content_options.png" /></p>
+<p>Aquí <strong>ya contamos con un formulario funcional</strong> que permitirá a los lectores escoger su propia lista de suscripción en base a idioma e intereses/contenido. <em>Técnicamente</em> no es necesario hacer nada más y podrían saltar de aquí a la sección final del tutorial pero si les gusta rizar el rizo como a mi pueden leer a continuación cómo hacer algunas mejoras al formulario incrustado.</p>
+<div id="más-personalización-para-el-formulario-incrustado" class="section level4">
+<h4>Más personalización para el formulario incrustado</h4>
+<p>Si hemos optado por el formulario incrustado tenemos la opción de hacer algunos <strong>ajustes estéticos adicionales</strong>.</p>
+<p>Para empezar, se pueden aplicar los mismos ajustes mostrados en la sección de newsletter no segmentado: mejorar el botón de suscripción, añadir un salto de línea después del campo de correo electrónico, y poner un link al formulario en MailChimp al final de la página (ante la eventualidad de que un bloqueador de contenido no permita visualizar el formulario incrustado).</p>
+<p>Adicional a ello, creo que acá es buena idea <strong>cambiar los textos descriptivos de los grupos</strong>. Por ejemplo, dado que el formulario de este ejemplo sería bilingüe, aumentaría su usabilidad el describir las opciones tanto en inglés como en español.</p>
+<p>Para lograr esto basta con ir al archivo <code>.md</code> donde está el formulario, invocar CTRL+F (o ⌘+F en Mac), buscar el texto que se muestra actualmente en el formulario y cambiarlo por otro nuevo que nos parezca más apropiado. En este caso, aplicaré los siguientes cambios:</p>
+<p><img src="images/before_form_personalization.png" width="750" /></p>
+<p><img src="images/after_form_personalization.png" width="750" /></p>
+<p><strong>Notar que esto no cambia el nombre interno de los campos de datos en el gestor de audiencias de MailChimp</strong>. Allí los campos siguen llamándose “<em>Intereses/contenido"</em> e”<em>Idioma"</em>, y los valores asociados a cada alternativa son las opciones originales que configuramos en MailChimp.</p>
+<p>Dicho de otra forma, existe simultáneamente un “valor interno” y un “valor para mostrar” para cada grupo y opción. Esto es útil ya que permite usar nombres cortos en los valores internos y nombres más largos y explicativos en los “valores para mostrar”.</p>
+<p>Una vez conformes con la apariencia del formulario, hemos completado el segundo de los requisitos para tener un newsletter segmentado. Ahora vamos a usar estos ingredientes para el paso final: <strong>configurar el newsletter segmentado</strong>.</p>
+</div>
+</div>
+<div id="mezclado-los-ingredientes-para-crear-un-newsletter-segmentado" class="section level3">
+<h3>Mezclado los ingredientes para crear un newsletter segmentado</h3>
+<p>Una vez que tenemos las URLs de los feeds RSS, los segmentos de audiencia, y el formulario que permite a los suscriptores escoger su segmento, es hora de combinar todo esto para echar a andar nuestro newsletter segmentado ✨.</p>
+<p><img src="images/diagrama_es_segmented_newsletter.png" /></p>
+<p>Lo que hay que hacer aquí es simplemente <strong>repetir el proceso de crear un newsletter automatizado</strong> (explicado ya en la sección anterior) para <em>cada uno</em> de los segmentos, pero haciendo 2 cambios:</p>
+<ol style="list-style-type: decimal">
+<li>Al momento de ingresar la URL del feed RSS, hay que usar la URL correspondiente al feed del tema/idioma específico para el segmento.</li>
+</ol>
+<p><img src="images/customize_URL_newsletter.png" /></p>
+<ol start="2" style="list-style-type: decimal">
+<li>En el paso de escoger la audiencia, en vez de seleccionar <em>Entire audience</em> hay que elegir <em>Group or new segment</em>. Al hacerlo aparecerá debajo un cuadro para <strong>indicar los criterios que definen la audiencia segmentada</strong>, y los grupos creados en pasos anteriores estarán dentro de los criterios disponibles. Por ejemplo, en este caso, se puede segmentar a los suscriptores según la opción de <em>Idioma</em> e <em>Intereses/contenido</em> que escogieron en el formulario de suscripción.</li>
+</ol>
+<p><img src="images/choose_audience-01.png" /></p>
+<p>¡Y listo! El resto de los pasos son idénticos a los del newsletter sin segmentación. Solo recalcaría la necesidad de repetir el proceso con <em>cada uno</em> de los segmentos<a href="#fn8" class="footnote-ref" id="fnref8"><sup>8</sup></a>, configurando una automatización distinta para todos ellos.</p>
+<p><em>Tu feedback es bienvenido. Si tienes comentarios sobre este artículo puedes enviármelos <a href="mailto:francisco.yira@outlook.com">por correo</a>.</em></p>
+<p><em>Por cierto, luego de este artículo retomo <a href="https://www.franciscoyira.com/es/tags/causal-inference-the-mixtape/">la serie sobre el libro Causal Inference: The Mixtape</a>. El próximo post estará dedicado al <a href="https://mixtape.scunning.com/potential-outcomes.html">capítulo 4</a>, acerca el modelo causal de Potential Outcomes.</em></p>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>Algunas pocas opciones son de pago, como la posibilidad de eliminar el logo de Buttondown de los correos, pero casi todas las opciones que alguien podría querer usar en un newsletter básico son gratuitas.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>Las instrucciones para activar los feeds RSS con contenido completo no las cubriré en este post, ya que dependen de la versión de <code>hugo</code> y del template que estemos usando, y corro el riesgo de escribir algo que no sea aplicable a casos distintos al mío. Si quieres activar esta opción en tu blog recomendaría estos enlaces como punto de partida: <a href="https://randomgeekery.org/post/2017/09/full-content-hugo-feeds/">(1)</a> , <a href="https://coolbutuseless.bitbucket.io/2018/02/07/blogdown-rss-feed-of-full-articles/">(2)</a>, <a href="https://stackoverflow.com/questions/48997278/how-do-i-get-my-blogdown-blog-on-r-bloggers/#">(3)</a> y <a href="https://www.rockyourcode.com/til-how-to-create-full-text-rss-feed-for-hugo/">(4)</a>.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>Alternativamente también se puede usar este feed: <code>baseURL/index.xml</code>. Pero este incluirá también las páginas de primer nivel, tales como “Acerca de”, “Contáctame”, etc. , y también las páginas de otras secciones, si es que las hay (por ejemplo, si hay una sección “Portafolio”, este feed incluirá también las páginas dentro de ella). Lo más probable que NO queramos que estas páginas se envíen como newsletter. Por eso mi sugerencia es <strong>buscar un feed que contenga únicamente los posts o artículos</strong>.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>Notar que se enviarán correos nuevos en esos días/horas <strong>sólo si existe contenido nuevo desde el envío anterior</strong>, en caso contrario no se enviará nada. Por otro lado, si se desactivan algunos días y se publica un artículo ahí, Mailchimp tendrá que esperar hasta el siguiente día con envíos habilitados para poder enviar el newsletter. Por ello, mi recomendación aquí sería dejar intacta la opción por defecto, que es intentar enviar correos todos los días.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="fn5"><p>Ya en la siguiente sección explicaré los cambios necesarios para introducir segmentación en el newsletter, pero por ahora estoy intentando explicar el proceso de la forma más simple posible.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn6"><p>Por ejemplo, <a href="https://medium.com/@brentonhenry/its-2019-and-outlook-is-still-rendered-with-word-675ca1a5d1a0#:~:text=Outlook%20renders%20your%20email%20using%20Word.%20Yes%2C%20the,in%20the%20%E2%80%9CEnterprise%E2%80%9D%20Standard%20product%20that%20is%20Outlook.">Microsoft Outlook Desktop utiliza ¡Word! como visor de HTML</a>, y a la vez es una aplicación muy utilizada en empresas, por lo que es casi seguro que alguno de nuestros suscriptores recibirá el newsletter ahí y tendrá una mala experiencia si no lo redirigimos a un navegador web a leer el artículo.<a href="#fnref6" class="footnote-back">↩︎</a></p></li>
+<li id="fn7"><p>Por ejemplo, yo definí el Idioma como una <em>Group category</em> que está oculta en los formularios: si te suscribes en el <a href="https://www.franciscoyira.com/es/subscribe/">formulario en español</a> recibirás contenido en español, y si usas el <a href="https://www.franciscoyira.com/subscribe/">formulario en inglés</a> recibirás contenido en inglés. Pero también podría haber configurado un formulario único, bilingüe, donde la opción de idioma se pudiera escoger desde un <em>dropdown</em> o con <em>radio buttons</em>.<a href="#fnref7" class="footnote-back">↩︎</a></p></li>
+<li id="fn8"><p>En este ejemplo serían 4 segmentos, correspondientes a la combinatoria de los grupos de <em>Idioma</em> y de <em>Intereses/contenido</em>: Todo-Inglés, Todo-Español, Data Science-Inglés y Data Science-Español.<a href="#fnref8" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
