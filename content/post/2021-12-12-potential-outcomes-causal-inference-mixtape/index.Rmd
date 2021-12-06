@@ -1,0 +1,187 @@
+---
+title: Potential Outcomes Model (or why correlation is not causality)
+author: Francisco Yirá
+date: '2021-12-12'
+slug: potential-outcomes-causal-inference-mixtape
+cover: "images/homer_potential_outcomes.jpg"
+useRelativeCover: true
+isMath: "true"
+categories:
+  - books
+  - causal-inference
+  - data-science
+tags:
+  - causal-inference-the-mixtape
+  - summaries
+  - potential-outcomes
+---
+
+This article, the second one of [the series](https://www.franciscoyira.com/tags/causal-inference-the-mixtape/) about the book [Causal Inference: The Mixtape](https://mixtape.scunning.com/), is all about the Potential Outcomes notation and how it enables us to tackle causality questions and understand key concepts in this field[^1].
+
+[^1]: The potential outcomes notation was first introduced by [Splawa-Neymanen in 1923](https://www.jstor.org/stable/2245382), and then was popularized [by Rubin since 1974]((https://www.fsb.muohio.edu/lij14/420_paper_Rubin74.pdf)).
+
+The central idea of this notation is the **comparison between 2 states of the world**:
+
+- **The actual state**: the outcomes observed in the data given the real value taken by some treatment variable. For example, the quarterly sales of a company given that they did some marketing campaign.
+
+-   **The counterfactual state:** what would have happened if the treatment variable had taken another value. For example, the quarterly sales of the company if the marketing campaign had not been carried out.
+
+The **causal effect** of an intervention (in this case, the marketing campaign) is the difference in the outcome variable between these two states. Thus, to calculate it, it would suffice to do a subtraction between them... but we can't actually do that because **the counterfactual value is hypothetical and unknown**. Counterfactuals don't really exist because as soon as one of the possible scenarios materializes, then all the other potential outcomes disappear.
+
+In the company example, when the marketing campaign is carried out, it is no longer possible to know how much would have been the sales if the campaign had been ditched. We can have hypotheses or guesses, but we will never know for sure the counterfactual value for this individual company.
+
+The good news is that by having data for many companies (and when some special conditions are met) we can still get a reasonable **estimate** for the **average effect** of a generic marketing campaign over that *group* of companies.
+
+## Potential outcomes notation
+
+Now we will translate those concepts into the potential outcomes notation.
+
+First, we define the variable $D_i$, which represents if the unit $i$ receives the treatment or not[^2]. In the previous example, this variable would take the value 1 if the company $i$ executes the marketing campaign and 0 if not.
+
+[^2]: There are cases where the treatment is not binary, but they will be left out of this article in order to keep the explanations simple.
+
+Then we define the variable $Y_i$, which represents **the outcome of interest** for the unit $i$ (let's say, the quarterly sales of the company $i$).
+
+This outcome variable can also have a superindex, which usually takes values 0 or 1 and indicates to which value of $D$ is the outcome associated. In our example, the superindex tells us if the outcome (sales) corresponds to a world where the company $i$ implemented the marketing campaign ($Y_i^1$) or to one where it didn't ($Y_i^0$).
+
+It's important to note that the superindex by itself ***does not*** tell us if the outcome is actual or counterfactual. To know if an outcome is counterfactual or not, we need an additional piece of notation:
+
+$$
+Y_i^1|D_i=0
+$$
+
+[CONTINUAR ACÁ]
+
+Ahora esta se interpreta como "las ventas de la empresa $i$ cuando sí se realiza la campaña de marketing, *condicional a que no realizó la campaña de marketing en realidad*".
+
+En otras palabras, el superíndice denota un escenario hipotético para $Y_i$, y lo que viene después de $|$ denota lo que ocurrió realmente con la unidad $i$. Si estos valores coinciden, estamos frente a un outcome "real", y si son distintos, se trata de un outcome "contrafactual" (y por ende desconocido).
+
+Una forma de resumir lo anterior es la llamada ***switching equation***:
+
+$$
+Y_i = D_iY_i^1+(1-D_i)Y_i^0
+$$
+
+Que puede entenderse mejor con la ayuda de este meme:
+
+![*Meme ~~robado~~ prestado del libro [Causal Inference for the Brave and True](https://matheusfacure.github.io/python-causality-handbook/01-Introduction-To-Causality.html)*](images/meme_potential_outcomes.jpg){width="400"}
+
+La idea aquí es que en el mundo real observamos sólo el outcome real ($Y_i$) que corresponde a la materialización de uno de los dos outcomes potenciales ($Y_i^1, Y_i^0$) en base al valor tomado por $D_i$: si $D_i=1$, entonces $1-D_i=0$ y la ecuación colapsa a $Y_i=Y_i^1$ (y viceversa cuando $D_i=0$).
+
+![](images/switching%20equation%20explicada.png){width="500"}
+
+El outcome potencial no materializado queda relegado a ser el *contrafactual* (i.e. una entelequia de nuestra imaginación).
+
+Con estos elementos ya podemos también definir el **efecto causal** de la campaña de marketing para la empresa $i$ (la diferencia entre *las ventas si se hubiera realizado la campaña* y *las ventas si no se hubiera realizado la campaña*).
+
+$$
+\delta_i=Y_i^1-Y_i^0
+$$
+
+Como solo conocemos uno de los 2 outcomes potenciales para la unidad $i$, el valor $\delta_i$ es imposible de observar. Además, notar que la presencia del subíndice $i$ implica que el efecto causal puede ser distinto para otras unidades (en general, $\delta_i\ne\delta_j$).
+
+## Efectos promedio: ATE y ATT
+
+Si bien nunca podemos conocer los efectos del tratamiento para cada unidad, bajo ciertas circunstancias podemos estimar efectos causales promedio para un conjunto de unidades.
+
+Existen varios nombres para estos efectos promedio, dependiendo de qué conjunto de unidades se considere. Los más relevantes son:
+
+-   [**A**]{.ul}**verage [T]{.ul}reatment [E]{.ul}ffect (ATE):** Corresponde al efecto promedio sobre todas las unidades.
+
+$$
+\begin{aligned}
+ATE &= E[\delta_i]\\
+&= E[Y_i^1 - Y_i^0]\\
+&= E[Y_i^1]-E[Y_i^0]
+\end{aligned}
+$$
+
+-   [**A**]{.ul}**verage [T]{.ul}reatment Effect on the [T]{.ul}reated (ATT):** Similar al ATE, pero sólo considera las unidades que efectivamente recibieron el tratamiento ($|D_i=1$)[^3].
+
+[^3]: Además existe el ATU, que es análogo al ATT pero considerando sólo las unidades que *no* recibieron el tratamiento. Es menos relevante que el ATE y el ATT y por eso lo menciono solo en una nota al pie.
+
+$$
+\begin{aligned}
+ATT &= E[\delta_i|D_i=1]\\
+&= E[Y_i^1 - Y_i^0|D_i=1]\\
+&= E[Y_i^1|D_i=1]-E[Y_i^0|D_i=1]
+\end{aligned}
+$$
+
+Debemos recordar que aunque las unidades reciban el tratamiento, aun así poseen conceptualmente un outcome potencial sin tratamiento ($Y_i^0$). Además, como los efectos $\delta_i$ pueden ser diferentes entre unidades (y generalmente lo son), lo más probable es que ATE y ATT sean distintos.
+
+Algo problemático aquí es que el ATE y el ATT todavía son funciones de términos contrafactuales, y por ende son imposibles de calcular bajo estas expresiones. Pero antes habíamos dicho que en ciertas situaciones era posible estimarlos. ¿Cuáles son esas situaciones?
+
+Para explicarlo debemos introducir una nueva expresión que sí puede calcularse: la **diferencia simple de outcomes**.
+
+## Diferencia simple de outcomes
+
+A pesar de la relevancia de los outcomes potenciales, el mundo real los únicos valores que observamos son:
+
+-   Los outcomes reales: $Y_i$
+
+-   Los valores de tratamiento de las unidades: $D_i$
+
+Siguiendo con el ejemplo anterior, esto equivaldría a observar:
+
+-   Las ventas de cada empresa
+
+-   Si realizaron una campaña de marketing o no durante el periodo analizado
+
+Un estadístico fácil de obtener con estos datos es la diferencia en ventas promedio entre las empresas que realizaron una campaña de marketing y las que no la hicieron. A este estadístico le denominaremos SDO (*Simple Difference in Outcomes*), y se expresa así en notación de potential outcomes:
+
+$$
+E[Y^1|D=1] - E[Y^0|D=0]
+$$
+
+Y se calcula con la siguiente fórmula (donde $N_T$ es la cantidad de empresas con $D=1$ y $N_C$ es la cantidad de empresas con $D=0$).
+
+$$
+\frac{1}{N_T} \sum_{i=1}^n(yi|d_i=1)-\frac{1}{N_C}\sum_{i=1}^{n}(y_i|d_i=0)
+$$
+
+Puede verse que esta expresión **contiene sólo outcomes reales** (observables) por lo que **sí se puede calcular**.
+
+Ahora bien, intuitivamente sabemos que atribuirle interpretación causal a esta cifra está mal. Por ejemplo, es probable que las empresas con presupuesto suficiente para hacer una campaña de marketing sean empresas más grandes, y por ende fueran a tener ventas mayores aunque no realizaran la campaña.
+
+Esta intuición se ve reflejada en la **descomposición de la diferencia simple de outcomes (SDO)**: ![](images/sdo.png)
+
+Lo que nos dice esta descomposición es que el SDO corresponde a la suma de 3 expresiones:
+
+-   Nuestro codiciado **Average Treatment Effect**, el promedio de los efectos causales.
+
+-   Dos sesgos: el **sesgo de selección** (diferencia de ventas promedio entre los grupos de empresas si es que ninguna hubiera realizado una campaña de marketing) y el **sesgo de efectos heterogéneos** (diferencia de los $\delta_i$ promedio entre empresas que realizaron campaña y las que no).
+
+Esta descomposición [está demostrada en el libro](https://mixtape.scunning.com/potential-outcomes.html#simple-difference-in-means-decomposition) y es la explicación "técnica" de porqué la diferencia de medias usualmente no tiene interpretación causal: los sesgos de selección y de efectos heterogéneos hacen que el SDO sea distinto del ATE.
+
+La descomposición nos entrega buenas y malas noticias. La buena es que tenemos ahora un estadístico fácil de calcular (el SDO) que técnicamente *contiene* el ATE. La mala es que para "extraer" el ATE desde el SDO necesitamos información que en el mundo real no tenemos (los sesgos están expresados en términos de potential outcomes).
+
+La luz de esperanza que nos ofrece la inferencia causal ante esto es desarrollar estrategias para que, en los datos recolectados, los sesgos sean pequeños o despreciables, y así sea posible usar el SDO como estimador del ATE.
+
+En palabras de [Scott Cunningham](https://www.scunning.com/), autor del libro:
+
+> "One could argue that the entire enterprise of causal inference is about developing a reasonable strategy for negating the role that selection bias is playing in estimated causal effects."
+
+## El supuesto de independencia (y la efectividad de la randomización)
+
+OK, sabemos que queremos recuperar efectos promedio, como el ATE y el ATT, y que el SDO no *generalmente* es un buen estimador de ellos debido a los sesgos ya vistos. ¿Pero qué explica la aparición de estos sesgos?
+
+**Los sesgos** (de selección y de efectos heterogéneos) **aparecen cuando la asignación del tratamiento (**$D_i$**) no es independiente de los outcomes potenciales.**
+
+Por ejemplo, cuando decimos algo como "*las empresas con presupuesto suficiente para hacer una campaña de marketing son más grandes, y por ende tendrán mayores ventas aunque no realicen la campaña*" lo que estamos queriendo decir, en lenguaje de outcomes potenciales, es que $D$ depende de $Y^0$: empresas con mayor valor de $Y^0$ tienen mayor probabilidad de mostrar un valor $D=1$.
+
+De lo anterior se desprende que **cuando sí existe indepencia entre la asignación del tratamiento y los outcomes potenciales (**$(Y^1,Y^0)\mathrel{\unicode{x2AEB}}D$**) el SDO sí es un buen estimador del ATE!** (es insesgado)[^4].
+
+[^4]: Pueden encontrar una demostración de esto en [esta sección](https://mixtape.scunning.com/potential-outcomes.html#independence-assumption) del libro.
+
+![](https://media2.giphy.com/media/G96zgIcQn1L2xpmdxi/giphy.gif)
+
+La mala noticia es que esto rara vez ocurre en el mundo real.
+
+![](https://media2.giphy.com/media/nrg0TI3u0BFw5NBDsQ/giphy.gif)
+
+En general, dondequiera que la variable $D$ sea escogida libremente por seres humanos, habrá dependencia entre $D$ y los outcomes potenciales 😵. Si bien las personas no somos [*homo economicus*](https://en.wikipedia.org/wiki/Homo_economicus) que toman sus decisiones con información perfecta (no conocemos con exactitud los outcomes potenciales), sí recabamos información sobre las opciones posibles y sus resultados esperados, y tomamos decisiones que creemos que nos beneficiarán a partir de esa información incompleta. Esto es suficiente para que tales decisiones (i.e. los valores de $D$) no sean independientes de los potential outcomes.
+
+En palabras del autor del Mixtape: "*La elección racional está siempre empujando en contra del supuesto de independencia*".
+
+La excepción a esto es la **randomización**, justamente porque allí no existe elección libre elección por parte de agentes. Al asignar los valores de $D$ de forma aleatoria a los participantes de un experimento, imponemos independencia entre estos valores y los outcomes potenciales. Como consecuencia, **la diferencia simple de medias en datos experimentales suele ser suficiente para estimar efectos causales sin sesgo**.
