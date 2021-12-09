@@ -50,43 +50,39 @@ $$
 Y_i^1|D_i=0
 $$
 
-[CONTINUAR ACÁ]
+Now this expression is interpreted as "the sales of the company $i$ when the marketing campaign is carried out, *conditional on the fact that it did not actually implement the campaign*". 
 
-Ahora esta se interpreta como "las ventas de la empresa $i$ cuando sí se realiza la campaña de marketing, *condicional a que no realizó la campaña de marketing en realidad*".
+In other words, the superindex denotes a hypothetical scenario for $Y_i$, and what comes after $|$ indicates what really happened with the unit $i$. If these two values match, then the whole expression is a real outcome, and if they're different, it's a counterfactual outcome (and therefore, it's unknown).
 
-En otras palabras, el superíndice denota un escenario hipotético para $Y_i$, y lo que viene después de $|$ denota lo que ocurrió realmente con la unidad $i$. Si estos valores coinciden, estamos frente a un outcome "real", y si son distintos, se trata de un outcome "contrafactual" (y por ende desconocido).
-
-Una forma de resumir lo anterior es la llamada ***switching equation***:
+The previous idea can be summarized through the so-called ***switching equation***:
 
 $$
 Y_i = D_iY_i^1+(1-D_i)Y_i^0
 $$
 
-Que puede entenderse mejor con la ayuda de este meme:
+Which can be better understood with this meme:
 
-![*Meme ~~robado~~ prestado del libro [Causal Inference for the Brave and True](https://matheusfacure.github.io/python-causality-handbook/01-Introduction-To-Causality.html)*](images/meme_potential_outcomes.jpg){width="400"}
+![*Meme ~~stolen~~ borrowed from the book [Causal Inference for the Brave and True](https://matheusfacure.github.io/python-causality-handbook/01-Introduction-To-Causality.html)*](images/meme_potential_outcomes.jpg){width="400"}
 
-La idea aquí es que en el mundo real observamos sólo el outcome real ($Y_i$) que corresponde a la materialización de uno de los dos outcomes potenciales ($Y_i^1, Y_i^0$) en base al valor tomado por $D_i$: si $D_i=1$, entonces $1-D_i=0$ y la ecuación colapsa a $Y_i=Y_i^1$ (y viceversa cuando $D_i=0$).
+The key idea here is that, in the real world, we only know the actual outcome ($Y_i$), which is the materialization of one of the potential outcomes ($Y_i^1, Y_i^0$) based on the value taken by $D_i$: if $D_i=1$, then $1-D_i=0$ and the equation collapses to $Y_i=Y_i^1$ (and vice versa when $D_i=0$).
 
 ![](images/switching%20equation%20explicada.png){width="500"}
+Thus, the non-materialized potential outcome is relegated to be a *counterfactual* (i.e. a fictional concept from our imagination)
 
-El outcome potencial no materializado queda relegado a ser el *contrafactual* (i.e. una entelequia de nuestra imaginación).
-
-Con estos elementos ya podemos también definir el **efecto causal** de la campaña de marketing para la empresa $i$ (la diferencia entre *las ventas si se hubiera realizado la campaña* y *las ventas si no se hubiera realizado la campaña*).
+Using all the notation we've already defined, we can also define the **causal effect** of the marketing campaign for the company $i$ (that is, the difference between the sales if the campaign had been carried out and the sales if it hadn't).
 
 $$
 \delta_i=Y_i^1-Y_i^0
 $$
+As we only know one of the two potential outcomes for the unit $i$, the value $\delta_i$ is unobservable. Note also that the subindex $i$ tells us that this causal effect can be different for other units (in general, $\delta_i\ne\delta_j$).
 
-Como solo conocemos uno de los 2 outcomes potenciales para la unidad $i$, el valor $\delta_i$ es imposible de observar. Además, notar que la presencia del subíndice $i$ implica que el efecto causal puede ser distinto para otras unidades (en general, $\delta_i\ne\delta_j$).
+## Average effects: ATE y ATT
 
-## Efectos promedio: ATE y ATT
+Despite not being able to know the treatment effects for each unit $i$, under some circumstances we can estimate average effects for a group of units.
 
-Si bien nunca podemos conocer los efectos del tratamiento para cada unidad, bajo ciertas circunstancias podemos estimar efectos causales promedio para un conjunto de unidades.
+There are different names for these average effects, depending on which group of units we are referring to. The most relevant ones are:
 
-Existen varios nombres para estos efectos promedio, dependiendo de qué conjunto de unidades se considere. Los más relevantes son:
-
--   [**A**]{.ul}**verage [T]{.ul}reatment [E]{.ul}ffect (ATE):** Corresponde al efecto promedio sobre todas las unidades.
+-   [**A**]{.ul}**verage [T]{.ul}reatment [E]{.ul}ffect (ATE):** It's the average effect over all the units in our analysis.
 
 $$
 \begin{aligned}
@@ -96,9 +92,9 @@ ATE &= E[\delta_i]\\
 \end{aligned}
 $$
 
--   [**A**]{.ul}**verage [T]{.ul}reatment Effect on the [T]{.ul}reated (ATT):** Similar al ATE, pero sólo considera las unidades que efectivamente recibieron el tratamiento ($|D_i=1$)[^3].
+-   [**A**]{.ul}**verage [T]{.ul}reatment Effect on the [T]{.ul}reated (ATT):** Similar to the ATE, but only considering the units that actually received the treatment ($|D_i=1$)[^3].
 
-[^3]: Además existe el ATU, que es análogo al ATT pero considerando sólo las unidades que *no* recibieron el tratamiento. Es menos relevante que el ATE y el ATT y por eso lo menciono solo en una nota al pie.
+[^3]: There is also the ATU (Average Treatment Effect on the Untreated), which is analogous to the ATT but considering only the units which did *not* receive the treatment. It's less relevant than the ATE and the ATT, and that's why I only mention it in a footnote.  
 
 $$
 \begin{aligned}
@@ -107,54 +103,54 @@ ATT &= E[\delta_i|D_i=1]\\
 &= E[Y_i^1|D_i=1]-E[Y_i^0|D_i=1]
 \end{aligned}
 $$
+We must remember that even though the units didn't receive the treatment, they still have (conceptually) a potential outcome without treatment ($Y_i^0$). Besides, since the effects $\delta_i$ can be different between units (and usually they are), more often than not the ATE and ATT won't be equal.
 
-Debemos recordar que aunque las unidades reciban el tratamiento, aun así poseen conceptualmente un outcome potencial sin tratamiento ($Y_i^0$). Además, como los efectos $\delta_i$ pueden ser diferentes entre unidades (y generalmente lo son), lo más probable es que ATE y ATT sean distintos.
+Something problematic here is that the ATE and ATT are still functions of counterfactual terms, and therefore unobservable and impossible to calculate. But we previously had said that, under some circumstances, we could estimate them. Which are these circumstances?
 
-Algo problemático aquí es que el ATE y el ATT todavía son funciones de términos contrafactuales, y por ende son imposibles de calcular bajo estas expresiones. Pero antes habíamos dicho que en ciertas situaciones era posible estimarlos. ¿Cuáles son esas situaciones?
+To explain it, we must introduce a new expression that ***can be*** calculated: the **simple difference in outcomes**.
 
-Para explicarlo debemos introducir una nueva expresión que sí puede calcularse: la **diferencia simple de outcomes**.
+## Simple difference in outcomes (SDO)
 
-## Diferencia simple de outcomes
+Despite the relevance of potential outcomes, the only values we can truly observe in the real world are:
 
-A pesar de la relevancia de los outcomes potenciales, el mundo real los únicos valores que observamos son:
+-   The actual outcomes: $Y_i$
 
--   Los outcomes reales: $Y_i$
+-   The treatment values for the units: $D_i$
 
--   Los valores de tratamiento de las unidades: $D_i$
+In the context of the previous example, this would mean to observe:
 
-Siguiendo con el ejemplo anterior, esto equivaldría a observar:
+-   The sales for each company
 
--   Las ventas de cada empresa
+-   Whether they did a marketing campaign or not (in the period of interest)
 
--   Si realizaron una campaña de marketing o no durante el periodo analizado
-
-Un estadístico fácil de obtener con estos datos es la diferencia en ventas promedio entre las empresas que realizaron una campaña de marketing y las que no la hicieron. A este estadístico le denominaremos SDO (*Simple Difference in Outcomes*), y se expresa así en notación de potential outcomes:
+A statistic that can be easily obtained using this data is the difference in average sales between the companies that carried out a marketing campaign and those that did not. This statistic is called the Simple Difference in Outcomes, or SDO, and can be expressed as follows using the potential outcomes notation:
 
 $$
 E[Y^1|D=1] - E[Y^0|D=0]
 $$
 
-Y se calcula con la siguiente fórmula (donde $N_T$ es la cantidad de empresas con $D=1$ y $N_C$ es la cantidad de empresas con $D=0$).
+And it can be calculated by using the following formula (where $N_T$ is the number companies with $D_i=1$ and $N_C$ is the number of companies with $D_i=0$).
 
 $$
 \frac{1}{N_T} \sum_{i=1}^n(yi|d_i=1)-\frac{1}{N_C}\sum_{i=1}^{n}(y_i|d_i=0)
 $$
 
-Puede verse que esta expresión **contiene sólo outcomes reales** (observables) por lo que **sí se puede calcular**.
+We can see that this expression **only contains actual outcomes** (observables). Therefore, **it can be calculated**.
 
-Ahora bien, intuitivamente sabemos que atribuirle interpretación causal a esta cifra está mal. Por ejemplo, es probable que las empresas con presupuesto suficiente para hacer una campaña de marketing sean empresas más grandes, y por ende fueran a tener ventas mayores aunque no realizaran la campaña.
+However, we intuitively know that attributing causal meaning to this metric is wrong. For instance, it's likely that companies with a big enough budget to implement a marketing campaign are larger companies, and therefore, companies that would have had bigger sales even if they didn't have implemented the campaign.
 
-Esta intuición se ve reflejada en la **descomposición de la diferencia simple de outcomes (SDO)**: ![](images/sdo.png)
+This intuition is reflected in the **simple difference in means decomposition**:
+![](images/sdo.png)
 
-Lo que nos dice esta descomposición es que el SDO corresponde a la suma de 3 expresiones:
+What this decomposition tells us is that the SDO is composed of the sum of three expressions: 
 
--   Nuestro codiciado **Average Treatment Effect**, el promedio de los efectos causales.
+-   [Our precious](https://www.youtube.com/watch?v=Iz-8CSa9xj8), the **Average Treatment Effect**.
 
--   Dos sesgos: el **sesgo de selección** (diferencia de ventas promedio entre los grupos de empresas si es que ninguna hubiera realizado una campaña de marketing) y el **sesgo de efectos heterogéneos** (diferencia de los $\delta_i$ promedio entre empresas que realizaron campaña y las que no).
+-   Two nasty biases: the **selection bias** (the difference in average sales between groups of companies if none of them would have implemented the marketing campaign) and the **heterogeneus treatment effect bias** (the difference in average $\delta_i$ between groups of companies).
 
-Esta descomposición [está demostrada en el libro](https://mixtape.scunning.com/potential-outcomes.html#simple-difference-in-means-decomposition) y es la explicación "técnica" de porqué la diferencia de medias usualmente no tiene interpretación causal: los sesgos de selección y de efectos heterogéneos hacen que el SDO sea distinto del ATE.
+This decomposition [is demonstrated in the book](https://mixtape.scunning.com/potential-outcomes.html#simple-difference-in-means-decomposition), and it is the "technical" explanation of why the SDO usually doesn't have a proper causal meaning: selection bias and heterogenous effect bias lead to the SDO being different from the ATE.
 
-La descomposición nos entrega buenas y malas noticias. La buena es que tenemos ahora un estadístico fácil de calcular (el SDO) que técnicamente *contiene* el ATE. La mala es que para "extraer" el ATE desde el SDO necesitamos información que en el mundo real no tenemos (los sesgos están expresados en términos de potential outcomes).
+The decomposition gives us good and bad news. The good news is that now we have an easy to calculate statistic (the SDO) which *technically* contains the ATE. The bad news is that in order to "extract" the ATE from the SDO, we need information that we don't have (since the expressions for the biases contain counterfactual outcomes).
 
 La luz de esperanza que nos ofrece la inferencia causal ante esto es desarrollar estrategias para que, en los datos recolectados, los sesgos sean pequeños o despreciables, y así sea posible usar el SDO como estimador del ATE.
 
@@ -171,6 +167,8 @@ OK, sabemos que queremos recuperar efectos promedio, como el ATE y el ATT, y que
 Por ejemplo, cuando decimos algo como "*las empresas con presupuesto suficiente para hacer una campaña de marketing son más grandes, y por ende tendrán mayores ventas aunque no realicen la campaña*" lo que estamos queriendo decir, en lenguaje de outcomes potenciales, es que $D$ depende de $Y^0$: empresas con mayor valor de $Y^0$ tienen mayor probabilidad de mostrar un valor $D=1$.
 
 De lo anterior se desprende que **cuando sí existe indepencia entre la asignación del tratamiento y los outcomes potenciales (**$(Y^1,Y^0)\mathrel{\unicode{x2AEB}}D$**) el SDO sí es un buen estimador del ATE!** (es insesgado)[^4].
+
+[LLEGAR ACÁ]
 
 [^4]: Pueden encontrar una demostración de esto en [esta sección](https://mixtape.scunning.com/potential-outcomes.html#independence-assumption) del libro.
 
