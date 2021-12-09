@@ -168,7 +168,7 @@ OK, sabemos que queremos recuperar efectos promedio, como el ATE y el ATT, y que
 
 Por ejemplo, cuando decimos algo como "*las empresas con presupuesto suficiente para hacer una campaña de marketing son más grandes, y por ende tendrán mayores ventas aunque no realicen la campaña*" lo que estamos queriendo decir, en lenguaje de outcomes potenciales, es que $D$ depende de $Y^0$: empresas con mayor valor de $Y^0$ tienen mayor probabilidad de mostrar un valor $D=1$.
 
-De lo anterior se desprende que **cuando sí existe indepencia entre la asignación del tratamiento y los outcomes potenciales (**$(Y^1,Y^0)\mathrel{\unicode{x2AEB}}D$**) el SDO sí es un buen estimador del ATE!** (es insesgado)[^4].
+De lo anterior se desprende que **cuando sí existe indepndencia entre la asignación del tratamiento y los outcomes potenciales (**$(Y^1,Y^0)\mathrel{\unicode{x2AEB}}D$**) el SDO sí es un buen estimador del ATE!** (es insesgado)[^4].
 
 [^4]: Pueden encontrar una demostración de esto en [esta sección](https://mixtape.scunning.com/potential-outcomes.html#independence-assumption) del libro.
 
@@ -182,4 +182,6 @@ En general, dondequiera que la variable $D$ sea escogida libremente por seres hu
 
 En palabras del autor del Mixtape: "*La elección racional está siempre empujando en contra del supuesto de independencia*".
 
-La excepción a esto es la **randomización**, justamente porque allí no existe elección libre elección por parte de agentes. Al asignar los valores de $D$ de forma aleatoria a los participantes de un experimento, imponemos independencia entre estos valores y los outcomes potenciales. Como consecuencia, **la diferencia simple de medias en datos experimentales suele ser suficiente para estimar efectos causales sin sesgo**.
+La excepción a esto es la **randomización**, justamente porque allí no existe elección libre elección por parte de agentes. Al asignar los valores de $D$ de forma aleatoria a los participantes de un experimento, imponemos independencia entre estos valores y los outcomes potenciales. Como consecuencia, **la diferencia simple de medias en experimentos aleatorizados suele ser suficiente para estimar efectos causales sin sesgo**.[^5]
+
+[^5]: Digo "suele ser suficiente" (y no "es suficiente) porque a pesar de existir randomización, los experimentos aún pueden sufrir de otros problemas que introducen sesgo en la estimación de efectos causales, tales como los [spillovers](https://en.wikipedia.org/wiki/Spillover_(experiment)). Esto queda como tema para otro post en el futuro.

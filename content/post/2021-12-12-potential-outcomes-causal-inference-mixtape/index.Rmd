@@ -137,7 +137,7 @@ $$
 
 We can see that this expression **only contains actual outcomes** (observables). Therefore, **it can be calculated**.
 
-However, we intuitively know that attributing causal meaning to this metric is wrong. For instance, it's likely that companies with a big enough budget to implement a marketing campaign are larger companies, and therefore, companies that would have had bigger sales even if they didn't have implemented the campaign.
+However, we intuitively know that attributing causal meaning to this metric is wrong. For instance, it's likely that companies with a big enough budget to implement a marketing campaign are larger companies, and therefore, they would have had bigger sales even if they didn't have implemented the campaign.
 
 This intuition is reflected in the **simple difference in means decomposition**:
 ![](images/sdo.png)
@@ -152,34 +152,36 @@ This decomposition [is demonstrated in the book](https://mixtape.scunning.com/po
 
 The decomposition gives us good and bad news. The good news is that now we have an easy to calculate statistic (the SDO) which *technically* contains the ATE. The bad news is that in order to "extract" the ATE from the SDO, we need information that we don't have (since the expressions for the biases contain counterfactual outcomes).
 
-La luz de esperanza que nos ofrece la inferencia causal ante esto es desarrollar estrategias para que, en los datos recolectados, los sesgos sean pequeños o despreciables, y así sea posible usar el SDO como estimador del ATE.
+Given this, the light of hope that causal inference offers us is to develop strategies so that, in the data collected, the biases are negligible, and thus making it possible to use the SDO as an estimator of the ATE.
 
-En palabras de [Scott Cunningham](https://www.scunning.com/), autor del libro:
+In the own words of [Scott Cunningham](https://www.scunning.com/) (author of the book):
 
 > "One could argue that the entire enterprise of causal inference is about developing a reasonable strategy for negating the role that selection bias is playing in estimated causal effects."
 
-## El supuesto de independencia (y la efectividad de la randomización)
+## The independence assumption (and the effectiveness of randomization)
 
-OK, sabemos que queremos recuperar efectos promedio, como el ATE y el ATT, y que el SDO no *generalmente* es un buen estimador de ellos debido a los sesgos ya vistos. ¿Pero qué explica la aparición de estos sesgos?
+OK, so we want to retrieve unbiased estimates for the average effects, the ATE and the ATT, and we know that most of the time, the SDO isn't a good estimator for those due to the biases we've just talked about. But what is the reason why these biases do appear in the SDO?
 
-**Los sesgos** (de selección y de efectos heterogéneos) **aparecen cuando la asignación del tratamiento (**$D_i$**) no es independiente de los outcomes potenciales.**
+**Biases** (of selection and heterogeneous effect) **appear when the treatment assignment (**$D_i$**) is not independent of the potential outcomes**.
 
-Por ejemplo, cuando decimos algo como "*las empresas con presupuesto suficiente para hacer una campaña de marketing son más grandes, y por ende tendrán mayores ventas aunque no realicen la campaña*" lo que estamos queriendo decir, en lenguaje de outcomes potenciales, es que $D$ depende de $Y^0$: empresas con mayor valor de $Y^0$ tienen mayor probabilidad de mostrar un valor $D=1$.
+For example, when we say something like "*companies with a big enough budget to implement a marketing campaign are larger companies, and therefore, they would have had bigger sales even if they didn't have implemented the campaign*", what we are really saying, in language of potential outcomes, is that $D$ depends on $Y^0$: companies with higher values for $Y^0$ are more likely to have a value of $D$ equal to 1.
 
-De lo anterior se desprende que **cuando sí existe indepencia entre la asignación del tratamiento y los outcomes potenciales (**$(Y^1,Y^0)\mathrel{\unicode{x2AEB}}D$**) el SDO sí es un buen estimador del ATE!** (es insesgado)[^4].
+From the above, it follows that **when *there is* independence between treatment assignment and potential outcomes (**$(Y^1,Y^0)\mathrel{\unicode{x2AEB}}D$**), then the SDO is, in fact, a good estimator for the ATE!** (it's unbiased)[^4].
 
-[LLEGAR ACÁ]
-
-[^4]: Pueden encontrar una demostración de esto en [esta sección](https://mixtape.scunning.com/potential-outcomes.html#independence-assumption) del libro.
+[^4]: You can see a demonstration of this in [this section](https://mixtape.scunning.com/potential-outcomes.html#independence-assumption) of the book.
 
 ![](https://media2.giphy.com/media/G96zgIcQn1L2xpmdxi/giphy.gif)
 
-La mala noticia es que esto rara vez ocurre en el mundo real.
+The bad news is that this rarely happens in real life.
 
 ![](https://media2.giphy.com/media/nrg0TI3u0BFw5NBDsQ/giphy.gif)
 
-En general, dondequiera que la variable $D$ sea escogida libremente por seres humanos, habrá dependencia entre $D$ y los outcomes potenciales 😵. Si bien las personas no somos [*homo economicus*](https://en.wikipedia.org/wiki/Homo_economicus) que toman sus decisiones con información perfecta (no conocemos con exactitud los outcomes potenciales), sí recabamos información sobre las opciones posibles y sus resultados esperados, y tomamos decisiones que creemos que nos beneficiarán a partir de esa información incompleta. Esto es suficiente para que tales decisiones (i.e. los valores de $D$) no sean independientes de los potential outcomes.
+As a general rule, whenever the variable $D$ is being freely chosen by human beings, there will be dependence between $D$ and the potential outcomes 😵. 
 
-En palabras del autor del Mixtape: "*La elección racional está siempre empujando en contra del supuesto de independencia*".
+Although we are not [*homo economicus*](https://en.wikipedia.org/wiki/Homo_economicus) who make their decisions with perfect information (we don't know the exact value of the potential outcomes), we do collect information about the available options and their expected outcomes, and we make decisions that we believe will benefit us based on that limited information. This is enough so that such decisions (that is, the $D$ values) are not independent of the potential outcomes.
 
-La excepción a esto es la **randomización**, justamente porque allí no existe elección libre elección por parte de agentes. Al asignar los valores de $D$ de forma aleatoria a los participantes de un experimento, imponemos independencia entre estos valores y los outcomes potenciales. Como consecuencia, **la diferencia simple de medias en datos experimentales suele ser suficiente para estimar efectos causales sin sesgo**.
+In the words of Scott Cunningham: "*Rational choice is always pushing against the independence assumption*".
+
+One of the exceptions to this is **randomization**, precisely because there is no free choice from agents on it. Since we assign values of $D$ randomly to each unit, we impose independence between those values and the potential outcomes. Thus, **the SDO in randomized trials is usually enough to estimate unbiased causal effects**[^5].
+
+[^5]: I'm saying "usually enough" and not "enough" because despite being randomized, trials still can have biased results due to other problems, such as [spillovers](https://en.wikipedia.org/wiki/Spillover_(experiment)). This can be a topic for another blog post in the future.
