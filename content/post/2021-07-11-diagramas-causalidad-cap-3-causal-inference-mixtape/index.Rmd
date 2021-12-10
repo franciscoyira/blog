@@ -26,7 +26,7 @@ The flip side of the coin is that the DAG we draw will be only as good as our pr
 
 > There is an underlying DAG behind every identification strategy, whether we like it or not.
 
-Whether we like it or not, [there is an underlying DAG behind every identification strategy]((https://nickchk.com/causalgraphs.html)). Even if we don't represent it explicitly, there is always an implicit assumed DAG when we apply causal inference strategies such as Fixed Effects, Differences in differences, or Instrumental Variables.
+Whether we like it or not, [there is an underlying DAG behind every identification strategy](https://nickchk.com/causalgraphs.html). Even if we don't represent it explicitly, there is always an implicit assumed DAG when we apply causal inference strategies such as Fixed Effects, Differences in differences, or Instrumental Variables.
 
 ![*Examples of causal DAGs applied to quasi-experimental methodologies. From top right in clockwise direction: Regression discontinuity design, Differences in differences, Instrumental Variables and Fixed Effects. Source: [Causal Inference Animated Plots, nickhk.com](https://nickchk.com/causalgraphs.html).*](images/dags_examples.png){width="813px"}
 

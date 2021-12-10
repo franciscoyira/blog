@@ -30,7 +30,7 @@ El **efecto causal** de una intervención (en este caso, de la campaña de marke
 
 En el ejemplo de la empresa, al realizarse la campaña de marketing ya no es posible observar cuáles hubieran sido las ventas de no haberse realizado la campaña. Podemos tener conjeturas o hipótesis, pero nunca sabremos con certeza cuál hubiera sido ese valor para esa empresa particular.
 
-La buena noticia es que, teniendo datos de muchas empresas (y cumpliéndose ciertas condiciones especiales), podemos igual conseguir una **estimación** razonable del **efecto *promedio** de una campaña de marketing genérica sobre ***un conjunto*** de empresas.
+La buena noticia es que, teniendo datos de muchas empresas (y cumpliéndose ciertas condiciones especiales), podemos igual conseguir una **estimación** razonable del **efecto *promedio*** de una campaña de marketing genérica sobre **un conjunto** de empresas.
 
 Ahora llevemos estos conceptos a la notación de *Potential Outcomes*.
 
