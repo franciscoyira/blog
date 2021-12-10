@@ -1,7 +1,7 @@
 ---
 title: Potential Outcomes Model (or why correlation is not causality)
 author: Francisco Yirá
-date: '2021-12-12'
+date: '2021-12-09'
 slug: potential-outcomes-causal-inference-mixtape
 cover: "images/homer_potential_outcomes.jpg"
 useRelativeCover: true
@@ -16,9 +16,9 @@ tags:
   - potential-outcomes
 ---
 
-This article, the second one of [the series](https://www.franciscoyira.com/tags/causal-inference-the-mixtape/) about the book [Causal Inference: The Mixtape](https://mixtape.scunning.com/), is all about the Potential Outcomes notation and how it enables us to tackle causality questions and understand key concepts in this field[^1].
+This article, the second one of [the series](https://www.franciscoyira.com/tags/causal-inference-the-mixtape/) about the book [Causal Inference: The Mixtape](https://mixtape.scunning.com/), is all about the **Potential Outcomes notation** and how it enables us to tackle causality questions and understand key concepts in this field[^1].
 
-[^1]: The potential outcomes notation was first introduced by [Splawa-Neymanen in 1923](https://www.jstor.org/stable/2245382), and then was popularized [by Rubin since 1974]((https://www.fsb.muohio.edu/lij14/420_paper_Rubin74.pdf)).
+[^1]: The potential outcomes notation was first introduced by [Splawa-Neymanen in 1923](https://www.jstor.org/stable/2245382), and then was popularized [by Rubin in 1974]((https://www.fsb.muohio.edu/lij14/420_paper_Rubin74.pdf)).
 
 The central idea of this notation is the **comparison between 2 states of the world**:
 
@@ -32,11 +32,11 @@ In the company example, when the marketing campaign is carried out, it is no lon
 
 The good news is that by having data for many companies (and when some special conditions are met) we can still get a reasonable **estimate** for the **average effect** of a generic marketing campaign over that *group* of companies.
 
+Now let's translate these concepts into the potential outcomes notation.
+
 ## Potential outcomes notation
 
-Now we will translate those concepts into the potential outcomes notation.
-
-First, we define the variable $D_i$, which represents if the unit $i$ receives the treatment or not[^2]. In the previous example, this variable would take the value 1 if the company $i$ executes the marketing campaign and 0 if not.
+First, we define the variable $D_i$, which represents if the unit $i$ receives the treatment or not[^2]. In the previous example, this variable will take the value 1 if the company $i$ executes the marketing campaign and 0 if not.
 
 [^2]: There are cases where the treatment is not binary, but they will be left out of this article in order to keep the explanations simple.
 
@@ -50,9 +50,11 @@ $$
 Y_i^1|D_i=0
 $$
 
-Now this expression is interpreted as "the sales of the company $i$ when the marketing campaign is carried out, *conditional on the fact that it did not actually implement the campaign*". 
+Now this expression is interpreted as "the sales of the company $i$ in the world where the marketing campaign is carried out, *conditional on the fact that it did not actually implement the campaign*". 
 
 In other words, the superindex denotes a hypothetical scenario for $Y_i$, and what comes after $|$ indicates what really happened with the unit $i$. If these two values match, then the whole expression is a real outcome, and if they're different, it's a counterfactual outcome (and therefore, it's unknown).
+
+![](images/counterfactuals.jpg){width="750"}
 
 The previous idea can be summarized through the so-called ***switching equation***:
 
@@ -66,15 +68,15 @@ Which can be better understood with this meme:
 
 The key idea here is that, in the real world, we only know the actual outcome ($Y_i$), which is the materialization of one of the potential outcomes ($Y_i^1, Y_i^0$) based on the value taken by $D_i$: if $D_i=1$, then $1-D_i=0$ and the equation collapses to $Y_i=Y_i^1$ (and vice versa when $D_i=0$).
 
-![](images/switching%20equation%20explicada.png){width="500"}
-Thus, the non-materialized potential outcome is relegated to be a *counterfactual* (i.e. a fictional concept from our imagination)
+![](images/switching_equation_explained.png){width="500"}
+Thus, the non-materialized potential outcome is relegated to be a *counterfactual* (i.e. a fictional concept in our imagination).
 
 Using all the notation we've already defined, we can also define the **causal effect** of the marketing campaign for the company $i$ (that is, the difference between the sales if the campaign had been carried out and the sales if it hadn't).
 
 $$
 \delta_i=Y_i^1-Y_i^0
 $$
-As we only know one of the two potential outcomes for the unit $i$, the value $\delta_i$ is unobservable. Note also that the subindex $i$ tells us that this causal effect can be different for other units (in general, $\delta_i\ne\delta_j$).
+As we only see one of the two potential outcomes for the unit $i$, the value $\delta_i$ is unobservable. Note also that the subindex $i$ tells us that this causal effect can be different for other units (in general, $\delta_i\ne\delta_j$).
 
 ## Average effects: ATE y ATT
 
@@ -82,7 +84,7 @@ Despite not being able to know the treatment effects for each unit $i$, under so
 
 There are different names for these average effects, depending on which group of units we are referring to. The most relevant ones are:
 
--   [**A**]{.ul}**verage [T]{.ul}reatment [E]{.ul}ffect (ATE):** It's the average effect over all the units in our analysis.
+-   [**A**]{.ul}**verage [T]{.ul}reatment [E]{.ul}ffect (ATE):** It's the average of the effects on all the units in our analysis.
 
 $$
 \begin{aligned}
@@ -103,11 +105,11 @@ ATT &= E[\delta_i|D_i=1]\\
 &= E[Y_i^1|D_i=1]-E[Y_i^0|D_i=1]
 \end{aligned}
 $$
-We must remember that even though the units didn't receive the treatment, they still have (conceptually) a potential outcome without treatment ($Y_i^0$). Besides, since the effects $\delta_i$ can be different between units (and usually they are), more often than not the ATE and ATT won't be equal.
+We must remember that even though some units did receive the treatment, they still have (conceptually) a potential outcome without treatment ($Y_i^0$). Besides, since the effects $\delta_i$ can be different between units (and usually they are), more often than not the ATE and ATT will have different values too.
 
 Something problematic here is that the ATE and ATT are still functions of counterfactual terms, and therefore unobservable and impossible to calculate. But we previously had said that, under some circumstances, we could estimate them. Which are these circumstances?
 
-To explain it, we must introduce a new expression that ***can be*** calculated: the **simple difference in outcomes**.
+To explain it, we must introduce a new expression that *can* be calculated: the **simple difference in outcomes**.
 
 ## Simple difference in outcomes (SDO)
 
@@ -123,7 +125,7 @@ In the context of the previous example, this would mean to observe:
 
 -   Whether they did a marketing campaign or not (in the period of interest)
 
-A statistic that can be easily obtained using this data is the difference in average sales between the companies that carried out a marketing campaign and those that did not. This statistic is called the Simple Difference in Outcomes, or SDO, and can be expressed as follows using the potential outcomes notation:
+A statistic that can be easily obtained using this data is the difference in average sales between the companies that carried out a marketing campaign and those that did not. This statistic is called the **Simple Difference in Outcomes**, or **SDO**, and can be expressed as follows using the potential outcomes notation:
 
 $$
 E[Y^1|D=1] - E[Y^0|D=0]
@@ -139,7 +141,7 @@ We can see that this expression **only contains actual outcomes** (observables).
 
 However, we intuitively know that attributing causal meaning to this metric is wrong. For instance, it's likely that companies with a big enough budget to implement a marketing campaign are larger companies, and therefore, they would have had bigger sales even if they didn't have implemented the campaign.
 
-This intuition is reflected in the **simple difference in means decomposition**:
+This intuition is reflected in the **simple difference in outcomes *decomposition***:
 ![](images/sdo.png)
 
 What this decomposition tells us is that the SDO is composed of the sum of three expressions: 
@@ -160,11 +162,11 @@ In the own words of [Scott Cunningham](https://www.scunning.com/) (author of the
 
 ## The independence assumption (and the effectiveness of randomization)
 
-OK, so we want to retrieve unbiased estimates for the average effects, the ATE and the ATT, and we know that most of the time, the SDO isn't a good estimator for those due to the biases we've just talked about. But what is the reason why these biases do appear in the SDO?
+OK, so we want to retrieve unbiased estimates for the average effects, such as the ATE, and we know that most of the time, the SDO isn't a good estimator for those due to the biases we've just talked about. But what is the reason why these biases do appear in the SDO?
 
 **Biases** (of selection and heterogeneous effect) **appear when the treatment assignment (**$D_i$**) is not independent of the potential outcomes**.
 
-For example, when we say something like "*companies with a big enough budget to implement a marketing campaign are larger companies, and therefore, they would have had bigger sales even if they didn't have implemented the campaign*", what we are really saying, in language of potential outcomes, is that $D$ depends on $Y^0$: companies with higher values for $Y^0$ are more likely to have a value of $D$ equal to 1.
+For example, when we say something like "*companies with a big enough budget to implement a marketing campaign are larger companies, and therefore, they would have had bigger sales even if they didn't have implemented the campaign*", what we are really saying, in the language of potential outcomes, is that $D$ depends on $Y^0$: companies with higher values for $Y^0$ are more likely to have a value of $D$ equal to 1.
 
 From the above, it follows that **when *there is* independence between treatment assignment and potential outcomes (**$(Y^1,Y^0)\mathrel{\unicode{x2AEB}}D$**), then the SDO is, in fact, a good estimator for the ATE!** (it's unbiased)[^4].
 
@@ -182,6 +184,8 @@ Although we are not [*homo economicus*](https://en.wikipedia.org/wiki/Homo_econo
 
 In the words of Scott Cunningham: "*Rational choice is always pushing against the independence assumption*".
 
-One of the exceptions to this is **randomization**, precisely because there is no free choice from agents on it. Since we assign values of $D$ randomly to each unit, we impose independence between those values and the potential outcomes. Thus, **the SDO in randomized trials is usually enough to estimate unbiased causal effects**[^5].
+One of the exceptions to this is **randomization**, precisely because there is no free choice by agents on it. Since we assign values of $D$ randomly to each unit, we impose independence between those values and the potential outcomes. Thus, **the SDO in randomized trials is usually enough to estimate unbiased causal effects**[^5].
 
 [^5]: I'm saying "usually enough" and not "enough" because despite being randomized, trials still can have biased results due to other problems, such as [spillovers](https://en.wikipedia.org/wiki/Spillover_(experiment)). This can be a topic for another blog post in the future.
+
+*Your feedback is welcome! You can send me comments about this article to my [email](mailto:francisco.yira@outlook.com).*
