@@ -1,0 +1,202 @@
+---
+title: 'iTunes Wrapped: analyzing my music data with Python and ggplot2'
+author: Francisco Yirá
+date: '2021-12-17'
+slug: itunes-music-python-ggplot2-pandas
+categories:
+  - data-science
+  - python
+  - portfolio
+  - R
+tags:
+  - music
+  - ggplot2
+  - pandas
+  - data-viz
+  - data-wrangling
+  - matplotlib
+  - seaborn
+  - XML
+---
+
+```{python load-packages}
+import pandas as pd
+import numpy as np
+from lxml import objectify
+import xml.etree.ElementTree as ET
+import requests
+```
+
+
+```{python download-xml}
+# TODO: hacer que este código no se ejecute si es que archivo ya existe
+path = 'https://onedrive.live.com/download?cid=59E4C7D110DACCCC&resid=59E4C7D110DACCCC%21595580&authkey=AM93Z8YvAb4JiBY'
+
+r = requests.get(path, allow_redirects=True)
+open('iTunes.xml', 'wb').write(r.content)
+```
+
+
+```{python load-xml}
+tree = ET.parse('iTunes.xml')
+```
+
+
+```{python explore-root}
+root = tree.getroot()
+root.tag
+```
+This iterates over the main dict (the element that comes after 'plist') until it finds the tracks dict (the first nested dict). Then it saves is it in tracks_dict.
+```{python}
+main_dict=root.findall('dict')
+
+for item in list(main_dict[0]):  
+    print("element type:", item.tag)
+    if item.tag=="dict":
+        print('BINGO!')
+        tracks_dict=item
+        break
+
+```
+
+At this point, tracks_dict is a dict of dicts, and each dict represents a track from my music collection. Let's convert this dict into a list
+```{python}
+tracklist=list(tracks_dict.findall('dict'))
+tracklist[0:5]
+```
+The length of this list matches the number of songs in my music collection:
+```{python}
+len(tracklist)
+```
+
+Also, the `tracks_dict` dict contains `key` elements, which are unique IDs for each song (I assume):
+```{python}
+tracks_ids=list(tracks_dict.findall('key'))
+
+for i in tracks_ids[:5]:
+  print(i.text)
+
+```
+Retrieve the different kinds of media that exists in the collection:
+```{python}
+kinds=set([])
+for i in range(len(tracklist)):
+  for j in range(len(tracklist[i])):
+    if (tracklist[i][j].tag=="key" and tracklist[i][j].text=="Kind"):
+      kinds.add(tracklist[i][j+1].text)
+
+kinds=pd.Series(list(kinds))
+kinds
+```
+The ones I want are:
+
+* Archivo de audio AAC comprado
+* Purchased AAC audio file
+* Archivo de audio MPEG
+* Apple Lossless audio file
+* Audio Apple Lossless
+* Archivo de audio AAC
+
+The others are either music videos or audibooks
+```{python}
+kinds_i_want = kinds.drop([1, 2, 8]).reset_index(drop=True)
+kinds_i_want
+```
+```{python}
+'Archivo de audio AAC comprado' in kinds_i_want.unique()
+```
+
+
+Obtaining the set of attributes for different kinds of media:
+```{python}
+# This code will retrieve all the keys of the first track of the corresponding
+# Kind
+def cols(kind):
+    cols=[]
+    kind_found=False
+    for i in range(len(tracklist)):
+        for j in range(len(tracklist[i])):
+            # Whether the track is of the corresponding kind or not, 
+            # I will store its columns
+            if tracklist[i][j].tag=="key":
+                cols.append(tracklist[i][j].text)
+            # After finding the first track that matches the specified track,
+            # return it and stop the loops 
+            if (tracklist[i][j].text=="Kind" and tracklist[i][j+1].text==kind):
+                kind_found=True
+        if kind_found:
+          return set(cols)
+              
+track_kind=cols('Archivo de audio AAC comprado')
+```
+
+Here I got the columns corresponding to the different kinds.
+```{python}
+results = map(cols, kinds_i_want)
+results_list = [list(item) for item in results]
+```
+
+Obtain set with unique columns 
+```{python}
+flat_list=[]
+for item in results_list:
+  for sub_item in item:
+    flat_list.append(sub_item)
+
+unique_cols=set(flat_list)
+unique_cols
+```
+Create global dataframe with superset of columns:
+```{python}
+df_tracks=pd.DataFrame(columns=unique_cols)
+
+dict1={}
+
+for song_i in range(len(tracklist)):
+  for attribute_i in range(len(tracklist[song_i])):
+    if tracklist[song_i][attribute_i].tag=="key":
+      # this creates an entry in the dict with thekey(attribute)-value pair
+      dict1[tracklist[song_i][attribute_i].text]=tracklist[song_i][attribute_i+1].text
+  list_values=[i for i in dict1.values()]
+  list_keys=[j for j in dict1.keys()]
+  if dict1['Kind'] in kinds_i_want.unique():
+    df_temp=pd.DataFrame([list_values],columns=list_keys)
+    df_tracks=pd.concat([df_tracks,df_temp],axis=0,ignore_index=True,sort=True)
+
+```
+
+
+```{python}
+df_tracks
+```
+
+
+## Exploration on the obtained dataframe
+```{python}
+df_tracks.groupby('Kind').size().sort_values(ascending=False)
+```
+```{python}
+df_tracks.groupby('Year').size().sort_index(ascending=False)
+```
+```{python}
+df_tracks.groupby('Disabled').size().sort_values(ascending=False)
+```
+```{python}
+df_tracks.groupby('Skip Count').size().sort_values(ascending=False)
+```
+```{python}
+df_tracks[df_tracks['Skip Count'].astype(int) >= 6][['Name', 'Album', 'Skip Count']]
+```
+```{python}
+non_na_comment=~np.isnan(df_tracks['Comments'])
+df_tracks['Comments'][non_na_comment]
+```
+
+```{python}
+df_tracks.groupby('Track Type').size().sort_values(ascending=False)
+```
+```{python}
+df_tracks.groupby('Bit Rate').size().sort_values(ascending=False)
+```
+
+
