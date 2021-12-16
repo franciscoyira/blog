@@ -10,7 +10,6 @@ categories:
   - R
 tags:
   - music
-  - ggplot2
   - pandas
   - data-viz
   - data-wrangling
