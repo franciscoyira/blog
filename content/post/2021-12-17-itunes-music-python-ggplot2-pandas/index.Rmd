@@ -10,7 +10,6 @@ categories:
   - R
 tags:
   - music
-  - ggplot2
   - pandas
   - data-viz
   - data-wrangling
@@ -19,21 +18,35 @@ tags:
   - XML
 ---
 
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE)
+library(reticulate)
+knitr::knit_engines$set(python = reticulate::eng_python)
+```
+
 ```{python load-packages}
 import pandas as pd
 import numpy as np
 from lxml import objectify
 import xml.etree.ElementTree as ET
 import requests
+import seaborn as sns
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+from matplotlib import style
+import os
+
 ```
 
 
 ```{python download-xml}
-# TODO: hacer que este código no se ejecute si es que archivo ya existe
-path = 'https://onedrive.live.com/download?cid=59E4C7D110DACCCC&resid=59E4C7D110DACCCC%21595580&authkey=AM93Z8YvAb4JiBY'
+if not os.path.isfile('iTunes.xml'):
+  path = 'https://onedrive.live.com/download?cid=59E4C7D110DACCCC&resid=59E4C7D110DACCCC%21595580&authkey=AM93Z8YvAb4JiBY'
+  r = requests.get(path, allow_redirects=True)
+  open('iTunes.xml', 'wb').write(r.content)
+  
 
-r = requests.get(path, allow_redirects=True)
-open('iTunes.xml', 'wb').write(r.content)
 ```
 
 
@@ -99,13 +112,13 @@ The ones I want are:
 
 The others are either music videos or audibooks
 ```{python}
-kinds_i_want = kinds.drop([1, 2, 8]).reset_index(drop=True)
-kinds_i_want
+kinds_i_want = pd.Series(['Archivo de audio AAC comprado',
+                          'Purchased AAC audio file',
+                          'Archivo de audio MPEG',
+                          'Apple Lossless audio file',
+                          'Audio Apple Lossless',
+                          'Archivo de audio AAC'])
 ```
-```{python}
-'Archivo de audio AAC comprado' in kinds_i_want.unique()
-```
-
 
 Obtaining the set of attributes for different kinds of media:
 ```{python}
@@ -128,6 +141,7 @@ def cols(kind):
           return set(cols)
               
 track_kind=cols('Archivo de audio AAC comprado')
+track_kind
 ```
 
 Here I got the columns corresponding to the different kinds.
@@ -136,7 +150,7 @@ results = map(cols, kinds_i_want)
 results_list = [list(item) for item in results]
 ```
 
-Obtain set with unique columns 
+Obtaining set with unique columns 
 ```{python}
 flat_list=[]
 for item in results_list:
@@ -146,6 +160,12 @@ for item in results_list:
 unique_cols=set(flat_list)
 unique_cols
 ```
+There are 58 attributes in total:
+```{python}
+len(unique_cols)
+```
+
+
 Create global dataframe with superset of columns:
 ```{python}
 df_tracks=pd.DataFrame(columns=unique_cols)
@@ -187,10 +207,7 @@ df_tracks.groupby('Skip Count').size().sort_values(ascending=False)
 ```{python}
 df_tracks[df_tracks['Skip Count'].astype(int) >= 6][['Name', 'Album', 'Skip Count']]
 ```
-```{python}
-non_na_comment=~np.isnan(df_tracks['Comments'])
-df_tracks['Comments'][non_na_comment]
-```
+
 
 ```{python}
 df_tracks.groupby('Track Type').size().sort_values(ascending=False)
@@ -199,4 +216,46 @@ df_tracks.groupby('Track Type').size().sort_values(ascending=False)
 df_tracks.groupby('Bit Rate').size().sort_values(ascending=False)
 ```
 
+## Answering questions
 
+### 'Remote' songs
+What are 'Remote' files in Track Type field?
+```{python}
+df_tracks.query('`Track Type`=="Remote"')['Name'].values[:15]
+```
+These are mainly workout remixes I purchased on the iTunes Store for running. I have them downloaded in a stand-alone MP3 player that I use when I run, but I don't like listening to them in any other context, so that's why they're not downloaded in my music collection.
+
+Others are soundtracks songs (Interstellar, Doctor Who, etc). This is a similar situation: I don't want these songs to play when I'm listening to my whole collection in shuffle, or to appear in some Smart Playlists that I have.
+
+Finally, there are cases where I bought a digital song, but then also purchased the CD and ripped it. Here I prefer to listen to the ripped song, since it has Lossless audio (vs 256kbps of the iTunes Store verion). 
+
+### Most listened songs and albums
+
+An obvious question to answer with this data is what are the most listened songs an albums (I will left artists for later, because I will need to parse that data due to the way iTunes handles collaborations between several artists).
+
+Songs are easier, since no aggregation is needed:
+```{python}
+df_tracks[['Play Count']] = df_tracks[['Play Count']].apply(pd.to_numeric)
+```
+
+
+```{python}
+top_songs=(df_tracks
+  .sort_values(by='Play Count', ascending=False)
+  [['Name', 'Artist', 'Play Count']]
+  .head(10))
+  
+```
+
+
+```{python plot-top-songs}
+plt.figure(figsize=(8,10))
+sns.barplot(x='Play Count',
+            y='Name',
+            hue='Artist',
+            data=top_songs)
+
+plt.savefig("test.png")
+plt.show()
+```
+Ok: 
