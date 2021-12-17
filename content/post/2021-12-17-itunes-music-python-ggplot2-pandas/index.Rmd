@@ -36,7 +36,7 @@ matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from matplotlib import style
 import os
-
+import re
 ```
 
 
@@ -242,20 +242,138 @@ df_tracks[['Play Count']] = df_tracks[['Play Count']].apply(pd.to_numeric)
 ```{python}
 top_songs=(df_tracks
   .sort_values(by='Play Count', ascending=False)
-  [['Name', 'Artist', 'Play Count']]
+  [['Name', 'Artist', 'Play Count', 'Genre']]
   .head(10))
   
 ```
 
 
 ```{python plot-top-songs}
-plt.figure(figsize=(8,10))
-sns.barplot(x='Play Count',
+plt.clf()
+ax=sns.barplot(x='Play Count',
             y='Name',
             hue='Artist',
-            data=top_songs)
-
-plt.savefig("test.png")
+            data=top_songs,
+            # TIL: how to disable nesting when using hue https://stackoverflow.com/questions/63365569/how-to-disable-the-nesting-made-by-hue-in-seaborn
+            dodge=False,
+            palette=sns.color_palette("Set1", 3))
+# Rotating labels trying to make them fit
+ax.figure.set_size_inches(7,5)
+ax.xaxis.grid(True)  
+ax.set(ylabel='Track')
+plt.tight_layout()
+plt.savefig('test.png', dpi=400)
 plt.show()
 ```
-Ok: 
+Now I will do a ranking of my most listened albums. For this I need to aggregate Play Counts at album level. I will also discard singles or albums with too few songs
+```{python}
+# Filter albums that I consider as "full": those with more than 5 songs
+ntracks_album=df_tracks.groupby('Album').size()
+full_albums=(ntracks_album[ntracks_album>5]
+             .reset_index()
+             .rename(columns={0: "n_tracks"}))
+full_albums
+```
+
+Now let's aggregate play count at album level, and then filter by the previous dataframe
+```{python}
+plays_by_album= (df_tracks
+.groupby('Album')['Play Count']
+.sum()
+.reset_index()
+.sort_values(by='Play Count', ascending=False))
+
+full_albums_ranked=plays_by_album[plays_by_album.Album.isin(full_albums.Album)]
+full_albums_ranked.head(10)
+```
+
+OK, but I think plot will be less cluttered if I remove the text between parentheses in some albums names (i.e. "Deluxe Version" and "Original Motion Picture..."). This can be done through the string manipulation functions in Python:
+```{python remove-text-parentheses}
+full_albums_ranked['Album']=(full_albums_ranked
+                          .Album.str.replace(' \(.+\)$', '', regex=True))
+```
+
+
+
+
+Now let's create the plot with the top albums:
+```{python plot-top-albums}
+plt.clf()
+ax=sns.barplot(x='Play Count',
+               y='Album',
+               hue='Play Count',
+              data=full_albums_ranked.head(10),
+              dodge=False,
+              palette='OrRd')
+              
+# Rotating labels trying to make them fit
+ax.figure.set_size_inches(7,5)
+ax.xaxis.grid(True)  
+plt.tight_layout()
+plt.legend([],[], frameon=False)
+plt.savefig('test2.png', dpi=400)
+plt.show()
+```
+
+So, doing the ranking of songs was straightforward, and so was the ranking of albums, despite involving a couple of extra steps. But now I will try to do something a bit more complex. In order to obtain a ranking of artists by play count, I want to parse the artist attribute for collaborations (songs by more than one artists) so the play counts of these songs count for each one of those artists.
+
+For example, one of my most played songs is "Top Gone" by Lil Mosey and Lunay. If didn't parsed the artist for that song, when doing the ranking those play counts wouldn't count for Lil Mosey nor Lunay, but for a third, totally different artist named 'Lil Mosey & Lunay". Obviously I don't want that.
+
+The first thing here is look at all the strings that signal a collaboration. In my collection these are:
+
+* ' & '
+* ', ' 
+* ' Feat. '
+* ' feat. '
+* '/'	
+
+I may also want to look for exceptions: cases where those strings are present, but there is no collaboration. There are three such cases in my collection:
+
+* Zion & Lenox
+* Wisin & Yandel
+* Now, Now
+
+The first two are duets of reggaeton singers, 
+
+so it would make sense to keep them together.
+[explain that the name of the duet is just the name of the individual artists combined ]
+However, both of them have released solo songs, so it also makes sense to split to treat them as different artists collaborating. I will do the latter.
+
+The third case is an indie rock duo from Minnesota. Here the name of the band is not a combination of the name of the members, but instead an indivisible "artistic name", so I will add this as an exception.
+
+After splitting the artist string, I want to create a data structure that allows a 1:N relationship between songs and artists (so the plays count of each song add to each of the contribuiting artists).
+
+I think the appropiate data structure for this is a list of dictionaries, where each dictionary represents a song, and where one of the values of each dictionary is a lists of artists. 
+
+```{python split-artists-strings}
+delimiters=' & ',', ',' Feat. ',' feat. ','/'
+regexPattern = '|'.join(map(re.escape, delimiters))
+artists_splitted=df_tracks.Artist.str.split(regexPattern)
+artists_splitted[:10]
+```
+
+
+```{python}
+songs=[]
+for i, song in df_tracks.Name.items():
+  ## Parse the artists of the song
+  if df_tracks.Artist.values[i]=='Now, Now':
+    artist_to_assign=[df_tracks.Artist.values[i]]
+  else:
+    artist_to_assign=artists_splitted.values[i]
+  
+  ## add elements to the list of songs
+  songs.append({'Name': song,
+                'Number': i,
+                'Artists': artist_to_assign})
+
+```
+
+Trying to catch artists who appear in the song name as 'feat.'
+```{python}
+contains_feat=df_tracks.Name.str.contains('\(feat.')
+View(df_tracks[['Name']][contains_feat])
+```
+
+
+
