@@ -348,6 +348,7 @@ I think the appropiate data structure for this is a list of dictionaries, where 
 ```{python split-artists-strings}
 delimiters=' & ',', ',' Feat. ',' feat. ','/'
 regexPattern = '|'.join(map(re.escape, delimiters))
+reg_split=re.compile(regexPattern)
 artists_splitted=df_tracks.Artist.str.split(regexPattern)
 artists_splitted[:10]
 ```
@@ -373,7 +374,149 @@ Trying to catch artists who appear in the song name as 'feat.'
 ```{python}
 contains_feat=df_tracks.Name.str.contains('\(feat.')
 View(df_tracks[['Name']][contains_feat])
+
+```
+
+There are three patterns for featuring artists in song names:
+
+* Song name (feat. Artists names) (or sometimes just '(feat Artists names)', without the dot)
+* Song name [feat. Artists names]
+* Song name feat. Artist name
+
+I could try to create a unique general regex that extracts artist(s) name(s) in all these cases, but a better option is to just create a simpler regex for each one, and then apply them based on conditional logic and `str.contains`.
+
+```{python}
+re_circ_brackets=re.compile(' \(feat\.* (.*)\)')
+re_sq_brackets=re.compile(' \[feat. ([^\[]*)\]')
+re_bare=re.compile(' feat. (.*)$')
 ```
 
 
+```{python}
+# Idea: create three boolean arrays, and then use them to implement a for loop with conditional logic
+feat_curved_brackets=df_tracks.Name.str.contains('\(feat.').values
+feat_squared_brackets=df_tracks.Name.str.contains('\[feat.').values
+feat_bare=df_tracks.Name.str.contains(' feat.').values
 
+for i, song in df_tracks.Name.items():
+  # reg_compiled.split(match)
+  if feat_curved_brackets[i]:
+    artists_feat=re_circ_brackets.search(song)[1]
+  elif feat_squared_brackets[i]:
+    artists_feat=re_sq_brackets.search(song)[1]
+  elif feat_bare[i]:
+    artists_feat=re_bare.search(song)[1]
+    
+  if (feat_curved_brackets[i] or feat_squared_brackets[i] or feat_bare[i]):
+    splitted_artists_feat=reg_split.split(artists_feat)
+    songs[i]['Artists'].extend(splitted_artists_feat)
+
+```
+
+Now I will apply some transformations to artists names in order to normalize them and avoid their play counts getiing splitted due to different spelling (e.g. ROSALÍA vs Rosalía, and J. Balvin vs J Balvin).
+```{python}
+for i in range(len(songs)):
+  for j in range(len(songs[i]['Artists'])):
+    artist_name=songs[i]['Artists'][j]
+    norm_artist_name=artist_name.title().replace('.', '')
+    songs[i]['Artists'][j]=norm_artist_name
+    
+
+```
+
+Then, finally, I can add up the play counts by artist:
+```{python}
+artists={}
+
+for i in range(len(songs)):
+  for j in range(len(songs[i]['Artists'])):
+    if songs[i]['Artists'][j] not in artists:
+      artists[songs[i]['Artists'][j]]=df_tracks['Play Count'][i]
+    else:
+      artists[songs[i]['Artists'][j]]+=df_tracks['Play Count'][i]
+    
+
+```
+
+And now, finally, I can get my ranking!
+```{python}
+df_artists_plays=pd.DataFrame(artists.items(),
+                              columns=['Artist', 'Play Count']) 
+                              
+df_artists_plays
+```
+Getting the top 10 for the plot
+```{python}
+df_artists_plot=(df_artists_plays
+                 .sort_values(by='Play Count', ascending=False)
+                 .head(10))
+  
+df_artists_plot
+```
+
+And now the plot itself:
+```{python plot-top-artists}
+plt.clf()
+ax=sns.barplot(x='Play Count',
+               y='Artist',
+               hue='Play Count',
+              data=df_artists_plot,
+              dodge=False,
+              palette='OrRd')
+              
+# Rotating labels trying to make them fit
+ax.figure.set_size_inches(7,5)
+ax.xaxis.grid(True)  
+plt.tight_layout()
+plt.legend([],[], frameon=False)
+plt.show()
+```
+
+## Songs by decades and five-year periods
+
+Finally, it would be interesting (for me) to know how my music listening relates to the year in which songs were released. From the ranking above you can already guess that I lean heavily into more modern/contemporary music, and not so much into songs from the 90's or previous decades. But there still could be some interesting variation between more recent periods (let's say, 2010-2014 vs 2015-2019 vs 2020-2022).
+
+First, I will create a five-year period column in the original tracks dataframe:
+```{python}
+df_tracks[['Year']]=df_tracks[['Year']].apply(pd.to_numeric)
+```
+
+
+```{python}
+df_tracks=(df_tracks
+.assign(FiveYearPeriod=pd.to_numeric(np.floor(df_tracks.Year / 5) * 5, downcast='integer')))
+
+df_tracks.groupby('FiveYearPeriod').size()
+```
+
+Two changes that I would do here: 
+- Convert the FiveYearPeriod into categorical, and give each period a nice label (such as '2015-2019').
+- Since there are so few songs from before 1995, I want to group all of them in a category labeled as 'Before 1995'.
+
+```{python}
+fiveyearlabels=['Before 1995',
+              'Before 1995',
+              'Before 1995',
+              'Before 1995',
+              '1995-1999',
+              '2000-2004',
+              '2005-2009',
+              '2010-2014',
+              '2015-2019',
+              '2020-Present']
+              
+yearvalues=list(np.arange(1970, 2021, 5))
+
+fiveyearcats=pd.Categorical.from_codes(yearvalues, fiveyearlabels)
+fiveyearcats
+```
+
+```{python}
+df_tracks.FiveYearPeriod.astype('category')
+```
+
+Merge categories
+https://stackoverflow.com/questions/32262982/pandas-combining-multiple-categories-into-one
+
+Rename categories
+https://pandas.pydata.org/docs/reference/api/pandas.Series.cat.rename_categories.html
