@@ -490,33 +490,32 @@ df_tracks.groupby('FiveYearPeriod').size()
 ```
 
 Two changes that I would do here: 
-- Convert the FiveYearPeriod into categorical, and give each period a nice label (such as '2015-2019').
 - Since there are so few songs from before 1995, I want to group all of them in a category labeled as 'Before 1995'.
-
 ```{python}
-fiveyearlabels=['Before 1995',
-              'Before 1995',
-              'Before 1995',
-              'Before 1995',
-              '1995-1999',
-              '2000-2004',
-              '2005-2009',
-              '2010-2014',
-              '2015-2019',
-              '2020-Present']
-              
-yearvalues=list(np.arange(1970, 2021, 5))
-
-fiveyearcats=pd.Categorical.from_codes(yearvalues, fiveyearlabels)
-fiveyearcats
+df_tracks.FiveYearPeriod=['Before 1995' if year < 1995 else year for year in df_tracks.FiveYearPeriod]
 ```
 
+- Convert the FiveYearPeriod into categorical, and give each period a nice label (such as '2015-2019').
 ```{python}
-df_tracks.FiveYearPeriod.astype('category')
+catg_years=pd.Categorical(df_tracks.FiveYearPeriod,
+               ordered=True,
+               categories=['Before 1995', 1995, 2000, 2005, 2010, 2015, 2020])
 ```
 
-Merge categories
-https://stackoverflow.com/questions/32262982/pandas-combining-multiple-categories-into-one
 
-Rename categories
-https://pandas.pydata.org/docs/reference/api/pandas.Series.cat.rename_categories.html
+```{python}
+catg_years.rename_categories({1995: '1995-1999', 2000: '2000-2004', 2005: '2005-2009', 2010: '2010-2014', 2015: '2015-2019', 2020: '2020-Present'})
+
+
+```
+```{python}
+df_tracks.FiveYearPeriod=catg_years
+```
+
+Now get summary statistics per period:
+- Total songs
+- Total play counts
+- 3 songs with more plays
+- Share of liked songs per period
+
+Then finally, create pretty ggplots using reticulate magic, but also a seaborn plot with points (maybe distribution of songs per Play Count?)
