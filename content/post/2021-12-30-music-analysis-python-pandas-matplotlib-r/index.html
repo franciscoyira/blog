@@ -1,0 +1,1184 @@
+---
+title: 'Analyzing my music collection with Python and R'
+author: Francisco Yirá
+date: '2021-12-30'
+slug: music-analysis-python-pandas-matplotlib-r
+cover: "images/cover_music_python_R.jpg"
+useRelativeCover: true
+categories:
+  - data-science
+  - python
+  - R
+tags:
+  - music
+  - pandas
+  - data-viz
+  - data-wrangling
+  - matplotlib
+  - seaborn
+  - reticulate
+  - portfolio
+  - XML
+  - english-only-ds
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>A couple of months ago, I decided that it was time for me to finally grow out of my R comfort zone and start studying <strong>Python</strong>. I began my Python journey by reading the book <a href="https://www.oreilly.com/library/view/python-for-data/9781491957653/"><em>Python for Data Analysis</em></a> from Wes McKinney (creator of pandas, the Python equivalent of the tidyverse), and having finished it I wanted to put into practice what I’ve learned through an <strong>applied data analysis</strong>.</p>
+<p>And since I love listening to music, why not analyze my own music collection? I told myself. So here I am, sharing with you the insights and data visualizations I obtained from my music library, along with the code I used in this analysis.</p>
+<p>In this post I will show you:</p>
+<ul>
+<li><p>How to import the iTunes Library XML file into Python.</p></li>
+<li><p>How to parse the contents of that file into a <strong>pandas DataFrame</strong>.</p></li>
+<li><p>How I used pandas, matplotlib/seaborn, and regular expressions to answer questions on that DataFrame, such as: <em>Which are my most listened songs, albums and artists?</em> or <em>Which genres predominate in each decade of my music?</em></p></li>
+<li><p>And last but not least, how I expanded the analysis with R by using <code>reticulate</code> to <strong>pass pandas DataFrames to an R session</strong>, and then creating a nice table/playlist with the best songs of each era with the <code>gt</code> R package.</p></li>
+</ul>
+<p>Also, note that if you use iTunes (or Apple Music), you can do this too. All you need to do is locate the ‘iTunes Library.xml’ file and then run the Python code in this post against that file (although you probably will need some minor modifications).</p>
+<div id="importing-and-parsing-the-itunes-library-xml-file" class="section level2">
+<h2>Importing and parsing the iTunes Library XML file</h2>
+<p>First things first, we import the required Python libraries:</p>
+<pre class="python"><code>import pandas as pd
+import numpy as np
+from lxml import objectify
+import xml.etree.ElementTree as ET
+import requests
+import seaborn as sns
+import matplotlib
+matplotlib.use(&#39;Agg&#39;)
+from matplotlib import pyplot as plt
+from matplotlib import style
+import os
+import re
+import pycats</code></pre>
+<p>To allow you to run the code of this post, I put my XML file in a public URL. This Python snippet downloads the file from that URL the first time is run (if the file has already been downloaded, it won’t do anything).</p>
+<pre class="python"><code>if not os.path.isfile(&#39;iTunes.xml&#39;):
+  path = &#39;https://onedrive.live.com/download?cid=59E4C7D110DACCCC&amp;resid=59E4C7D110DACCCC%21595580&amp;authkey=AM93Z8YvAb4JiBY&#39;
+  r = requests.get(path, allow_redirects=True)
+  open(&#39;iTunes.xml&#39;, &#39;wb&#39;).write(r.content)</code></pre>
+<p>Once we have the iTunes.xml file in our working directory, we can load it in an “Element Tree” object through the function <code>ET.parse()</code>. As its name says, this data structure resembles a tree, which makes sense since XML files are a hierarchical data format.</p>
+<p>We can extract the “root” of this “tree” by using the method <code>getroot()</code>. Then, we can use that root as a starting point for exploring the whole tree.</p>
+<pre class="python"><code>tree = ET.parse(&#39;iTunes.xml&#39;)
+root = tree.getroot()</code></pre>
+<p>At this point, I think it helps to take a look at the first lines of the XML to have an idea of how it actually looks like:</p>
+<pre class="xml"><code>&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;!DOCTYPE plist PUBLIC &quot;-//Apple Computer//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;
+&lt;plist version=&quot;1.0&quot;&gt;
+&lt;dict&gt;
+    &lt;key&gt;Major Version&lt;/key&gt;&lt;integer&gt;1&lt;/integer&gt;
+    &lt;key&gt;Minor Version&lt;/key&gt;&lt;integer&gt;1&lt;/integer&gt;
+    &lt;key&gt;Application Version&lt;/key&gt;&lt;string&gt;12.12.2.2&lt;/string&gt;
+    &lt;key&gt;Date&lt;/key&gt;&lt;date&gt;2021-12-13T15:26:38Z&lt;/date&gt;
+    &lt;key&gt;Features&lt;/key&gt;&lt;integer&gt;5&lt;/integer&gt;
+    &lt;key&gt;Show Content Ratings&lt;/key&gt;&lt;true/&gt;
+    &lt;key&gt;Library Persistent ID&lt;/key&gt;&lt;string&gt;32B65A974DFAA048&lt;/string&gt;
+    &lt;key&gt;Tracks&lt;/key&gt;
+    &lt;dict&gt;
+        &lt;key&gt;744&lt;/key&gt;
+        &lt;dict&gt;
+            &lt;key&gt;Track ID&lt;/key&gt;&lt;integer&gt;744&lt;/integer&gt;
+            &lt;key&gt;Size&lt;/key&gt;&lt;integer&gt;7631665&lt;/integer&gt;
+            &lt;key&gt;Total Time&lt;/key&gt;&lt;integer&gt;216377&lt;/integer&gt;
+            &lt;key&gt;Disc Count&lt;/key&gt;&lt;integer&gt;1&lt;/integer&gt;
+            &lt;key&gt;Track Number&lt;/key&gt;&lt;integer&gt;1&lt;/integer&gt;
+            &lt;key&gt;Track Count&lt;/key&gt;&lt;integer&gt;1&lt;/integer&gt;
+            &lt;key&gt;Date Modified&lt;/key&gt;&lt;date&gt;2019-01-15T23:54:06Z&lt;/date&gt;
+            &lt;key&gt;Date Added&lt;/key&gt;&lt;date&gt;2019-01-15T01:13:34Z&lt;/date&gt;
+            &lt;key&gt;Bit Rate&lt;/key&gt;&lt;integer&gt;256&lt;/integer&gt;
+            &lt;key&gt;Sample Rate&lt;/key&gt;&lt;integer&gt;44100&lt;/integer&gt;
+            &lt;key&gt;Play Count&lt;/key&gt;&lt;integer&gt;33&lt;/integer&gt;</code></pre>
+<p>Nodes in XML files, such as <code>root</code>, should have a <code>tag</code> and a dictionary of attributes. We can get these with the following code:</p>
+<pre class="python"><code>root.tag</code></pre>
+<pre><code>## &#39;plist&#39;</code></pre>
+<pre class="python"><code>root.attrib</code></pre>
+<pre><code>## {&#39;version&#39;: &#39;1.0&#39;}</code></pre>
+<p>These values tell us that the <code>root</code> is located in the third line of the XML file:</p>
+<p><img src="images/root_xml_tree.png" width="800" /></p>
+<p>Below that root, we have a dict that contains keys such as <code>Major Version</code> (associated with the integer value “1”) and <code>Application Version</code> (associated with the string value “12.12.2.2”). Then, at line 12, there is a key named <code>Tracks</code>. This key is different because its value is not a scalar but another dict, and if we look at its contents, we see what seems like information about a song.</p>
+<p><strong>This nested dict</strong> (<code>Tracks</code>) <strong>is the piece of the XML tree that we’re looking for</strong>. Inside it, there are many dicts, one per song in the music collection, and each of these contains a set of attributes about the song they represent, e.g. Artist, Date Added to the collection, last time played, etc<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+<p>Now we need to use Python to navigate to that part of the tree and extract the <code>Tracks</code> dict to convert it into a pandas DataFrame.</p>
+<p>The following code does that: it iterates over the main dict (the element that comes after ‘plist’) until it finds the <code>Tracks</code> dict (which can be recognized because it’s the first element with <code>tag=="dict"</code>). Then it saves it in an object named <code>tracks_dict</code>.</p>
+<pre class="python"><code>main_dict=root.findall(&#39;dict&#39;)
+
+for index, item in enumerate(list(main_dict[0])):  
+    print(&#39;index #{} = &lt;{}&gt;&#39;.format(index, item.tag))
+    if item.tag==&quot;dict&quot;:
+        print(&#39;The tracks dict has been found!&#39;)
+        tracks_dict=item
+        break</code></pre>
+<pre><code>## index #0 = &lt;key&gt;
+## index #1 = &lt;integer&gt;
+## index #2 = &lt;key&gt;
+## index #3 = &lt;integer&gt;
+## index #4 = &lt;key&gt;
+## index #5 = &lt;string&gt;
+## index #6 = &lt;key&gt;
+## index #7 = &lt;date&gt;
+## index #8 = &lt;key&gt;
+## index #9 = &lt;integer&gt;
+## index #10 = &lt;key&gt;
+## index #11 = &lt;true&gt;
+## index #12 = &lt;key&gt;
+## index #13 = &lt;string&gt;
+## index #14 = &lt;key&gt;
+## index #15 = &lt;dict&gt;
+## The tracks dict has been found!</code></pre>
+<p>To better explain what’s going on, I made the following illustration highlighting the items over which we’re iterating, including the node that contains the dict with all the songs (i.e. the node we’re looking for). Having reached that node, the for loop saves it as <code>tracks_dict</code> and stops the iteration.</p>
+<p><img src="images/xml_itunes_explanation-min.png" width="800" /></p>
+<p>At this point, <code>tracks_dict</code> is a dict of dicts, and each dict inside it represents a track from my music collection. Let’s convert this dict into a list</p>
+<pre class="python"><code>tracklist=list(tracks_dict.findall(&#39;dict&#39;))</code></pre>
+<p>I can check the length of the list, which should match the number of songs in my iTunes collection.</p>
+<pre class="python"><code>len(tracklist)</code></pre>
+<pre><code>## 1565</code></pre>
+<p>Indeed, it’s the same number of songs I have in iTunes, so we’re on the right path.</p>
+</div>
+<div id="creating-a-pandas-dataframe" class="section level2">
+<h2>Creating a pandas DataFrame</h2>
+<p>By now, I have a list containing a dict per each song in my collection, but lists are not good data structures for doing data analysis. I want a DataFrame.</p>
+<p>However, there remains a challenge for converting this list into a DataFrame: it contains different “kinds” of media (e.g. purchased music, ripped music, music videos, audiobooks), and each of these may have different attributes.</p>
+<p>Let’s see which are these “media kinds”</p>
+<pre class="python"><code>kinds=set([])
+for i in range(len(tracklist)):
+  for j in range(len(tracklist[i])):
+    if (tracklist[i][j].tag==&quot;key&quot; and tracklist[i][j].text==&quot;Kind&quot;):
+      kinds.add(tracklist[i][j+1].text)
+
+kinds=pd.Series(list(kinds))
+kinds</code></pre>
+<pre><code>## 0        Apple Lossless audio file
+## 1             Audio Apple Lossless
+## 2    Archivo de audio AAC comprado
+## 3               Archivo de Audible
+## 4            Video MPEG-4 comprado
+## 5         Purchased AAC audio file
+## 6             Archivo de audio AAC
+## 7          Archivo de video MPEG-4
+## 8            Archivo de audio MPEG
+## dtype: object</code></pre>
+<p>I don’t want to perform an analysis on audiobooks or music videos, so I will filter those out.</p>
+<pre class="python"><code>kinds_i_want = pd.Series([&#39;Archivo de audio AAC comprado&#39;,
+                          &#39;Purchased AAC audio file&#39;,
+                          &#39;Archivo de audio MPEG&#39;,
+                          &#39;Apple Lossless audio file&#39;,
+                          &#39;Audio Apple Lossless&#39;,
+                          &#39;Archivo de audio AAC&#39;])</code></pre>
+<p>I plan to retrieve the available attributes for each of the <code>kinds_i_want</code> and then “merge” them to end up with a DataFrame containing all the existing features (even if some of them are not available for every kind). For example, if kind “purchased songs” has attributes A, B and C, and kind “ripped songs” has attributes B, C and D, I want to end up with a DataFrame with columns A, B, C and D.</p>
+<p>My first step for doing so is to create the function <code>cols</code> which, for a given kind, will return a <em>set</em> containing the attributes available in the data.</p>
+<pre class="python"><code># This code will retrieve all the &#39;keys&#39; (attributes) of the first track of the corresponding Kind
+def cols(kind):
+    cols=[]
+    kind_found=False
+    for i in range(len(tracklist)):
+        for j in range(len(tracklist[i])):
+            if tracklist[i][j].tag==&quot;key&quot;:
+                cols.append(tracklist[i][j].text)
+            if (tracklist[i][j].text==&quot;Kind&quot; and tracklist[i][j+1].text==kind):
+                kind_found=True
+        if kind_found:
+          return set(cols)
+              
+
+cols(&#39;Archivo de audio AAC comprado&#39;)</code></pre>
+<pre><code>## {&#39;Play Date&#39;, &#39;Play Count&#39;, &#39;Location&#39;, &#39;Total Time&#39;, &#39;Explicit&#39;, &#39;Sort Composer&#39;, &#39;Artwork Count&#39;, &#39;Track Count&#39;, &#39;Sort Album&#39;, &#39;Skip Date&#39;, &#39;Track Type&#39;, &#39;Sort Artist&#39;, &#39;Album Artist&#39;, &#39;Loved&#39;, &#39;Size&#39;, &#39;Track Number&#39;, &#39;Purchased&#39;, &#39;Artist&#39;, &#39;Track ID&#39;, &#39;Album&#39;, &#39;Composer&#39;, &#39;Persistent ID&#39;, &#39;File Folder Count&#39;, &#39;Date Added&#39;, &#39;Bit Rate&#39;, &#39;Kind&#39;, &#39;Date Modified&#39;, &#39;Disc Count&#39;, &#39;Library Folder Count&#39;, &#39;Play Date UTC&#39;, &#39;Skip Count&#39;, &#39;Name&#39;, &#39;Sample Rate&#39;, &#39;Genre&#39;, &#39;Release Date&#39;, &#39;Year&#39;, &#39;Sort Name&#39;}</code></pre>
+<p>Once the function is defined, I use <code>map</code> to iterate over all the <code>kinds_i_want</code>, then I convert the <code>results</code> to a <code>result_list</code>.</p>
+<pre class="python"><code>results = map(cols, kinds_i_want)
+results_list = [list(item) for item in results]</code></pre>
+<p><code>results_list</code>is a list of lists, so the next step is to “flatten” it out and convert it into a <code>set</code> to remove the repeated attributes (by definition, sets don’t have duplicated elements).</p>
+<pre class="python"><code>flat_list=[]
+for item in results_list:
+  for sub_item in item:
+    flat_list.append(sub_item)
+
+unique_cols=set(flat_list)
+unique_cols</code></pre>
+<pre><code>## {&#39;Grouping&#39;, &#39;Play Date&#39;, &#39;Stop Time&#39;, &#39;Play Count&#39;, &#39;Location&#39;, &#39;Explicit&#39;, &#39;Total Time&#39;, &#39;Sort Composer&#39;, &#39;Artwork Count&#39;, &#39;Disc Number&#39;, &#39;Track Count&#39;, &#39;Music Video&#39;, &#39;Sort Album&#39;, &#39;Comments&#39;, &#39;Part Of Gapless Album&#39;, &#39;Skip Date&#39;, &#39;Disliked&#39;, &#39;Track Type&#39;, &#39;Sort Artist&#39;, &#39;Disabled&#39;, &#39;Album Artist&#39;, &#39;Loved&#39;, &#39;Volume Adjustment&#39;, &#39;Clean&#39;, &#39;Size&#39;, &#39;Has Video&#39;, &#39;Start Time&#39;, &#39;Purchased&#39;, &#39;Track Number&#39;, &#39;Artist&#39;, &#39;Protected&#39;, &#39;Track ID&#39;, &#39;Album&#39;, &#39;Rating Computed&#39;, &#39;Composer&#39;, &#39;Album Rating&#39;, &#39;Sort Album Artist&#39;, &#39;Persistent ID&#39;, &#39;File Folder Count&#39;, &#39;Date Added&#39;, &#39;Bit Rate&#39;, &#39;Compilation&#39;, &#39;Kind&#39;, &#39;Content Rating&#39;, &#39;Date Modified&#39;, &#39;Disc Count&#39;, &#39;Library Folder Count&#39;, &#39;Rating&#39;, &#39;Play Date UTC&#39;, &#39;Skip Count&#39;, &#39;Album Loved&#39;, &#39;Album Rating Computed&#39;, &#39;Name&#39;, &#39;Sample Rate&#39;, &#39;Genre&#39;, &#39;Release Date&#39;, &#39;Year&#39;, &#39;Sort Name&#39;}</code></pre>
+<pre class="python"><code>len(unique_cols)</code></pre>
+<pre><code>## 58</code></pre>
+<p>There we have it: a superset containing all the song attributes available in the XML file. There are 58 in total, and some are only available for specific kinds of media.</p>
+<p>But the most important thing about this set is that it allows me to finally create a DataFrame with all the songs of my collection. The following code does that, using <code>unique_cols</code> and <code>tracklist</code> as input:</p>
+<pre class="python"><code>df_tracks=pd.DataFrame(columns=unique_cols)
+
+dict1={}
+
+for song_i in range(len(tracklist)):
+  for attribute_i in range(len(tracklist[song_i])):
+    if tracklist[song_i][attribute_i].tag==&quot;key&quot;:
+      dict1[tracklist[song_i][attribute_i].text]=tracklist[song_i][attribute_i+1].text
+  list_values=[i for i in dict1.values()]
+  list_keys=[j for j in dict1.keys()]
+  if dict1[&#39;Kind&#39;] in kinds_i_want.unique():
+    df_temp=pd.DataFrame([list_values],columns=list_keys)
+    df_tracks=pd.concat([df_tracks,df_temp],axis=0,ignore_index=True,sort=True)</code></pre>
+<p>Please note that this code is very inefficient, probably because it does a DataFrame <code>concat</code> for each song in <code>tracklist</code>. I will leave it like that because it doesn’t take long to run anyway (since my data is relatively small). But don’t use it as a reference for anything.</p>
+<p>The good news is that I now have a DataFrame with all my songs, so I can use all the pandas’ functions and methods to manipulate and analyze them.</p>
+<pre class="r"><code>py$df_tracks[1:5,c(&quot;Album&quot;, &quot;Name&quot;, &quot;Artist&quot;, &quot;Year&quot;)]</code></pre>
+<pre><code>##                                                Album
+## 1 Do What U Want (feat. Christina Aguilera) - Single
+## 2                                  Callaita - Single
+## 3                                               Blue
+## 4             Con Altura (feat. El Guincho) - Single
+## 5                 Siempre Papi Nunca Inpapi - Single
+##                                        Name
+## 1 Do What U Want (feat. Christina Aguilera)
+## 2                                  Callaita
+## 3                                  Polaroid
+## 4             Con Altura (feat. El Guincho)
+## 5                 Siempre Papi Nunca Inpapi
+##                                   Artist Year
+## 1                              Lady Gaga 2013
+## 2                      Bad Bunny &amp; Tainy 2019
+## 3 Jonas Blue, Liam Payne &amp; Lennon Stella 2018
+## 4                     ROSALÍA &amp; J Balvin 2019
+## 5               Luigi 21 Plus &amp; J Balvin 2019</code></pre>
+</div>
+<div id="what-are-my-most-listened-songs" class="section level2">
+<h2>What are my most listened songs?</h2>
+<p>An obvious question to answer with this data is what are the <strong>songs</strong>, <strong>albums</strong>, and <strong>artists</strong> that I listen to the most.</p>
+<p>I will start with the easiest ranking to obtain: my <strong>most listened to songs</strong>. Here no aggregation is needed, I just have to <code>sort_values</code> based on <code>Play Count</code>, and then extract the “head” of the resulting DataFrame:</p>
+<pre class="python"><code>df_tracks[[&#39;Play Count&#39;]] = df_tracks[[&#39;Play Count&#39;]].apply(pd.to_numeric)</code></pre>
+<pre class="python"><code>top_songs=(df_tracks
+  .sort_values(by=&#39;Play Count&#39;, ascending=False)
+  [[&#39;Name&#39;, &#39;Artist&#39;, &#39;Play Count&#39;, &#39;Genre&#39;]]
+  .head(10))
+  
+top_songs</code></pre>
+<pre><code>##                   Name             Artist  Play Count          Genre
+## 133   Watermelon Sugar       Harry Styles         160            Pop
+## 142          Adore You       Harry Styles         156            Pop
+## 132          Lights Up       Harry Styles         149            Pop
+## 143             Golden       Harry Styles         135            Pop
+## 141             Cherry       Harry Styles         126            Pop
+## 139    To Be So Lonely       Harry Styles         120            Pop
+## 140            Falling       Harry Styles         114            Pop
+## 778         Relaciones              Lunay         111  Urbano latino
+## 137  Sunflower, Vol. 6       Harry Styles         110            Pop
+## 799           Top Gone  Lil Mosey &amp; Lunay         109    Hip-Hop/Rap</code></pre>
+<p>Having done that, I can use <code>seaborn</code> to create a neat ranking plot with horizontal bars.</p>
+<pre class="python"><code>plt.clf()
+ax=sns.barplot(x=&#39;Play Count&#39;,
+            y=&#39;Name&#39;,
+            hue=&#39;Artist&#39;,
+            data=top_songs,
+            dodge=False,
+            palette=sns.color_palette(&quot;Set1&quot;, 3))
+ax.figure.set_size_inches(7,5)
+ax.xaxis.grid(True)  
+ax.set(ylabel=&#39;Track&#39;)
+plt.tight_layout()
+plt.savefig(&#39;test.png&#39;, dpi=400)
+plt.show()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/plot-top-songs-1.png" width="672" /></p>
+</div>
+<div id="most-listened-albums" class="section level2">
+<h2>Most listened albums</h2>
+<p>Now I will do a ranking of my most listened to albums. For this, I need to aggregate Play Counts at album level. I will also discard singles or albums with too few songs.</p>
+<p>First, I create a DataFrame with the albums I consider as “full” or “complete”: those with five tracks or more.</p>
+<pre class="python"><code>ntracks_album=df_tracks.groupby(&#39;Album&#39;).size()
+full_albums=(ntracks_album[ntracks_album&gt;5]
+             .reset_index()
+             .rename(columns={0: &quot;n_tracks&quot;}))
+full_albums</code></pre>
+<pre><code>##                                         Album  n_tracks
+## 0           (What&#39;s the Story) Morning Glory?        12
+## 1                       1989 (Deluxe Edition)        19
+## 2         35 Top Hits, Vol. 6 - Workout Mixes        34
+## 3   A Brief Inquiry Into Online Relationships        15
+## 4                 A Rush Of Blood To The Head        11
+## ..                                        ...       ...
+## 78                                   YHLQMDLG        20
+## 79                                   evermore        15
+## 80                                   folklore        17
+## 81                                 reputation        15
+## 82                                      Épico        14
+## 
+## [83 rows x 2 columns]</code></pre>
+<p>Then I aggregate Play Count at album level, filter out incomplete or single albums by doing a “semi-join” with <code>full_albums</code>, and extract the <code>head(10)</code> from the DataFrame after doing <code>sort_values</code>.</p>
+<pre class="python"><code>plays_by_album=(df_tracks
+                .groupby(&#39;Album&#39;)[&#39;Play Count&#39;]
+                .sum()
+                .reset_index()
+                .sort_values(by=&#39;Play Count&#39;, ascending=False))
+
+full_albums_ranked=plays_by_album[plays_by_album.Album.isin(full_albums.Album)]
+full_albums_ranked.head(10)</code></pre>
+<pre><code>##                                                Album  Play Count
+## 120                                        Fine Line        1409
+## 124                            Four (Deluxe Version)         600
+## 65                                        Chromatica         548
+## 4                              1989 (Deluxe Edition)         485
+## 256                                            OASIS         451
+## 222                                            Lover         424
+## 202  La La Land (Original Motion Picture Soundtrack)         423
+## 299                                   Scaled and Icy         415
+## 230                                        Melodrama         400
+## 129                                 Future Nostalgia         387</code></pre>
+<p>This is a lovely ranking, but I think it could be improved by removing the text between parentheses from some albums names (i.e. “Deluxe Version” from Four and 1989, and “Original Motion Picture…” from La La Land). That can be done through the string manipulation functions in Python:</p>
+<pre class="python"><code>full_albums_ranked[&#39;Album&#39;]=(full_albums_ranked
+                             .Album.str.replace(&#39; \(.+\)$&#39;, &#39;&#39;, regex=True))</code></pre>
+<pre class="python"><code>full_albums_ranked[&#39;Album&#39;].head(10)</code></pre>
+<pre><code>## 120           Fine Line
+## 124                Four
+## 65           Chromatica
+## 4                  1989
+## 256               OASIS
+## 222               Lover
+## 202          La La Land
+## 299      Scaled and Icy
+## 230           Melodrama
+## 129    Future Nostalgia
+## Name: Album, dtype: object</code></pre>
+<p>The albums names now look better, so it’s time to create a ranking plot showing their respective play counts. This plot will be very similar to the songs plot, but this time I will map the colour of the bars to Play Counts (continuous variable) instead of the Artists name (categorical variable).</p>
+<pre class="python"><code>plt.clf()
+ax=sns.barplot(x=&#39;Play Count&#39;,
+               y=&#39;Album&#39;,
+               hue=&#39;Play Count&#39;,
+              data=full_albums_ranked.head(10),
+              dodge=False,
+              palette=&#39;OrRd&#39;)
+              
+# Rotating labels trying to make them fit
+ax.figure.set_size_inches(7,5)
+ax.xaxis.grid(True)  
+plt.tight_layout()
+plt.legend([],[], frameon=False)
+plt.show()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/plot-top-albums-3.png" width="672" /></p>
+</div>
+<div id="most-listened-artists" class="section level2">
+<h2>Most listened artists</h2>
+<p>Obtaining the ranking of songs was straightforward, and so was the ranking of albums, despite involving a couple of extra steps. However, doing the ranking of artists will be a bit more complicated. The reason is that I will have to <strong>split/parse the artist column to handle collaborations</strong> (songs by more than one artist), so the play counts of these songs add up to all the collaborating artists.</p>
+<p>For example, as you saw in the songs plot, one of my most played songs is “Top Gone” by Lil Mosey and Lunay. If I didn’t parse the “artist” for that song, those play counts wouldn’t count for Lil Mosey nor Lunay when doing the ranking, but for a third, totally different artist named ’Lil Mosey &amp; Lunay”. Obviously I don’t want that.</p>
+<p><img src="images/example_strings_lunay_lilmosey.png" /></p>
+<p>The first thing here is to look at all the strings that signal a collaboration. In my collection, these are:</p>
+<ul>
+<li>’ &amp; ’</li>
+<li>‘,’</li>
+<li>’ Feat. ’</li>
+<li>’ feat. ’</li>
+<li>‘/’</li>
+</ul>
+<p>Then I can use regular expressions and the method <code>str.split</code> to obtain a list of individual artists for each song.</p>
+<pre class="python"><code>delimiters=&#39; &amp; &#39;,&#39;, &#39;,&#39; Feat. &#39;,&#39; feat. &#39;,&#39;/&#39;
+regexPattern = &#39;|&#39;.join(map(re.escape, delimiters))
+reg_split=re.compile(regexPattern)
+artists_splitted=df_tracks.Artist.str.split(regexPattern)
+artists_splitted[:10]</code></pre>
+<pre><code>## 0                                [Lady Gaga]
+## 1                         [Bad Bunny, Tainy]
+## 2    [Jonas Blue, Liam Payne, Lennon Stella]
+## 3                        [ROSALÍA, J Balvin]
+## 4                  [Luigi 21 Plus, J Balvin]
+## 5                                [DJ Khaled]
+## 6                                  [Rosalía]
+## 7                                  [Rosalía]
+## 8                                  [Rosalía]
+## 9                                  [Rosalía]
+## Name: Artist, dtype: object</code></pre>
+<p>I may also want to look for exceptions: cases where those strings are present, but there is no collaboration between several artists. I have three such cases:</p>
+<ul>
+<li>Zion &amp; Lennox</li>
+<li>Wisin &amp; Yandel</li>
+<li>Now, Now</li>
+</ul>
+<p>The first two are duos of reggaeton singers. However, their duo names are just the names of the members joined with an ‘&amp;’. What’s more, in both cases the members have released songs as solo artists. Therefore, I think it makes sense to regard these cases as <strong>collaborations</strong> and not add them as exceptions in the code.</p>
+<p>The third case is different. It’s an <a href="https://en.wikipedia.org/wiki/Now,_Now">indie rock duo from Minnesota</a>, and here the band name is not a combination of the members’ names, but an indivisible artistic name, so I will add this as a hardcoded exception.</p>
+<p>After splitting the artist strings, I want to create a data structure that allows a 1:N relationship between songs and artists, so the plays count of each track adds up to each of the contributing artists.</p>
+<p>I think the appropriate data structure for this is a <strong>list of dictionaries</strong>, with each dictionary representing a song and containing a respective list of artists. The following code creates and populates such a list.</p>
+<pre class="python"><code>songs=[]
+for i, song in df_tracks.Name.items():
+  ## Parse the artists of the song
+  if df_tracks.Artist.values[i]==&#39;Now, Now&#39;:
+    artist_to_assign=[df_tracks.Artist.values[i]]
+  else:
+    artist_to_assign=artists_splitted.values[i]
+  
+  ## add elements to the list of songs
+  songs.append({&#39;Name&#39;: song,
+                &#39;Number&#39;: i,
+                &#39;Artists&#39;: artist_to_assign})
+
+songs[:5]</code></pre>
+<pre><code>## [{&#39;Name&#39;: &#39;Do What U Want (feat. Christina Aguilera)&#39;, &#39;Number&#39;: 0, &#39;Artists&#39;: [&#39;Lady Gaga&#39;]}, {&#39;Name&#39;: &#39;Callaita&#39;, &#39;Number&#39;: 1, &#39;Artists&#39;: [&#39;Bad Bunny&#39;, &#39;Tainy&#39;]}, {&#39;Name&#39;: &#39;Polaroid&#39;, &#39;Number&#39;: 2, &#39;Artists&#39;: [&#39;Jonas Blue&#39;, &#39;Liam Payne&#39;, &#39;Lennon Stella&#39;]}, {&#39;Name&#39;: &#39;Con Altura (feat. El Guincho)&#39;, &#39;Number&#39;: 3, &#39;Artists&#39;: [&#39;ROSALÍA&#39;, &#39;J Balvin&#39;]}, {&#39;Name&#39;: &#39;Siempre Papi Nunca Inpapi&#39;, &#39;Number&#39;: 4, &#39;Artists&#39;: [&#39;Luigi 21 Plus&#39;, &#39;J Balvin&#39;]}]</code></pre>
+<p>However, by looking at some songs in the dictionary, I realize I have another problem: I’m leaving out the artists’ names in the song name itself (for example, “Christina Aguilera” in “Do What U Want (feat. Christina Aguilera)”).</p>
+<p>Fortunately, for these cases, there is a pattern that I can rely on: the artist(s) name(s) in the song name, if there are any, are always preceded by “feat” (featuring).</p>
+<p>This pattern has three variations, based on the kind of brackets that surrounds it:</p>
+<ul>
+<li><strong>Round brackets:</strong> <em>Song name (feat. Artists names)</em> (or sometimes just ‘(feat Artists names)’, without the dot).</li>
+<li><strong>Squared brackets:</strong> <em>Song name <span class="math display">\[feat. Artists names\]</span></em>.</li>
+<li><strong>No brackets:</strong> <em>Song name feat. Artist name</em>.</li>
+</ul>
+<p>The easiest way to extract the artists’ names in these pattern variations is to create three different regexes, one for each variation, and then apply them conditionally by using <code>str.contains</code>.</p>
+<pre class="python"><code># One regex for each pattern variation: round brackets, squared brackets, and no brackets
+# Note how in the variations with brackets we have to look for the closing bracket, while in the &quot;bare&quot; variation we just extract everthying from &quot;feat.&quot; to the end of the string
+re_circ_brackets=re.compile(&#39; \(feat\.* (.*)\)&#39;)
+re_sq_brackets=re.compile(&#39; \[feat. ([^\[]*)\]&#39;)
+re_bare=re.compile(&#39; feat. (.*)$&#39;)</code></pre>
+<pre class="python"><code># Creating bolean arrays based on which of the pattern variations is present in the song name (note that it could be none)
+feat_curved_brackets=df_tracks.Name.str.contains(&#39;\(feat.&#39;).values
+feat_squared_brackets=df_tracks.Name.str.contains(&#39;\[feat.&#39;).values
+feat_bare=df_tracks.Name.str.contains(&#39; feat.&#39;).values</code></pre>
+<p>Once I have the regexes and the boolean arrays, it’s possible to iterate over all the songs’ names and use the corresponding regex to extract the artists’ names (based on which boolean array as a True value for each track). Since the extracted string could have several artists’ names, I have to split it in the same way I did with the Artists column. Finally, I use these new artists lists to extend the artists lists that already exist in <code>songs</code>.</p>
+<pre class="python"><code>for i, song in df_tracks.Name.items():
+  if feat_curved_brackets[i]:
+    artists_feat=re_circ_brackets.search(song)[1]
+  elif feat_squared_brackets[i]:
+    artists_feat=re_sq_brackets.search(song)[1]
+  elif feat_bare[i]:
+    artists_feat=re_bare.search(song)[1]
+    
+  if (feat_curved_brackets[i] or feat_squared_brackets[i] or feat_bare[i]):
+    splitted_artists_feat=reg_split.split(artists_feat)
+    songs[i][&#39;Artists&#39;].extend(splitted_artists_feat)</code></pre>
+<p><img src="images/example_genius_relacion_remix.png" /></p>
+<p>By this point, the dicts in <code>songs</code> contain already all the artists that collaborated for each track in my collection (🥳).</p>
+<p>However, I will do one more pre-processing step before moving on to the aggregation of play counts: I’m going to”’normalize” artists names (removing dots and applying title case) to avoid their play counts getting split due to different spelling (e.g. <em>ROSALÍA</em> vs <em>Rosalía</em>, or <em>J. Balvin</em> vs <em>J Balvin</em>).</p>
+<pre class="python"><code>for i in range(len(songs)):
+  for j in range(len(songs[i][&#39;Artists&#39;])):
+    artist_name=songs[i][&#39;Artists&#39;][j]
+    norm_artist_name=artist_name.title().replace(&#39;.&#39;, &#39;&#39;)
+    songs[i][&#39;Artists&#39;][j]=norm_artist_name
+    </code></pre>
+<p>Then, finally, I can add up the play counts by artist:</p>
+<pre class="python"><code>artists={}
+
+for i in range(len(songs)):
+  for j in range(len(songs[i][&#39;Artists&#39;])):
+    if songs[i][&#39;Artists&#39;][j] not in artists:
+      artists[songs[i][&#39;Artists&#39;][j]]=df_tracks[&#39;Play Count&#39;][i]
+    else:
+      artists[songs[i][&#39;Artists&#39;][j]]+=df_tracks[&#39;Play Count&#39;][i]
+
+df_artists_plays=pd.DataFrame(artists.items(),
+                              columns=[&#39;Artist&#39;, &#39;Play Count&#39;]) 
+                              
+df_artists_plays.head(5)</code></pre>
+<pre><code>##                Artist  Play Count
+## 0           Lady Gaga         831
+## 1  Christina Aguilera          34
+## 2           Bad Bunny        1437
+## 3               Tainy         315
+## 4          Jonas Blue          43</code></pre>
+<p>Having the artists ranking in a DataFrame, I can sort it and extract the top 10 rows to create the corresponding plot:</p>
+<pre class="python"><code>df_artists_plot=(df_artists_plays
+                 .sort_values(by=&#39;Play Count&#39;, ascending=False)
+                 .head(10))
+  
+df_artists_plot</code></pre>
+<pre><code>##                 Artist  Play Count
+## 42        Taylor Swift        1847
+## 8             J Balvin        1661
+## 48        Harry Styles        1634
+## 2            Bad Bunny        1437
+## 58       One Direction        1138
+## 0            Lady Gaga         831
+## 183               Feid         809
+## 136              Lunay         679
+## 24   Twenty One Pilots         656
+## 84            Dua Lipa         655</code></pre>
+<pre class="python"><code>plt.clf()
+ax=sns.barplot(x=&#39;Play Count&#39;,
+               y=&#39;Artist&#39;,
+               hue=&#39;Play Count&#39;,
+              data=df_artists_plot,
+              dodge=False,
+              palette=&#39;OrRd&#39;)
+              
+# Rotating labels trying to make them fit
+ax.figure.set_size_inches(7,5)
+ax.xaxis.grid(True) 
+plt.title(&#39;My Top 10 artists by play count&#39;)
+plt.tight_layout()
+plt.legend([],[], frameon=False)
+plt.show()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/plot-top-artists-5.png" width="672" /></p>
+<div id="my-music-across-the-ages-categorical-data-and-more-complex-plots" class="section level3">
+<h3>My music across the ages (categorical data and more complex plots)</h3>
+<p>Another question I would like to answer is how my music listening habits relate to the <strong>year when songs were released</strong>. From the rankings above, you can already guess that I lean heavily into more modern/contemporary music and not so much into tracks from the 90’s or previous decades. But there still could be some interesting variation between more recent periods (let’s say, 2010-2014 vs 2015-2019 vs 2020-2022).</p>
+<p>For this analysis, I will create a <strong>five-year period column</strong>, based on the release year of each song (for example, if a song was released in 1999, it will be in the 1995-1999 period, if it was in 2015, it will be in the 2015-2019 period, etc.)</p>
+<p>First, I will create a <code>FiveYearPeriod</code> column in the original <code>df_tracks</code> dataframe:</p>
+<pre class="python"><code>df_tracks[[&#39;Year&#39;]]=df_tracks[[&#39;Year&#39;]].apply(pd.to_numeric)
+
+df_tracks=(df_tracks
+.assign(FiveYearPeriod=pd.to_numeric(np.floor(df_tracks.Year / 5) * 5, downcast=&#39;integer&#39;)))</code></pre>
+<p>Now I can see how many songs per five-year period I have in my collection:</p>
+<pre class="python"><code>df_tracks.groupby(&#39;FiveYearPeriod&#39;).size()</code></pre>
+<pre><code>## FiveYearPeriod
+## 1970      1
+## 1975      2
+## 1985     13
+## 1990      2
+## 1995     33
+## 2000     93
+## 2005    185
+## 2010    254
+## 2015    641
+## 2020    337
+## dtype: int64</code></pre>
+<p>As I suspected, I have very little music from before 1995, so I will group them all in a category labelled as ‘Before 1995’.</p>
+<pre class="python"><code>df_tracks.FiveYearPeriod=[&#39;Before 1995&#39; if year &lt; 1995 else year for year in df_tracks.FiveYearPeriod]</code></pre>
+<p>I will also convert the <code>FiveYearPeriod</code> column to a Categorical data type and give each period a label that indicates its starting and ending year (e.g. “1995-1999”).</p>
+<pre class="python"><code>catg_years=pd.Categorical(df_tracks.FiveYearPeriod,
+               ordered=True,
+               categories=[&#39;Before 1995&#39;, 1995, 2000, 2005, 2010, 2015, 2020])
+
+df_tracks.FiveYearPeriod=catg_years.rename_categories({1995: &#39;1995-1999&#39;, 2000: &#39;2000-2004&#39;, 2005: &#39;2005-2009&#39;, 2010: &#39;2010-2014&#39;, 2015: &#39;2015-2019&#39;, 2020: &#39;2020-Present&#39;})</code></pre>
+<p>After doing that, it’s very simple to obtain summary statistics by this new categorical column, such as the total number of songs for each period:</p>
+<pre class="python"><code>songs_period=df_tracks.groupby([&#39;FiveYearPeriod&#39;]).size()
+songs_period</code></pre>
+<pre><code>## FiveYearPeriod
+## Before 1995      18
+## 1995-1999        33
+## 2000-2004        93
+## 2005-2009       185
+## 2010-2014       254
+## 2015-2019       641
+## 2020-Present    337
+## dtype: int64</code></pre>
+<p>Or the average song play count per period:</p>
+<pre class="python"><code>plays_period=df_tracks.groupby([&#39;FiveYearPeriod&#39;])[&#39;Play Count&#39;].mean()
+plays_period</code></pre>
+<pre><code>## FiveYearPeriod
+## Before 1995      5.555556
+## 1995-1999       10.272727
+## 2000-2004        5.526882
+## 2005-2009        7.335135
+## 2010-2014       12.838583
+## 2015-2019       16.310452
+## 2020-Present    20.017804
+## Name: Play Count, dtype: float64</code></pre>
+<p>What’s more, now I can create a “combo” plot that displays the data from both aggregated datasets (total songs and average play counts) in the same figure:</p>
+<pre class="python"><code>plt.clf()
+fig, ax1 = plt.subplots()
+sns1=sns.barplot(x=songs_period.index, y=songs_period.values, alpha=0.5)
+
+# Adding labels to bar plot
+for a, b in zip(songs_period.index, songs_period.values):
+  plt.text(x = a, y = b+5, s = &#39;{:.0f}&#39;.format(b), size=7, color=&#39;black&#39;, ha=&#39;center&#39;)
+
+
+ax2 = ax1.twinx()
+sns2=sns.lineplot(x=plays_period.index, y=plays_period.values, marker=&#39;o&#39;)
+sns2.set_ylim(0, 21)</code></pre>
+<pre><code>## (0.0, 21.0)</code></pre>
+<pre class="python"><code>sns1.set(xlabel=&#39;Periods&#39;, ylabel=&#39;Total songs&#39;)
+sns2.set_ylabel(&#39;Average Play count&#39;, rotation=270, labelpad=12.0)
+sns1.set_xticklabels(sns1.get_xticklabels(),rotation = 30)
+
+# Adding labels to line plot
+for x, y in zip(plays_period.index, plays_period.values):
+  plt.text(x = x, y = y, s = &#39;{:.1f}&#39;.format(y), size=8, color=&#39;white&#39;, ha=&#39;center&#39;).set_backgroundcolor(&#39;#3A87BC&#39;)
+
+sns1.set(title=&#39;Number of songs and Average Play count by era&#39;)
+plt.tight_layout()
+plt.savefig(&#39;fig_twop_plots.png&#39;)
+plt.show()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-32-7.png" width="672" /></p>
+<p>I would also like to create a plot that incorporates the <strong>genre</strong> dimension. Here I have the problem that genre names are not standardized across my music collection, that is, I have “variations” or slightly different spellings for the same genre, such as “Alternative” and “Alternativa”, or “Urbano Latino”, “Urbano latino” and “Latin Urban”. As a consequence, if I tried to add this variable “as-is” to a graphic I would have a severe overplotting problem.</p>
+<p>I could try to remap/merge the genre variations through text manipulation and conditional logic, but I feel that that could easily become a rabbit hole similar to the artists names in collaborations.</p>
+<p>Instead, I’ll do something simpler and use a library named <code>pycats</code> (basically a port of R’s <code>forcats</code>) to “lump” the less frequent genres as “Other”, and only keep the four more frequent genres as individual categories.</p>
+<pre class="python"><code>df_tracks[&#39;Genres_lumped&#39;]=pycats.cat_lump(pycats.as_cat(df_tracks[&#39;Genre&#39;]), 4)
+df_tracks[&#39;Genres_lumped&#39;].value_counts()</code></pre>
+<pre><code>## Pop              585
+## Other            452
+## Alternative      191
+## Rock             172
+## Urbano latino    161
+## Name: Genres_lumped, dtype: int64</code></pre>
+<p>The four more frequent genres make up about 70% of my music collection, so I still have plenty of songs that will appear with genre information in the plot.</p>
+<p>And now it comes the fun part: creating the plot. I specified a custom colour palette for the genres and then used the <del>geom</del> function <code>sns.stripplot</code> to create a scatter plot where the period categories are in the X-axis and each point represents a song. I also set <code>alpha=0.7</code> to show more darkness or density in the areas where is overplotting.</p>
+<pre class="python"><code>colors = {&#39;Other&#39;: &quot;grey&quot;, &#39;Pop&#39;: &quot;#4878CF&quot;, &#39;Alternative&#39;: &quot;#ffb300&quot;, &#39;Rock&#39;:&quot;#D65F5F&quot;, &#39;Urbano latino&#39;: &quot;#B47CC7&quot;}
+
+plt.clf()
+plt.figure()
+
+# Draw a categorical scatterplot to show each observation
+ax = sns.stripplot(data=df_tracks, y=&quot;Play Count&quot;, x=&quot;FiveYearPeriod&quot;, hue=&quot;Genres_lumped&quot;, size=5, alpha=0.7, jitter=0.25, palette=colors)
+ax.set_xticklabels(ax.get_xticklabels(),rotation = 30)
+ax.legend(title=&#39;Genres&#39;)
+plt.title(&#39;Play count of my songs, by era and genre&#39;)
+plt.tight_layout()
+plt.show()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-34-9.png" width="672" /></p>
+<p>Something I like about this plot is that it makes it easy to see what are the predominant genres in each period (e.g. Rock in 2005-2009, and Pop in 2015-2019). It also highlights how most of my songs have a very low play count, while a few get much more reproductions<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.</p>
+</div>
+<div id="creating-a-mixtape-with-the-best-songs-from-each-era" class="section level3">
+<h3>Creating a mixtape with the best songs from each era</h3>
+<p>The last figure I would like to obtain is a list or table with the 3 most listened songs per era, that is, 21 songs in total (3 songs x 7 periods).</p>
+<p>For doing this, I will create a function in Python that takes in a DataFrame of songs and returns the top 3 songs from that DataFrame, based on the values of the column <code>Play Count</code>. Then I will apply that function to each <code>FiveYearPeriod</code> by using <code>groupby</code> and <code>apply</code>.</p>
+<pre class="python"><code>def top_songs(df, n=3, column=&#39;Play Count&#39;):
+  return df.sort_values(by=column, ascending=False)[:n]
+
+
+top_songs_per_era=(df_tracks
+                   .groupby(&#39;FiveYearPeriod&#39;)
+                   .apply(top_songs)
+                   [[&#39;Album&#39;, &#39;Artist&#39;, &#39;Name&#39;, &#39;Play Count&#39;, &#39;FiveYearPeriod&#39;, &#39;Genres_lumped&#39;]])</code></pre>
+<p>Next, I will use the magic of <code>reticulate</code> to pass this aggregated DataFrame to an R session. Once there, I’m going to use the R package <code>gt</code> (<strong>g</strong>rammar of <strong>t</strong>ables) to create a HTML table that displays the best songs from each period with cute formatting<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</p>
+<pre class="r"><code>library(gt)
+library(tidyverse)</code></pre>
+<pre class="r"><code>py$top_songs_per_era %&gt;%
+  dplyr::select(FiveYearPeriod,
+                `Song` = Name,
+                Album,
+                Artist,
+                `Play Count`,
+                Genre = Genres_lumped) %&gt;%
+  
+  group_by(FiveYearPeriod) %&gt;% 
+  mutate(row_n = row_number(),
+         FiveYearPeriod = as.character(FiveYearPeriod)) %&gt;% 
+  ungroup() %&gt;% 
+  mutate(Era = if_else(row_n &gt; 1, &quot;&quot;, FiveYearPeriod)) %&gt;% 
+  select(-row_n) %&gt;% 
+  gt(groupname_col = &quot;FiveYearPeriod&quot;,
+     rowname_col = &quot;Song&quot;) %&gt;%
+    cols_hide(columns = c(Era)) %&gt;% 
+  tab_style(
+    style = cell_text(color = &quot;black&quot;, weight = &quot;bold&quot;),
+    locations = list(cells_row_groups(),
+                     cells_column_labels(everything()))
+  ) %&gt;% 
+  tab_options(
+    row_group.border.top.width = px(3),
+    row_group.border.top.color = &quot;black&quot;,
+    row_group.border.bottom.color = &quot;black&quot;,
+    table.font.names = &quot;Bahnschrift&quot;) %&gt;% 
+   tab_source_note(
+    source_note = md(
+      &quot;Source: My iTunes music library.&quot;
+    )
+  ) %&gt;% 
+    tab_header(
+    title = md(&quot;My **favourite songs** across different eras&quot;),
+    subtitle = &quot;(This would be a nice playlist imho)&quot;
+  ) %&gt;% 
+  tab_footnote(footnote=&quot;Yes, this song is from 1991, but it appears here because iTunes uses the release date of the &#39;The Best of&#39; album.&quot;,
+               locations = cells_stub(rows = &quot;Losing My Religion&quot;)) %&gt;% 
+  tab_style(
+    style = cell_fill(color = &quot;#fff7e5&quot;),
+    locations = cells_body(rows = Genre == &quot;Alternative&quot;)
+  ) %&gt;% 
+  tab_style(style = cell_fill(color = &quot;#ebf0fa&quot;),
+            locations = cells_body(rows = Genre == &quot;Pop&quot;)) %&gt;% 
+  tab_style(style = cell_fill(color = &quot;#faebeb&quot;),
+            locations = cells_body(rows = Genre == &quot;Rock&quot;)) %&gt;% 
+  tab_style(style = cell_fill(color = &quot;#f5edf7&quot;),
+            locations = cells_body(rows = Genre == &quot;Urbano latino&quot;)) %&gt;% 
+    tab_style(style = cell_fill(color = &quot;#f2f2f2&quot;),
+            locations = cells_body(rows = Genre == &quot;Other&quot;))</code></pre>
+<div id="lznconovow" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>html {
+  font-family: Bahnschrift;
+}
+
+#lznconovow .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#lznconovow .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#lznconovow .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#lznconovow .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 6px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#lznconovow .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#lznconovow .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#lznconovow .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#lznconovow .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#lznconovow .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#lznconovow .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#lznconovow .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#lznconovow .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #000000;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #000000;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#lznconovow .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 3px;
+  border-top-color: #000000;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #000000;
+  vertical-align: middle;
+}
+
+#lznconovow .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#lznconovow .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#lznconovow .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#lznconovow .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#lznconovow .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lznconovow .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#lznconovow .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#lznconovow .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#lznconovow .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#lznconovow .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#lznconovow .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#lznconovow .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#lznconovow .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#lznconovow .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#lznconovow .gt_left {
+  text-align: left;
+}
+
+#lznconovow .gt_center {
+  text-align: center;
+}
+
+#lznconovow .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#lznconovow .gt_font_normal {
+  font-weight: normal;
+}
+
+#lznconovow .gt_font_bold {
+  font-weight: bold;
+}
+
+#lznconovow .gt_font_italic {
+  font-style: italic;
+}
+
+#lznconovow .gt_super {
+  font-size: 65%;
+}
+
+#lznconovow .gt_footnote_marks {
+  font-style: italic;
+  font-weight: normal;
+  font-size: 65%;
+}
+</style>
+<table class="gt_table">
+  <thead class="gt_header">
+    <tr>
+      <th colspan="5" class="gt_heading gt_title gt_font_normal" style>My <strong>favourite songs</strong> across different eras</th>
+    </tr>
+    <tr>
+      <th colspan="5" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border" style>(This would be a nice playlist imho)</th>
+    </tr>
+  </thead>
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1"></th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" style="color: #000000; font-weight: bold;">Album</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1" style="color: #000000; font-weight: bold;">Artist</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" style="color: #000000; font-weight: bold;">Play Count</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1" style="color: #000000; font-weight: bold;">Genre</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr class="gt_group_heading_row">
+      <td colspan="5" class="gt_group_heading" style="color: #000000; font-weight: bold;">Before 1995</td>
+    </tr>
+    <tr><td class="gt_row gt_left gt_stub">Bizarre Love Triangle</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">Brotherhood</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">New Order</td>
+<td class="gt_row gt_right" style="background-color: #FAEBEB;">32</td>
+<td class="gt_row gt_center" style="background-color: #FAEBEB;">Rock</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Express Yourself</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Like a Prayer</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Madonna</td>
+<td class="gt_row gt_right" style="background-color: #EBF0FA;">16</td>
+<td class="gt_row gt_center" style="background-color: #EBF0FA;">Pop</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Like a Prayer</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Like a Prayer</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Madonna</td>
+<td class="gt_row gt_right" style="background-color: #EBF0FA;">11</td>
+<td class="gt_row gt_center" style="background-color: #EBF0FA;">Pop</td></tr>
+    <tr class="gt_group_heading_row">
+      <td colspan="5" class="gt_group_heading" style="color: #000000; font-weight: bold;">1995-1999</td>
+    </tr>
+    <tr><td class="gt_row gt_left gt_stub">All Star</td>
+<td class="gt_row gt_left" style="background-color: #F2F2F2;">Astro Lounge</td>
+<td class="gt_row gt_left" style="background-color: #F2F2F2;">Smash Mouth</td>
+<td class="gt_row gt_right" style="background-color: #F2F2F2;">58</td>
+<td class="gt_row gt_center" style="background-color: #F2F2F2;">Other</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">I Think I'm In Love</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">Ladies and Gentlemen We Are Floating In Space (Deluxe Version)</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">Spiritualized</td>
+<td class="gt_row gt_right" style="background-color: #FAEBEB;">43</td>
+<td class="gt_row gt_center" style="background-color: #FAEBEB;">Rock</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">The Bad Touch</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">Hooray for Boobies</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">Bloodhound Gang</td>
+<td class="gt_row gt_right" style="background-color: #FAEBEB;">36</td>
+<td class="gt_row gt_center" style="background-color: #FAEBEB;">Rock</td></tr>
+    <tr class="gt_group_heading_row">
+      <td colspan="5" class="gt_group_heading" style="color: #000000; font-weight: bold;">2000-2004</td>
+    </tr>
+    <tr><td class="gt_row gt_left gt_stub">City of Blinding Lights</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">How To Dismantle an Atomic Bomb</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">U2</td>
+<td class="gt_row gt_right" style="background-color: #FAEBEB;">29</td>
+<td class="gt_row gt_center" style="background-color: #FAEBEB;">Rock</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Let Love Be Your Energy</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Sing When You're Winning</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Robbie Williams</td>
+<td class="gt_row gt_right" style="background-color: #EBF0FA;">28</td>
+<td class="gt_row gt_center" style="background-color: #EBF0FA;">Pop</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Losing My Religion<sup class="gt_footnote_marks">1</sup></td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">In Time: The Best of R.E.M. 1988-2003</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">R.E.M.</td>
+<td class="gt_row gt_right" style="background-color: #FAEBEB;">25</td>
+<td class="gt_row gt_center" style="background-color: #FAEBEB;">Rock</td></tr>
+    <tr class="gt_group_heading_row">
+      <td colspan="5" class="gt_group_heading" style="color: #000000; font-weight: bold;">2005-2009</td>
+    </tr>
+    <tr><td class="gt_row gt_left gt_stub">Sleeping Lessons</td>
+<td class="gt_row gt_left" style="background-color: #FFF7E5;">Wincing the Night Away</td>
+<td class="gt_row gt_left" style="background-color: #FFF7E5;">The Shins</td>
+<td class="gt_row gt_right" style="background-color: #FFF7E5;">43</td>
+<td class="gt_row gt_center" style="background-color: #FFF7E5;">Alternative</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Dance In The Dark</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">The Fame Monster</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Lady Gaga</td>
+<td class="gt_row gt_right" style="background-color: #EBF0FA;">35</td>
+<td class="gt_row gt_center" style="background-color: #EBF0FA;">Pop</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Low</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">X&amp;Y</td>
+<td class="gt_row gt_left" style="background-color: #FAEBEB;">Coldplay</td>
+<td class="gt_row gt_right" style="background-color: #FAEBEB;">28</td>
+<td class="gt_row gt_center" style="background-color: #FAEBEB;">Rock</td></tr>
+    <tr class="gt_group_heading_row">
+      <td colspan="5" class="gt_group_heading" style="color: #000000; font-weight: bold;">2010-2014</td>
+    </tr>
+    <tr><td class="gt_row gt_left gt_stub">Helena Beat</td>
+<td class="gt_row gt_left" style="background-color: #FFF7E5;">Torches</td>
+<td class="gt_row gt_left" style="background-color: #FFF7E5;">Foster The People</td>
+<td class="gt_row gt_right" style="background-color: #FFF7E5;">107</td>
+<td class="gt_row gt_center" style="background-color: #FFF7E5;">Alternative</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Stockholm Syndrome</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Four (Deluxe Version)</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">One Direction</td>
+<td class="gt_row gt_right" style="background-color: #EBF0FA;">61</td>
+<td class="gt_row gt_center" style="background-color: #EBF0FA;">Pop</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Where Do Broken Hearts Go</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Four (Deluxe Version)</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">One Direction</td>
+<td class="gt_row gt_right" style="background-color: #EBF0FA;">60</td>
+<td class="gt_row gt_center" style="background-color: #EBF0FA;">Pop</td></tr>
+    <tr class="gt_group_heading_row">
+      <td colspan="5" class="gt_group_heading" style="color: #000000; font-weight: bold;">2015-2019</td>
+    </tr>
+    <tr><td class="gt_row gt_left gt_stub">Watermelon Sugar</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Fine Line</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Harry Styles</td>
+<td class="gt_row gt_right" style="background-color: #EBF0FA;">160</td>
+<td class="gt_row gt_center" style="background-color: #EBF0FA;">Pop</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Adore You</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Fine Line</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Harry Styles</td>
+<td class="gt_row gt_right" style="background-color: #EBF0FA;">156</td>
+<td class="gt_row gt_center" style="background-color: #EBF0FA;">Pop</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Lights Up</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Fine Line</td>
+<td class="gt_row gt_left" style="background-color: #EBF0FA;">Harry Styles</td>
+<td class="gt_row gt_right" style="background-color: #EBF0FA;">149</td>
+<td class="gt_row gt_center" style="background-color: #EBF0FA;">Pop</td></tr>
+    <tr class="gt_group_heading_row">
+      <td colspan="5" class="gt_group_heading" style="color: #000000; font-weight: bold;">2020-Present</td>
+    </tr>
+    <tr><td class="gt_row gt_left gt_stub">Relaciones</td>
+<td class="gt_row gt_left" style="background-color: #F5EDF7;">Relaciones - Single</td>
+<td class="gt_row gt_left" style="background-color: #F5EDF7;">Lunay</td>
+<td class="gt_row gt_right" style="background-color: #F5EDF7;">111</td>
+<td class="gt_row gt_center" style="background-color: #F5EDF7;">Urbano latino</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Top Gone</td>
+<td class="gt_row gt_left" style="background-color: #F2F2F2;">Top Gone - Single</td>
+<td class="gt_row gt_left" style="background-color: #F2F2F2;">Lil Mosey &amp; Lunay</td>
+<td class="gt_row gt_right" style="background-color: #F2F2F2;">109</td>
+<td class="gt_row gt_center" style="background-color: #F2F2F2;">Other</td></tr>
+    <tr><td class="gt_row gt_left gt_stub">Dakiti</td>
+<td class="gt_row gt_left" style="background-color: #F2F2F2;">Dakiti - Single</td>
+<td class="gt_row gt_left" style="background-color: #F2F2F2;">Bad Bunny &amp; Jhay Cortez</td>
+<td class="gt_row gt_right" style="background-color: #F2F2F2;">100</td>
+<td class="gt_row gt_center" style="background-color: #F2F2F2;">Other</td></tr>
+  </tbody>
+  <tfoot class="gt_sourcenotes">
+    <tr>
+      <td class="gt_sourcenote" colspan="5">Source: My iTunes music library.</td>
+    </tr>
+  </tfoot>
+  <tfoot>
+    <tr class="gt_footnotes">
+      <td colspan="5">
+        <p class="gt_footnote">
+          <sup class="gt_footnote_marks">
+            <em>1</em>
+          </sup>
+           
+          Yes, this song is from 1991, but it appears here because iTunes uses the release date of the 'The Best of' album.
+          <br />
+        </p>
+      </td>
+    </tr>
+  </tfoot>
+</table>
+</div>
+<p><em>Your feedback is welcome! You can send me comments about this article by <a href="mailto:francisco.yira@outlook.com">e-mail</a>.</em></p>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>I have to credit <a href="https://leojosefm.medium.com/python-analyzing-itunes-library-97bec60e13cb">this blog post</a> that helped me make sense of the iTunes XML file. Without it, it would have taken me much longer to figure all this out.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>An idea that comes to my mind after seeing this is to make a “Pareto analysis”: sorting the songs from most played to least played, and see what share of the music collection I have to consider to reach the 80% of the total play counts (if Pareto is right, it should be close to 20%). This is left as an exercise to the reader 😆.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>While doing this, I tried to follow the guidelines for better tables with R from <a href="https://themockup.blog/posts/2020-09-04-10-table-rules-in-r/">this blog post by Thomas Mock</a>. I highly recommend that post to you if you also want to create tables with the <code>gt</code> package.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
