@@ -24,3 +24,9 @@ options(blogdown.hugo.version = "0.81.0")
 
 # Author
 options(blogdown.author = "Francisco Yirá")
+
+# Python virtual env
+Sys.setenv(RETICULATE_PYTHON = here::here(".venv", "Scripts", "python.exe"))
+
+# Disable python warning in chunks
+options(reticulate.repl.quiet = TRUE)

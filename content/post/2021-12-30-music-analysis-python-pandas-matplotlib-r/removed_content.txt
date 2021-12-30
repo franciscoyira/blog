@@ -1,0 +1,33 @@
+## Exploratory analysis on the resulting DataFrame
+
+Before moving on to the main analysis, I will do some quick exploratory queries on `df_tracks`, mainly as a sanity check to be sure that the data makes sense overall.
+
+```{python}
+df_tracks.groupby('Kind').size().sort_values(ascending=False)
+```
+
+```{python}
+df_tracks.groupby('Year').size().sort_index(ascending=False)
+```
+
+```{python}
+df_tracks[df_tracks['Skip Count'].astype(int) >= 6][['Name', 'Album', 'Skip Count']]
+```
+
+```{python}
+df_tracks.groupby('Track Type').size().sort_values(ascending=False)
+```
+
+### 'Remote' songs
+
+What are 'Remote' files in Track Type field?
+
+```{python}
+df_tracks.query('`Track Type`=="Remote"')['Name'].values[:15]
+```
+
+These are mainly workout remixes I purchased on the iTunes Store for running. I have them downloaded in a stand-alone MP3 player that I use when I run, but I don't like listening to them in any other context, so that's why they're not downloaded in my music collection.
+
+Others are soundtracks songs (Interstellar, Doctor Who, etc). This is a similar situation: I don't want these songs to play when I'm listening to my whole collection in shuffle, or to appear in some Smart Playlists that I have.
+
+Finally, there are cases where I bought a digital song, but then also purchased the CD and ripped it. Here I prefer to listen to the ripped song, since it has Lossless audio (vs 256kbps of the iTunes Store verion).
