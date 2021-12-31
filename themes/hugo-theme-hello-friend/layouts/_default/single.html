@@ -17,10 +17,6 @@
         {{ end }}
       {{ end }}
 
-      {{ with .Params.Author }}
-        <span class="post-author"
-          >— {{ $.Site.Params.WrittenBy | default "Written by" }} {{ . }}</span
-        >{{ end }}
 
 
       {{ if $.Site.Params.ShowReadingTime }}
