@@ -1,0 +1,120 @@
+---
+title: 'Randomization Inference: una mejor forma de calcular p-values en experimentos'
+author: Francisco Yirá
+date: '2022-01-21'
+slug: randomization-inference-causal-mixtape
+categories:
+  - inferencia-causal
+  - libros
+  - data-science
+  - R
+  - tutorial
+tags:
+  - causal-inference-the-mixtape
+  - resumenes
+  - p-values
+---
+
+```{r setup}
+
+```
+
+```{r}
+library(tidyverse)
+library(magrittr)
+library(causaldata)
+```
+
+
+```{r}
+ri <- causaldata::ri %>% 
+  mutate(id = row_number())
+
+treated <- c(1:4)
+
+# `%$%`: Exposition Pipe
+# Expose the names in lhs to the rhs expression. This is useful when functions do not have a built-in data argument.
+treated_permutations <- ri %$% 
+  # This creates a DF with one row per possible 4-element sample from the 8 original units 
+  as_tibble(t(combn(id, 4))) %>%
+  # rename the columns to make clear that they are treated units
+  transmute(
+    treated1 = V1, treated2 = V2,
+    treated3 = V3, treated4 = V4) %>%
+  # creates a "permutation ID" column 
+  mutate(permutation = row_number())
+
+treated_permutations
+```
+
+
+```{r}
+combo <- 
+  treated_permutations %>% 
+  # a sort of "cross join" between the permutations DF and the DF with units
+  crossing(., ri) %>%
+  arrange(permutation, name) %>% 
+  # If the unit ID is in the treated cols for the given permutation, then D = 1, else D = 0
+  # Note that D already exists.
+  # This code could be improved: one column could be a vector, and then the comparison should be `id %in% in treateds_col`
+  mutate(d = case_when(id == treated1 | id == treated2 |
+                         id == treated3 | id == treated4 ~ 1,
+                       TRUE ~ 0))
+
+combo
+```
+
+
+```{r}
+# Obtains the mean outcome for the treated for each permutation of D
+te1 <- combo %>%
+  group_by(permutation) %>%
+  filter(d == 1) %>% 
+  summarize(te1 = mean(y, na.rm = TRUE))
+
+te1
+```
+
+
+```{r}
+# The same but for the untreated
+te0 <- combo %>%
+  group_by(permutation) %>%
+  filter(d == 0) %>% 
+  summarize(te0 = mean(y, na.rm = TRUE))
+
+te0
+```
+
+
+```{r}
+# Joins the DFs with test statistics for treated and untreated based on the permutation ID
+joined_te <- inner_join(te1, te0, by = "permutation") %>% 
+  mutate(sdo = te1 - te0)
+
+joined_te
+```
+
+```{r}
+perms_ranked <- joined_te %>%
+  select(permutation, sdo) %>% 
+  arrange(desc(sdo)) %>% 
+  mutate(rank = row_number())
+
+perms_ranked
+```
+
+```{r}
+n <- nrow(joined_te)
+
+p_value <- 
+  perms_ranked %>% 
+  # The first permutation is the one with the true D vector
+  filter(permutation == 1) %>%
+  # We get the proportion of permutations above our "true" permutation. That will be our p-value
+  pull(rank)/n
+
+p_value
+```
+
+Por supuesto, no podriamos usar codigo como este si tuvieramos una cantidad mucho mayor de observaciones.
