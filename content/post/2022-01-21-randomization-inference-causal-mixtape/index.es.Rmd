@@ -19,7 +19,7 @@ Bienvenidos a un nuevo artículo de la serie dedicada al libro Causal Inference:
 
 Sin embargo, un par de conceptos que estuvieron totalmente ausentes en ese artículo fueron los de test de hipótesis y varianza. Hablamos de que la diferencia simple de medias (SDO por sus siglas en inglés) tenía la misma *esperanza* que el efecto causal promedio (ATE) cuando la asignación del tratamiento (D) era independiente de los outcomes potenciales ($Y_i^1, Y_i^0$).
 
-Pero en el mundo real no observamos la esperanza sino que realizaciones particulares: dos monedas tienen la misma esperanza de arrojar cara o sello al ser lanzadas, pero si lanzamos cada una 5 veces, es muy probable que el número de caras y sellos difiera entre ellas.
+Pero en el mundo real no observamos la esperanza sino que realizaciones particulares: dos monedas tienen la misma esperanza de arrojar cara o sello al ser lanzadas, pero si lanzamos cada una 5 veces, es muy probable que el número de caras y sellos difiera entre ellas, simplemente debido a la fluctuación aleatoria o varianza propia de este proceso generador de datos.
 
 Dada esa variabilidad en la diferencia de medias, ¿qué tan grande debe ser este valor observado para que estemos seguros de que existe una diferencia *real* entre el grupo tratado y el grupo de control? (es decir, una diferencia en las esperanzas).
 
@@ -29,9 +29,27 @@ De lo que hablaremos hoy será de una metodología alternativa a los tests de hi
 
 ## ¿Por qué usar randomization inference en vez de tests de hipótesis tradicionales?
 
-Ventajas (a modo de motivación)
+Una pregunta que quizás te estes haciendo en este momento es porque valdría la pena invertir tiempo en aprender y aplicar randomizacion inference siendo que ya contamos con tests de hipótesis tradicionales que son ampliamente usados y conocidos. Yo me estaría preguntando lo mismo si estuviera en tu lugar.
 
-## Cómo aplicar randomization inference (paso a paso en R)
+Las razones para aplicar randomizacion inference en nuestros tests de hipótesis pueden resumirse en las siguientes:
+
+1.  Al hacer inferencia causal con datos experimentales, la principal fuente de incertidumbre no es el muestreo desde una población mas grande sino que la asignación aleatoria del tratamiento combinada con la imposibilidad de conocer los contrafactuales. Los metodos tradicionales de test de hipótesis no toman esto en consideración, sino que se enfocan en la incertidumbre de muestreo. **Esto es particularmente problemático si trabajamos con grandes datasets administrativos que literalmente representan "toda la data"** (a.k.a. bIg dAtA) tales como A/B testings, y puede traducirse en que subestimemos considerablemente la incertidumbre en nuestros resultados. Randomization inference aborda estos problemas al tomar en cuenta la incertidumbre proveniente de la asignación del tratamiento, por lo que resulta un procedimiento mas apropiado en estos casos.
+
+2.  También existen ventajas al estar en el extremo opuesto: datos pequeños y/o muy pocas unidades tratadas. En esto casos no resulta muy creíble apelar a las propiedades de "muestras grandes" en las que se basan los tests convencionales. En particular, podemos sufrir de una alta vulnerabilidad a o utileros y observaciones de alto leverage, lo cual se traduce en riesgo de over-rejection de la hipótesis nula. Randomization inference nos ayuda en tal situación al ser una metodología más robusta a outliers y observaciones de alto leverage.
+
+3.  Finalmente, aun si no existe ningún problema particular con los tests tradicionales, randomization inference nos entrega mucha mas libertad respecto de los estimadores o estadísticos a usar. Mientras que al hacer un test de medias habitual estamos restringidos a aquellos estimadores para los cuales se ha podido derivar la varianza, randomization inference nos abre las puertas para usar cualquier estadístico escalar que pueda obtenerse a partir de un dataset. Algunos ejemplos útiles son los estadísticos en base a quintiles (por ejemplo, la mediana), en base a rankings, o el estadístico KS (Kolmogorov-Smirnov) que mide diferencias en las funciones de distribución acumuladas.
+
+Y como bonus, hacer randomization inference es cool. En el mundo de la inferencia causal existe una preferencia estética por las metodologías de "placebo" que simulan tratamientos falsos en los datos reales y chequear que *no* encontremos un efecto relevante de este tratamiento falso, y asi estar mas seguros de que nuestras conclusiones sobre el tratamiento verdadero son validas[^1]. Más abajo veremos que randomization inference consiste en algo muy similar a esto.
+
+[^1]: Algunas de las metodologías de inferencia causal que se apalancan mucho en tests de placebo son regresión discontinua y diferencias en diferencias. En artículos posteriores entraré en mas detalle al respecto.
+
+\[mencionar que no dependemos de la distribución gaussiana y que es una metodología no parametrica, o quizás mas abajo\]
+
+## En qué consiste randomization inference, y cómo aplicarlo en R
+
+Primero que todo, no debemos perder de vista nuestro objetivo y el contexto en el cual aplicamos este procedimiento: estamos analizando datos provenientes de un experimento aleatorizado. Tenemos un conjunto de observaciones que fueron asignadas aleatoriamente a un grupo de tratamiento o a uno de control, también tenemos una variable de resultados (Y) y queremos medir el efecto promedio del tratamiento sobre dicha variable.
+
+Un problema aquí es que, como dijimos en la introducción, casi siempre existirán diferencias entre el grupo tratado y el grupo de control, simplemente por fluctuación aleatoria (la variabilidad natural del proceso generador de datos).
 
 Soy del tipo de personas que aprenden mucho mejor conceptos estadísticos con ejemplos concretos y fragmentos de código que con notación matemática, así que mi explicación de la metodología será un tutorial paso a paso de como aplicarla en R de forma manual.
 
@@ -50,7 +68,7 @@ ri <- causaldata::ri %>%
 ri
 ```
 
-Como puede verse, este 
+Como puede verse, este
 
 ```{r}
 perms <- t(combn(ri$id_unit, 4)) %>% asplit(1) 
@@ -62,7 +80,6 @@ perms_df <-
 
 perms_df
 ```
-
 
 ```{r}
 combo_df <- 
@@ -108,29 +125,29 @@ p_value <-
 
 p_value
 ```
+
 Por supuesto, no podriamos usar codigo como este si tuvieramos una cantidad mucho mayor de observaciones.
 
 ## Usando el paquete `ri2`
 
-Partir replicando lo mismo que antes (llegar al mismo p-value)
-`
+Partir replicando lo mismo que antes (llegar al mismo p-value) \`
+
 ```{r}
 library(ri2)
 ```
 
 "In order to conduct randomization inference, we need to supply 1) a test statistic, 2) a null hypothesis, and 3) a randomization procedure."
 
-
 El procedimiento de randomizacion: tiene que corresponder con como se asigno el tratamiento en primer lugar. Funcion `declare_ra` permite declarar este procedimiento.
+
 ```{r}
 declaration <- declare_ra(N = 8, m = 4)
 declaration
 ```
 
-https://stackoverflow.com/questions/19544254/permutation-test-in-r-and-seeing-which-assignments-lead-to-greater-outcome/48628402#48628402 
+<https://stackoverflow.com/questions/19544254/permutation-test-in-r-and-seeing-which-assignments-lead-to-greater-outcome/48628402#48628402>
 
-Para suministrar el estadistico del test, podemos usar el argumento `formula` de la funcion `conduct_ri`. 
-Tambien se puede usar argumento `test_function`: debe ser funcion que recibe un data frame y retorna un escalar (el valor del test). 
+Para suministrar el estadistico del test, podemos usar el argumento `formula` de la funcion `conduct_ri`. Tambien se puede usar argumento `test_function`: debe ser funcion que recibe un data frame y retorna un escalar (el valor del test).
 
 `sharp_hypothesis`: valor del treatment effect bajo la sharp null. Admite un numero escalar.
 
@@ -146,7 +163,6 @@ sdo <- function(data) {
 }
 ```
 
-
 ```{r}
 ri2_out <- conduct_ri(
   test_function = sdo,
@@ -159,10 +175,12 @@ ri2_out <- conduct_ri(
 
 summary(ri2_out)
 ```
+
 ```{r}
 # Ambos metodos han generado el mismo set de estadisticos
 all(ri2_out$sims_df$est_sim %in% perms_ranked$sdo)
 ```
+
 ```{r}
 all.equal(ri2_out$sims_df$est_sim %>% table(),
           perms_stats$sdo %>% table())
@@ -170,12 +188,9 @@ all.equal(ri2_out$sims_df$est_sim %>% table(),
 # Pero porque hay una diferencia con los p-values!!!!???
 ```
 
-
 ```{r}
 perms_stats
 ```
-
-
 
 ```{r}
 ri2_out <- conduct_ri(
@@ -192,11 +207,9 @@ ri2_out <- conduct_ri(
 summary(ri2_out)
 ```
 
-
 ```{r}
 plot(ri2_out)
 ```
-
 
 CHALLENGE: Como utilizar el estadistico KS usando test_function?
 
@@ -224,6 +237,6 @@ plot(ri2_out)
 
 "A major benefit of randomization inference is we can specify any scalar test statistic, which means we can conduct hypothesis tests for estimators beyond the narrow set for which statisticians have derived the variance."
 
-"Randomization inference is a useful tool because we can conduct hypothesis tests without making additional assumptions about the distributions of outcomes or estimators. We can also do tests for arbitrary test statistics – we’re not just restricted to the set for which statisticians have worked out analytic hypothesis testing procedures."
+"Randomization inference is a useful tool because we can conduct hypothesis tests without making additional assumptions about the distributions of outcomes or estimators. We can also do tests for arbitrary test statistics -- we're not just restricted to the set for which statisticians have worked out analytic hypothesis testing procedures."
 
-https://cran.r-project.org/web/packages/ri2/vignettes/ri2_vignette.html 
+<https://cran.r-project.org/web/packages/ri2/vignettes/ri2_vignette.html>
