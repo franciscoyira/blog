@@ -15,106 +15,215 @@ tags:
   - p-values
 ---
 
-```{r setup}
+Bienvenidos a un nuevo artículo de la serie dedicada al libro Causal Inference: The Mixtape. En el artículo anterior vimos una introducción a la notación de Potential Outcomes y lo importante que es esta para expresar conceptos de causalidad, tales como la posibilidad de usar la diferencia de medias en experimentos aleatorizados como estimador insesgado de efectos causales.
 
-```
+Sin embargo, un par de conceptos que estuvieron totalmente ausentes en ese artículo fueron los de test de hipótesis y varianza. Hablamos de que la diferencia simple de medias (SDO por sus siglas en inglés) tenía la misma *esperanza* que el efecto causal promedio (ATE) cuando la asignación del tratamiento (D) era independiente de los outcomes potenciales ($Y_i^1, Y_i^0$).
 
-```{r}
+Pero en el mundo real no observamos la esperanza sino que realizaciones particulares: dos monedas tienen la misma esperanza de arrojar cara o sello al ser lanzadas, pero si lanzamos cada una 5 veces, es muy probable que el número de caras y sellos difiera entre ellas.
+
+Dada esa variabilidad en la diferencia de medias, ¿qué tan grande debe ser este valor observado para que estemos seguros de que existe una diferencia *real* entre el grupo tratado y el grupo de control? (es decir, una diferencia en las esperanzas).
+
+Esta pregunta usualmente se responde realizando un test de medias/regresión lineal/ANOVA. Estos métodos son ampliamente enseñados en los cursos universitarios de estadística y econometría, y existe sobre mucho material disponible en internet para aprenderlos, así que este post no se centra en ellos.
+
+De lo que hablaremos hoy será de una metodología alternativa a los tests de hipótesis tradicionales para experimentos aleatorizados. Esta metodología se llama **randomization inference**, y también responde la pregunta de *qué tan distintos deben ser los valores de tratados y controles*, pero de una forma distinta.
+
+## ¿Por qué usar randomization inference en vez de tests de hipótesis tradicionales?
+
+Ventajas (a modo de motivación)
+
+## Cómo aplicar randomization inference (paso a paso en R)
+
+Soy del tipo de personas que aprenden mucho mejor conceptos estadísticos con ejemplos concretos y fragmentos de código que con notación matemática, así que mi explicación de la metodología será un tutorial paso a paso de como aplicarla en R de forma manual.
+
+Primero, cargamos los paquetes y los datos que usaremos.
+
+```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(magrittr)
 library(causaldata)
 ```
 
-
 ```{r}
 ri <- causaldata::ri %>% 
-  mutate(id = row_number())
+  mutate(id_unit = row_number())
 
-treated <- c(1:4)
+ri
+```
 
-# `%$%`: Exposition Pipe
-# Expose the names in lhs to the rhs expression. This is useful when functions do not have a built-in data argument.
-treated_permutations <- ri %$% 
-  # This creates a DF with one row per possible 4-element sample from the 8 original units 
-  as_tibble(t(combn(id, 4))) %>%
-  # rename the columns to make clear that they are treated units
-  transmute(
-    treated1 = V1, treated2 = V2,
-    treated3 = V3, treated4 = V4) %>%
-  # creates a "permutation ID" column 
-  mutate(permutation = row_number())
+Como puede verse, este 
 
-treated_permutations
+```{r}
+perms <- t(combn(ri$id_unit, 4)) %>% asplit(1) 
+
+perms_df <- 
+  tibble(treated_units = perms) %>% 
+  transmute(id_perm = row_number(),
+            treated_units = map(treated_units, unlist))
+
+perms_df
 ```
 
 
 ```{r}
-combo <- 
-  treated_permutations %>% 
-  # a sort of "cross join" between the permutations DF and the DF with units
-  crossing(., ri) %>%
-  arrange(permutation, name) %>% 
-  # If the unit ID is in the treated cols for the given permutation, then D = 1, else D = 0
-  # Note that D already exists.
-  # This code could be improved: one column could be a vector, and then the comparison should be `id %in% in treateds_col`
-  mutate(d = case_when(id == treated1 | id == treated2 |
-                         id == treated3 | id == treated4 ~ 1,
-                       TRUE ~ 0))
+combo_df <- 
+  crossing(perms_df, ri) %>% 
+  mutate(d = map2_dbl(id_unit, treated_units, ~.x %in% .y))
 
-combo
+combo_df
 ```
-
 
 ```{r}
 # Obtains the mean outcome for the treated for each permutation of D
-te1 <- combo %>%
-  group_by(permutation) %>%
-  filter(d == 1) %>% 
-  summarize(te1 = mean(y, na.rm = TRUE))
+perms_stats <- 
+  combo_df %>%
+  group_by(id_perm) %>%
+  # filter(d == 1) %>% 
+  summarise(te1 = mean(y[d == 1]),
+            te0 = mean(y[d == 0]),
+            sdo = te1 - te0)
 
-te1
-```
-
-
-```{r}
-# The same but for the untreated
-te0 <- combo %>%
-  group_by(permutation) %>%
-  filter(d == 0) %>% 
-  summarize(te0 = mean(y, na.rm = TRUE))
-
-te0
-```
-
-
-```{r}
-# Joins the DFs with test statistics for treated and untreated based on the permutation ID
-joined_te <- inner_join(te1, te0, by = "permutation") %>% 
-  mutate(sdo = te1 - te0)
-
-joined_te
+perms_stats
 ```
 
 ```{r}
-perms_ranked <- joined_te %>%
-  select(permutation, sdo) %>% 
-  arrange(desc(sdo)) %>% 
-  mutate(rank = row_number())
+perms_ranked <- perms_stats %>%
+  select(id_perm, sdo) %>% 
+  arrange(desc(abs(sdo))) %>% 
+  mutate(rank = row_number(desc(abs(sdo)))) %>% 
+  group_by(abs(sdo)) %>% 
+  mutate(new_rank = max(rank))
 
 perms_ranked
 ```
 
 ```{r}
-n <- nrow(joined_te)
+n <- nrow(perms_ranked)
 
 p_value <- 
   perms_ranked %>% 
   # The first permutation is the one with the true D vector
-  filter(permutation == 1) %>%
+  filter(id_perm == 1) %>%
   # We get the proportion of permutations above our "true" permutation. That will be our p-value
-  pull(rank)/n
+  pull(new_rank)/n
 
 p_value
 ```
-
 Por supuesto, no podriamos usar codigo como este si tuvieramos una cantidad mucho mayor de observaciones.
+
+## Usando el paquete `ri2`
+
+Partir replicando lo mismo que antes (llegar al mismo p-value)
+`
+```{r}
+library(ri2)
+```
+
+"In order to conduct randomization inference, we need to supply 1) a test statistic, 2) a null hypothesis, and 3) a randomization procedure."
+
+
+El procedimiento de randomizacion: tiene que corresponder con como se asigno el tratamiento en primer lugar. Funcion `declare_ra` permite declarar este procedimiento.
+```{r}
+declaration <- declare_ra(N = 8, m = 4)
+declaration
+```
+
+https://stackoverflow.com/questions/19544254/permutation-test-in-r-and-seeing-which-assignments-lead-to-greater-outcome/48628402#48628402 
+
+Para suministrar el estadistico del test, podemos usar el argumento `formula` de la funcion `conduct_ri`. 
+Tambien se puede usar argumento `test_function`: debe ser funcion que recibe un data frame y retorna un escalar (el valor del test). 
+
+`sharp_hypothesis`: valor del treatment effect bajo la sharp null. Admite un numero escalar.
+
+```{r}
+# Declarando la `test_function`
+sdo <- function(data) {
+  data %>% 
+  summarise(te1 = mean(y[d == 1], na.rm=TRUE),
+            te0 = mean(y[d == 0], na.rm=TRUE),
+            sdo = te1 - te0) %>% 
+    pull(sdo) %>% 
+    abs()
+}
+```
+
+
+```{r}
+ri2_out <- conduct_ri(
+  test_function = sdo,
+  assignment = "d",
+  outcome = "y",
+  declaration = declaration,
+  sharp_hypothesis = 0,
+  data = ri
+)
+
+summary(ri2_out)
+```
+```{r}
+# Ambos metodos han generado el mismo set de estadisticos
+all(ri2_out$sims_df$est_sim %in% perms_ranked$sdo)
+```
+```{r}
+all.equal(ri2_out$sims_df$est_sim %>% table(),
+          perms_stats$sdo %>% table())
+# OK, con esto me consta que el conjunto de permutaciones obtenidos son los mismos
+# Pero porque hay una diferencia con los p-values!!!!???
+```
+
+
+```{r}
+perms_stats
+```
+
+
+
+```{r}
+ri2_out <- conduct_ri(
+  formula = y ~ d,
+  assignment = "d",
+  outcome = "y",
+  declaration = declaration,
+  sharp_hypothesis = 0,
+  data = ri,
+  p = "upper",
+  sims = 70
+)
+
+summary(ri2_out)
+```
+
+
+```{r}
+plot(ri2_out)
+```
+
+
+CHALLENGE: Como utilizar el estadistico KS usando test_function?
+
+```{r}
+# Declaramos que tratamiento se asigna a 2 unidades de 7
+declaration <- declare_ra(N = 7, m = 2)
+
+# Conduct Randomization Inference
+ri2_out <- conduct_ri(
+  # Estadistico del test: diferencia de medias
+  formula = Y ~ Z,
+  declaration = declaration,
+  # Sharp null tradicional
+  sharp_hypothesis = 0,
+  # Dataset con los D e Y observados
+  data = table_2_2
+)
+
+summary(ri2_out)
+```
+
+```{r}
+plot(ri2_out)
+```
+
+"A major benefit of randomization inference is we can specify any scalar test statistic, which means we can conduct hypothesis tests for estimators beyond the narrow set for which statisticians have derived the variance."
+
+"Randomization inference is a useful tool because we can conduct hypothesis tests without making additional assumptions about the distributions of outcomes or estimators. We can also do tests for arbitrary test statistics – we’re not just restricted to the set for which statisticians have worked out analytic hypothesis testing procedures."
+
+https://cran.r-project.org/web/packages/ri2/vignettes/ri2_vignette.html 
