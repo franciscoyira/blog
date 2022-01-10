@@ -47,26 +47,76 @@ Y como bonus, hacer randomization inference es cool. En el mundo de la inferenci
 
 ## En qué consiste randomization inference, y cómo aplicarlo en R
 
-Primero que todo, no debemos perder de vista nuestro objetivo y el contexto en el cual aplicamos este procedimiento: estamos analizando datos provenientes de un experimento aleatorizado. Tenemos un conjunto de observaciones que fueron asignadas aleatoriamente a un grupo de tratamiento o a uno de control, también tenemos una variable de resultados (Y) y queremos medir el efecto promedio del tratamiento sobre dicha variable.
+Primero que todo, volveré a enfatizar el objetivo y contexto en el cual aplicamos este procedimiento: estamos analizando datos provenientes de un experimento aleatorizado y tenemos
 
-Un problema aquí es que, como dijimos en la introducción, casi siempre existirán diferencias entre el grupo tratado y el grupo de control, simplemente por fluctuación aleatoria (la variabilidad natural del proceso generador de datos).
+-   Un conjunto de observaciones que fueron asignadas aleatoriamente a grupos de tratamiento y control
 
-Soy del tipo de personas que aprenden mucho mejor conceptos estadísticos con ejemplos concretos y fragmentos de código que con notación matemática, así que mi explicación de la metodología será un tutorial paso a paso de como aplicarla en R de forma manual.
+-   Una variable de resultados (Y)
 
-Primero, cargamos los paquetes y los datos que usaremos.
+Y queremos determinar **si el tratamiento tiene algún efecto sobre dicha variable de resultados**.
+
+Ya que casi siempre existirán diferencias entre el grupo tratado y el grupo de control (simplemente por la variabilidad natural del proceso generador de datos), es necesario realizar algún test de hipótesis para determinar si las diferencias observadas son lo suficientemente grandes como para ser consideradas evidencia de un efecto causal.
+
+Estando en esta situación, podemos aplicar **randomization inference** mediante aplicar los siguientes pasos.
+
+### Paso 1: escoger una hipótesis nula "sharp"
+
+En un test de hipótesis tradicional tenemos una hipótesis nula que afirma algo respecto a un parámetro poblacional, por ejemplo, $\beta_1=0$ donde $\beta_1$ es el coeficiente asociado a la variable de tratamiento $D$.
+
+Lo que esta hipótesis nula plantea es que el efecto *promedio* del tratamiento es 0, pero no dice nada acerca de los efectos del tratamiento para cada unidad $\delta_i$.
+
+En cambio, al aplicar randomization inference utilizamos una hipótesis nula *sharp*, es decir, una nula que afirme algo sobre cada una de las unidades.
+
+La más usada y conocida es la **sharp null de Fischer**:
+
+$$
+\delta_i=0
+$$
+
+Que nos plantea que el tratamiento tiene efecto cero para todas las unidades analizadas.
+
+Para efectos de simplicidad, en este post se usará la sharp null de Fischer, pero notar que podríamos perfectamente testear hipótesis alternativas tales como $\delta_i=1$, $\delta_i=2$, etc. Incluso podríamos testear hipótesis en las que diferentes grupos o unidades tengan valores de $\delta_i$ distintos. Lo único que se requiere es tener una hipótesis que plantee algo respecto de cada uno de los $\delta_i$.
+
+¿Qué ganamos con usar una nula de este tipo? Pues que nos permite **completar las columnas de Potential Outcomes en nuestro dataset**.
+
+Los datos que observamos normalmente tienen esta estructura:
 
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(magrittr)
 library(causaldata)
-```
 
-```{r}
 ri <- causaldata::ri %>% 
-  mutate(id_unit = row_number())
+  mutate(id_unit = row_number(),
+         y0 = as.numeric(y0),
+         y1 = as.numeric(y1))
 
 ri
 ```
+
+Para todas las unidades observamos $D_i$ e $Y_i$, pero solo uno de los outcomes potenciales ($Y_i^0$ o $Y_i^1$). Apalancándonos en la sharp null, podemos completar las columnas `y0` e `y1`.
+
+```{r}
+ri_fischer_null <- ri %>% 
+  mutate(y0 = y,
+         y1 = y)
+
+ri_fischer_null
+```
+
+Como estamos asumiendo que el tratamiento tiene un efecto igual a cero para todas las unidades, ambos outcomes potenciales son iguales al outcome observado.
+
+Por supuesto, no estamos afirmando realmente que esto sea así, simplemente queremos descubrir qué tan improbable es haber observado las diferencias entre grupos que estamos observando bajo el supuesto de esta "sharp null".
+
+### Paso 2: escoger un estadístico de test
+
+Paso 3: simular distintas asignaciones de tratamiento y obtener la distribución del estadístico
+
+Paso 4: comparar el estadístico "real" con la distribución simulada
+
+Soy del tipo de personas que aprenden mucho mejor conceptos estadísticos con ejemplos concretos y fragmentos de código que con notación matemática, así que mi explicación de la metodología será un tutorial paso a paso de como aplicarla en R de forma manual.
+
+Primero, cargamos los paquetes y los datos que usaremos.
 
 Como puede verse, este
 
@@ -214,25 +264,25 @@ plot(ri2_out)
 CHALLENGE: Como utilizar el estadistico KS usando test_function?
 
 ```{r}
-# Declaramos que tratamiento se asigna a 2 unidades de 7
-declaration <- declare_ra(N = 7, m = 2)
-
-# Conduct Randomization Inference
-ri2_out <- conduct_ri(
-  # Estadistico del test: diferencia de medias
-  formula = Y ~ Z,
-  declaration = declaration,
-  # Sharp null tradicional
-  sharp_hypothesis = 0,
-  # Dataset con los D e Y observados
-  data = table_2_2
-)
-
-summary(ri2_out)
+# # Declaramos que tratamiento se asigna a 2 unidades de 7
+# declaration <- declare_ra(N = 7, m = 2)
+# 
+# # Conduct Randomization Inference
+# ri2_out <- conduct_ri(
+#   # Estadistico del test: diferencia de medias
+#   formula = Y ~ Z,
+#   declaration = declaration,
+#   # Sharp null tradicional
+#   sharp_hypothesis = 0,
+#   # Dataset con los D e Y observados
+#   data = table_2_2
+# )
+# 
+# summary(ri2_out)
 ```
 
 ```{r}
-plot(ri2_out)
+# plot(ri2_out)
 ```
 
 "A major benefit of randomization inference is we can specify any scalar test statistic, which means we can conduct hypothesis tests for estimators beyond the narrow set for which statisticians have derived the variance."
