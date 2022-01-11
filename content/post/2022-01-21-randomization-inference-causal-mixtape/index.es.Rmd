@@ -110,47 +110,99 @@ Por supuesto, no estamos afirmando realmente que esto sea así, simplemente quer
 
 ### Paso 2: escoger un estadístico de test
 
-Paso 3: simular distintas asignaciones de tratamiento y obtener la distribución del estadístico
+Para realizar un test de hipótesis necesitamos no solo una hipótesis nula sino que también un **estadístico**. En un test de hipótesis tradicional, sería necesario que este estadístico cuente con un estimador para su varianza, pero al aplicar randomization inference podemos usar literalmente cualquier estadístico escalar que pueda obtenerse a partir de un vector de asignaciones de tratamiento ($D$) y de un vector de outcomes ($Y$).
 
-Paso 4: comparar el estadístico "real" con la distribución simulada
-
-Soy del tipo de personas que aprenden mucho mejor conceptos estadísticos con ejemplos concretos y fragmentos de código que con notación matemática, así que mi explicación de la metodología será un tutorial paso a paso de como aplicarla en R de forma manual.
-
-Primero, cargamos los paquetes y los datos que usaremos.
-
-Como puede verse, este
+Uno de los estadísticos más simples que podemos usar es la **diferencia simple de medias (SDO)** entre ambos grupos.
 
 ```{r}
-perms <- t(combn(ri$id_unit, 4)) %>% asplit(1) 
+# Funcion que define el estadístico: recibe como input un dataframe con las columnas y (outcome) y d (asignacion de tratamiento), y retorna un valor escalar
+sdo <- function(data) {
+  data %>%
+    summarise(te1 = mean(y[d == 1]),
+              te0 = mean(y[d == 0]),
+              sdo = te1 - te0) %>%
+    pull(sdo)
+}
 
-perms_df <- 
-  tibble(treated_units = perms) %>% 
-  transmute(id_perm = row_number(),
-            treated_units = map(treated_units, unlist))
-
-perms_df
+sdo(ri_fischer_null)
 ```
 
-```{r}
-combo_df <- 
-  crossing(perms_df, ri) %>% 
-  mutate(d = map2_dbl(id_unit, treated_units, ~.x %in% .y))
+Sin embargo, nada impide usar otros estadísticos de test (esta libertad es de hecho una de las principales ventajas de aplicar randomization inference).
 
-combo_df
-```
+Algunos ejemplos de estadísticos alternativos que podríamos usar son:
 
-```{r}
-# Obtains the mean outcome for the treated for each permutation of D
-perms_stats <- 
-  combo_df %>%
-  group_by(id_perm) %>%
-  # filter(d == 1) %>% 
-  summarise(te1 = mean(y[d == 1]),
-            te0 = mean(y[d == 0]),
-            sdo = te1 - te0)
+-   **Estadísticos de quantiles**, por ejemplo la diferencia de medianas entre grupos (o cualquier otro percentil). Útiles si tenemos outliers u observaciones de alto leverage.
 
-perms_stats
-```
+-   **Estadísticos de ranking**, que convierten la variable de outcomes ($Y$) en valores de ranking (1 para el outcome más bajo, 2 para el segundo más bajo, etc) y luego computan una métrica en base a esos rankings (por ejemplo, diferencia de medias o de medianas).
+
+-   **Estadístico KS (Kolmogorov-Smirnov)**, permite identificar diferencias en las distribuciones de los outcomes mediante medir la distancia máxima entre ambas funciones de distribución acumuladas. Este estadístico nos permitiría, por ejemplo, detectar el efecto de un tratamiento que no cambie la media de la variable de resultados, pero sí su varianza o dispersión.
+
+Para mantener la simplicidad, a continuación se usará el SDO como estadístico de test, pero más abajo mostraré ejemplos de código utilizando otros estadísticos.
+
+### Paso 3: simular distintas asignaciones de tratamiento y obtener la distribución del estadístico
+
+El siguiente paso consiste en obtener la distribución de valores que podría tomar el estadístico del test bajo la "sharp" null.
+
+Para esto:
+
+1.  Realizaremos permutaciones en el vector $D$ usando el mismo proceso aleatorio que se utilizó para obtener las asignaciones de tratamiento "originales" o "verdaderas". Por ejemplo, si para asignar el tratamiento se usó un proceso equivalente a lanzar una moneda al aire para cada observación ($B(n, 0.5)$), entonces cada una de las permutaciones deben provenir del mismo proceso.[^2]
+
+    En nuestro ejemplo, el proceso consiste en sortear 4 asignaciones de tratamiento para un total de 8 observaciones, lo cual produce 70 permutaciones posibles en total.
+
+    ```{r}
+    perms <- t(combn(ri_fischer_null$id_unit, 4)) %>% asplit(1) 
+
+    perms_df <- 
+      tibble(treated_units = perms) %>% 
+      transmute(id_perm = row_number(),
+                treated_units = map(treated_units, unlist))
+
+    ri_permuted <- 
+      crossing(perms_df, ri_fischer_null) %>% 
+      mutate(d = map2_dbl(id_unit, treated_units, ~.x %in% .y))
+
+    ri_permuted
+    ```
+
+    ```{r}
+    ri_permuted %>% 
+      pull(id_perm) %>% 
+      n_distinct()
+    ```
+
+2.  Para cada permutación, simulamos los valores de $Y$ en base a la hipótesis nula escogida en el Paso 1. **Para la sharp null de Fischer literalmente no hay que hacer nada**, porque plantea que $Y_i=Y_i^0=Y_i^1$, es decir, que el vector de outcomes habría sido el mismo independiente de cual hubiera sido la asignación del tratamiento (pero si nuestra *sharp* null fuera algo como $\delta_i=1$ entonces sí habría que cambiar los valores de $Y$ con cada permutación de $D$).
+
+3.  Calcularemos el valor del estadístico (escogido en el paso anterior) para cada una de estas permutaciones y guardamos su valor.
+
+    ```{r}
+    perms_stats <- 
+      ri_permuted %>%
+      group_by(id_perm) %>%
+      summarise(te1 = mean(y[d == 1]),
+                te0 = mean(y[d == 0]),
+                sdo = te1 - te0)
+
+    perms_stats %>% 
+      select(id_perm, sdo)
+    ```
+
+4.  Listo! Los valores del estadístico obtenidos en (3) nos indican la distribución de este bajo la *sharp* null.
+
+    ```{r}
+    ggplot(perms_stats, aes(sdo)) +
+      geom_histogram() +
+      labs(x = "Estadístico del test (SDO)")
+    ```
+
+[^2]: Si se usó clustering o blocking por grupos al hacer la randomización, también debe usarse al obtener las permutaciones.
+
+**¿Cuántas permutaciones se debe realizar?** Lo ideal sería agotar todas permutaciones posibles para conseguir una representación exacta de la distribución del estadístico de test bajo la *sharp* null. Sin embargo, esto solo es factible en datasets muy pequeños: incluso con un dataset de 2000 observaciones ya se vuelve computacionalmente prohibitivo obtener todas las combinaciones posibles del vector $D$.
+
+La alternativa en ese caso es conformarnos con hacer las permutaciones suficientes para obtener una aproximación razonable a la distribución del estadístico[^3].
+
+[^3]: Como referencia, la función `ri2::conduct_ri`, que es una de las implementaciones de randomization inference que existen R, realiza 1000 simulaciones/permutaciones por defecto.
+
+### Paso 4: comparar el estadístico "real" con la distribución simulada para obtener el p-value
 
 ```{r}
 perms_ranked <- perms_stats %>%
@@ -175,8 +227,6 @@ p_value <-
 
 p_value
 ```
-
-Por supuesto, no podriamos usar codigo como este si tuvieramos una cantidad mucho mayor de observaciones.
 
 ## Usando el paquete `ri2`
 
