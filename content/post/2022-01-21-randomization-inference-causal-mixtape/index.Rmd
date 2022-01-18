@@ -5,18 +5,19 @@ date: '2022-01-21'
 slug: randomization-inference-causal-mixtape
 cover: "images/dices.jpg"
 useRelativeCover: true
-coverCaption: "Image credits to [Bert Brus](https://www.bertbrus.nl/)"
+coverCaption: "Image credits: © Bert Brus | [www.bertbrus.nl](https://www.bertbrus.nl/)"
 isMath: "true"
 categories:
   - causal-inference
-  - books
   - data-science
   - R
+  - tutorial
 tags:
   - causal-inference-the-mixtape
   - summaries
   - p-values
-  - tutorial
+  - randomization-inference
+  - books
 ---
 
 Welcome to a new post of [the series](https://www.franciscoyira.com/es/tags/causal-inference-the-mixtape/) about the book [**Causal Inference: The Mixtape**](https://mixtape.scunning.com/). 
@@ -46,45 +47,42 @@ The reasons to carry out hypothesis tests based on Randomization Inference (RI) 
 
 3.  Finally, even if there isn't any particular problem with traditional hypothesis testing, RI gives us much more freedom regarding the statistics we can use. When using a standard hypothesis test, we're restricted to statistics for which the variance can be estimated or the test has been constructed analytically. In contrast, RI allows us to use **literally any scalar statistic that we can get from a dataset** and it doesn't even require us to assume a particular distribution function for its estimator. Some examples of useful statistics that we could use are quantile statistics (such as the median), ranking statistics, or the [KS statistic (Kolmogorov-Smirnov)](https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Smirnov_test) which measures differences the outcomes distributions.
 
-As a bonus, doing Randomization Inference is cool, in the sense that in the causal inference...
+As a bonus, **doing Randomization Inference is cool**, in the sense that in the causal inference world there is an aesthetic preference for **placebo methodologies**, and RI can be considered as one of them. These methodologies are characterised by simulating fake treatments in real data and then checking that we *don't* find relevant effects for those fake treatments, so we can be more confident that the conclusions about the true treatment are valid[^2]. Below we will see that RI does something very close to that.
 
-Y como bonus, **hacer Randomization Inference es cool**, en el sentido de que en el mundo de la inferencia causal existe una preferencia estética por las **metodologías de "placebo"** y RI puede considerarse como una de ellas. Este tipo de metodologías se caracterizan por simular tratamientos falsos en datos reales y chequear que *no* encontremos un efecto relevante asociado a esos tratamientos falsos, para así estar mas seguros de que nuestras conclusiones sobre el tratamiento verdadero son válidas[^2]. Más abajo veremos que Randomization Inference consiste en algo muy similar a esto.
+[^2]: Some causal inference methodologies that tend to leverage placebo tests are Discontinuous Regression and Difference-in-differences. Both will be covered in more detail in future blog posts.
 
-[^2]: Algunas de las metodologías de inferencia causal que se apalancan mucho en tests de placebo son regresión discontinua y diferencias en diferencias. En artículos posteriores se las discutirá en más detalle.
+## Randomization Inference step by step in R
 
-## Randomization Inference paso a paso en R
+In order to explain the methodology itself, let's remember first the goal and context on which we would apply this procedure. We're analysing data coming from a randomized experiment and we have:
 
-Para pasar a explicar la metodología en sí, recordemos primero el objetivo y contexto en el cual aplicaríamos este procedimiento. Estamos analizando datos provenientes de un experimento aleatorizado y tenemos:
+-   A set of observations that were randomly assigned to treatment and control groups.
 
--   Un conjunto de observaciones que fueron asignadas aleatoriamente a grupos de tratamiento y control.
+-   An outcome variable ($Y$).
 
--   Una variable de resultados ($Y$).
+And we want to figure out **if the treatment has any real effect over that outcome variable**.
 
-Y queremos determinar **si el tratamiento tiene algún efecto sobre dicha variable de resultados**.
+As there will always be differences between treatment and control groups (just because of the random variability in the data generating process), we need to carry out some hypothesis test to verify if the observed differences between groups are big enough to be considered as evidence of a causal effect. 
 
-Ya que casi siempre existirán diferencias entre el grupo tratado y el grupo de control (simplemente por la variabilidad natural del proceso generador de datos), es necesario realizar algún test de hipótesis para determinar si las diferencias observadas son lo suficientemente grandes como para ser consideradas evidencia de un efecto causal.
+When in this situation, we can perform a **Randomization Inference** hypothesis test by applying the following steps:
 
-Estando en esta situación, podemos realizar un test de hipóteis con **Randomization Inference** mediante aplicar los siguientes pasos.
+### Step 1: choose a *sharp* null hypothesis
 
-### Paso 1: escoger una hipótesis nula "sharp"
+In a standard hypothesis test, we have a null hypothesis that states something regarding a population parameter, for instance, $\beta_1=0$ where $\beta_1$ is the coefficient of the treatment variable $D$. What this null hypothesis is saying is that the *average* effect of the treatment is zero, but it doesn't say anything about the individual treatment effects for each unit ($\delta_i$).
 
-En un test de hipótesis estándar tenemos una hipótesis nula que afirma algo respecto a un parámetro poblacional, por ejemplo, $\beta_1=0$ donde $\beta_1$ es el coeficiente asociado a la variable de tratamiento $D$. Lo que esta hipótesis nula plantea es que el efecto *promedio* del tratamiento es 0, pero no dice nada acerca de los efectos del tratamiento para cada unidad ($\delta_i$).
+In contrast, when we do RI, we use a **sharp null**, that is, a null that says something about each one of the individual treatment effects ($\delta_i$).
 
-En cambio, al aplicar RI utilizamos una **hipótesis nula *sharp***, es decir, una nula que afirma algo sobre los efectos en cada una de las unidades.
-
-La más usada y conocida es la ***sharp*** **null de Fischer**:
+The most used and well-known sharp null is the **Fischer's sharp null**:
 
 $$
 \delta_i=0
 $$
+Which posits that the treatment has zero effect for each of the units in the sample.
 
-Que nos plantea que el tratamiento tiene efecto cero para todas las unidades analizadas.
+For the sake of simplicity, on this post we will use Fischer's sharp null, but note that we may as well use alternative sharp nulls such as $\delta_i=1$ or $\delta_i=2$. We could even test sharp nulls in which different groups or units have different values of $\delta_i$. All that is required is to have a null that states *something* about each $\delta_i$, and not just about $E[\delta_i]$.
 
-Para efectos de simplicidad, en este post se usará la sharp null de Fischer, pero notar que podríamos perfectamente testear hipótesis alternativas tales como $\delta_i=1$, $\delta_i=2$, etc. Incluso podríamos testear hipótesis en las que diferentes grupos o unidades tengan valores de $\delta_i$ distintos. Lo único que se requiere es tener una hipótesis que plantee algo respecto de cada uno de los $\delta_i$.
+Why would we want to use null hypotheses like these? Because it allows us to **complete the missing potential outcomes values in our dataset**.
 
-¿Qué ganamos con usar una nula de este tipo? Pues que nos permite **completar las columnas de Potential Outcomes en nuestro dataset**.
-
-Los datos que observamos normalmente tienen esta estructura:
+The data we usually see in an experiment has this structure:
 
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -99,7 +97,7 @@ ri <- causaldata::ri %>%
 ri
 ```
 
-Para todas las unidades observamos $D_i$ e $Y_i$, pero solo uno de los outcomes potenciales ($Y_i^0$ o $Y_i^1$). Apalancándonos en la *sharp* null, podemos completar las columnas `y0` e `y1` en base a $Y_i=Y_i^0=Y_i^1$
+For each unit, we observe both $D_i$ and $Y_i$, but just one of the potential outcomes ($Y_i^0$ or $Y_i^1$). By leveraging the sharp null, we can fill in the missing values in the columns `y0` and `y1` (in this case, based on $Y_i=Y_i^0=Y_i^1$).
 
 ```{r}
 ri_fischer_null <- ri %>% 
@@ -109,20 +107,20 @@ ri_fischer_null <- ri %>%
 ri_fischer_null
 ```
 
-Como estamos asumiendo que el tratamiento tiene un efecto igual a cero para todas las unidades, **ambos outcomes potenciales son iguales al outcome observado**.
+Since we're assuming that the treatment has an effect equal to zero for each unit, **both potential outcomes are equal to the observed outcome**.
 
-Por supuesto, no estamos afirmando que esto sea así realmente, simplemente queremos descubrir qué tan improbable es haber observado las diferencias entre grupos que estamos observando bajo el supuesto de esta *sharp* null.
+Of course, we're not claiming that this is really the case. We just want to discover how unlikely it is, under the sharp null assumption, to have observed the differences in means that we got in our experiment.
 
-### Paso 2: escoger un estadístico de test
+### Step 2: pick a test statistic
 
-Para realizar un test de hipótesis necesitamos no solo una hipótesis nula sino que también un **estadístico**. En un test de hipótesis tradicional, sería necesario que este estadístico cuente con un estimador para su varianza, pero al aplicar randomization inference podemos usar literalmente cualquier estadístico escalar que pueda obtenerse a partir de un vector de asignaciones de tratamiento ($D$) y de un vector de outcomes ($Y$).
+To conduct a hypothesis test, we also need a **statistic**. In a standard hypothesis test, it would be necessary to use a statistic for which we had a variance estimator but, when doing RI, we can use literally any scalar statistic that can be obtained from a treatment assignments vector ($D$) and an outcomes vector ($Y$).
 
-Uno de los estadísticos más simples que podemos usar es la **diferencia simple de medias (SDO)** entre ambos grupos.
+One of the simplest statistics we can use is the **simple difference in mean outcomes (SDO)** between groups.
 
 ```{r}
-# Funcion que define el estadístico: recibe como input un dataframe con 
-# las columnas `y` (outcome) y `d` (asignacion de tratamiento), y retorna 
-# un valor escalar
+# Function that defines the statistic: it receives a dataframe as input,
+# with the columns `y` (outcome) and `d` (treatment assignment), and returns
+# a scalar value
 sdo <- function(data) {
   data %>%
     summarise(te1 = mean(y[d == 1]),
@@ -134,27 +132,27 @@ sdo <- function(data) {
 sdo(ri_fischer_null)
 ```
 
-Sin embargo, nada impide usar otros estadísticos de test. Esta libertad es de hecho una de las principales ventajas de aplicar Randomization Inference.
+However, as I said before, there is no reason why we couldn't use a different test statistic. This freedom is one of the main reasons for which we would want to do RI in the first place.
 
-Algunos ejemplos de estadísticos alternativos que podríamos usar son:
+Some examples of alternative test statistics we could use are:
 
--   **Estadísticos de quantiles**, por ejemplo la diferencia de medianas entre grupos (o cualquier otro percentil). Útiles si tenemos outliers u observaciones de alto leverage.
+-   **Quantile statistics**, for example, the difference in *medians* (or any other percentile) between two groups. They're particularly useful if we have problems with outliers or high leverage observations. 
 
--   **Estadísticos de ranking**, que convierten la variable de outcomes ($Y$) en valores de ranking (1 para el outcome más bajo, 2 para el segundo más bajo, etc) y luego computan una métrica en base a esos rankings (por ejemplo, diferencia de medias o de medianas).
+-   **Ranking statistics**, which transform an outcome variable ($Y$) into ranking values (1 for the lowest outcome, 2 for the second-lowest, and so on) and then compute a metric based on those rankings (for instance, the difference in mean or median ranking).
 
--   **Estadístico KS (Kolmogorov-Smirnov)**, que permite identificar diferencias en las distribuciones de outcomes mediante medir la distancia máxima entre ambas funciones de distribución acumuladas. Este estadístico nos permitiría, por ejemplo, detectar el efecto de un tratamiento que no afecte la media de $Y$, pero sí su varianza o dispersión.
+-   **KS statistic (Kolmogorov-Smirnov)**, which detects differences between outcome *distributions* by measuring the maximum distance between the cumulative distribution functions. This statistic would allow us, for instance, to identify the effect of a treatment that changes the variance or dispersion of the outcome but not its mean.
 
-Para mantener la simplicidad, a continuación se usará el SDO como estadístico de test, pero más abajo mostraré ejemplos de código utilizando el estadístico KS.
+For simplicity's sake (again), the SDO will be used as test statistic in this example but, afterwards, I will show another code example using the KS statistic.
 
-### Paso 3: simular distintas asignaciones de tratamiento y obtener la distribución del estadístico
+### Step 3: simulate many treatment assignments to get the statistic distribution
 
-El siguiente consiste en obtener la distribución de valores que podría tomar el estadístico del test bajo la *sharp* null.
+The next step consists in getting the distribution of values that the test statistic may take under the sharp null.
 
-Para esto:
+For this:
 
-1.  Realizaremos permutaciones en el vector $D$ mediante el mismo proceso aleatorio que se utilizó para obtener las asignaciones de tratamiento originales en primer lugar. Por ejemplo, si para asignar el tratamiento se usó un proceso equivalente a lanzar una moneda al aire para cada observación ([$B(n, 0.5)$](https://en.wikipedia.org/wiki/Binomial_distribution)), entonces cada una de las permutaciones deben generarse con el mismo proceso.[^3]
+1.  We will do permutations over the vector $D$ using the same random process that was used for obtaining the random treatment assignments in the first place. For example, if the treatment was assigned by a process equivalent to tossing a coin for each unit ([$B(n, 0.5)$](https://en.wikipedia.org/wiki/Binomial_distribution)), then the permutations must be generated in the same way.[^3] 
 
-    En nuestro ejemplo, el proceso consiste en sortear 4 asignaciones de tratamiento para un total de 8 observaciones, lo cual produce 70 permutaciones posibles en total. El siguiente código obtiene tales permutaciones:
+    In our example, the random process consists in drafting 4 treatment assignments for a sample of 8 observations, which translates to 70 possible permutations in total. The following code obtains such permutations:  
 
     ```{r}
     perms <- t(combn(ri_fischer_null$id_unit, 4)) %>% asplit(1) 
@@ -177,9 +175,9 @@ Para esto:
       n_distinct()
     ```
 
-2.  Para cada permutación, simulamos los valores de $Y$ en base a la hipótesis nula escogida previamente. **Para la sharp null de Fischer literalmente no hay que hacer nada**, ya que al plantear esta que $Y_i=Y_i^0=Y_i^1$, el vector $Y$ se mantiene constante en cada permutación de $D$ (sin embargo, si nuestra *sharp* null fuera algo como $\delta_i=1$ entonces sí habría que cambiar los valores de $Y$ con cada permutación).
+2.  For each permutation, we simulate the values of $Y$ based on the previously chosen sharp null and the now complete potential outcomes columns. **For Fischer's sharp null, we don't have to do anything** because it states that $Y_i=Y_i^0=Y_i^1$, which leads to the vector $Y$ remaining unchanged no matter the values in $D$. However, if our sharp null was something like $\delta_i=1$, then it would be necessary to update/change the values of $Y$ in each permutation.
 
-3.  Calcularemos el valor del estadístico del test (el SDO en nuestro caso) para cada una de estas permutaciones y guardamos su valor.
+3.  We compute the test statistic value (the SDO in our example) for each permutation and then save those values.
 
     ```{r}
     perms_stats <- 
@@ -193,27 +191,27 @@ Para esto:
       select(id_perm, sdo)
     ```
 
-4.  Listo! Los valores del estadístico obtenidos en (3) nos indican la distribución de este bajo la *sharp* null.
+4.  Voilà! The statistic values obtained in (3) tell us what the statistic's distribution is under the sharp null assumption.
 
     ```{r, message=FALSE}
     ggplot(perms_stats, aes(sdo)) +
       geom_histogram() +
-      labs(x = "Estadístico del test (SDO)")
+      labs(x = "Test statistic (SDO)")
     ```
 
-[^3]: O si se usó clustering o blocking por grupos al hacer la randomización, también debe usarse al obtener las permutaciones.
+[^3]: If the randomization was done using clustering or blocking by groups, then we should do the same when obtaining the permutations.
 
-**¿Cuántas permutaciones se deben realizar?** Lo ideal sería agotar todas permutaciones posibles para conseguir una representación exacta de la distribución del estadístico de test bajo la *sharp* null. Sin embargo, esto solo es factible en datasets muy pequeños: incluso con un dataset de 2000 observaciones ya se vuelve computacionalmente prohibitivo obtener todas las combinaciones posibles del vector $D$.
+**How many permutations should we do?** Ideally, we should obtain all the possible permutations in order to get an exact representation of the test statistic distribution under the sharp null. However, this is only feasible in very small datasets: even with a dataset of 2000 rows, it becomes computationally prohibitive to get all the possible permutations of the treatment assignment.
 
-La alternativa en ese caso es conformarnos con hacer las permutaciones suficientes para obtener una aproximación razonable a la distribución del estadístico[^4].
+The fall-back option, in this case, is to resign oneself to do enough permutations to get a reasonable approximation to the statistic's distribution[^4].
 
-[^4]: Como referencia, la función `ri2::conduct_ri`, que es una de las implementaciones de Randomization Inference que existen R, realiza 1000 simulaciones/permutaciones por defecto.
+[^4]: As a reference, the function `ri2::conduct_ri`, which is one of the RI implementations existing in R, performs 1000 simulations/permutations by default.
 
-### Paso 4: comparar el estadístico "real" con la distribución simulada para obtener el p-value
+### Step 4: obtaining the p-value by comparing the "real" statistic with its simulated distribution 
 
-Luego de haber obtenido la distribución (exacta o aproximada) del estadístico bajo la *sharp* null, procedemos a ubicar el estadístico "verdadero" (aquel correspondiente los valores reales de $D$ e $Y$) dentro de esa distribución.
+After having obtained the statistic's distribution (exact or approximated) under the sharp null, we can proceed to locate the true statistic (the one that comes from the real values of $D$ and $Y$) inside that distribution.
 
-*Notar que si queremos realizar un test de dos colas (lo más usual) debemos aplicar valor absoluto a la distribución de estadísticos (que es de hecho lo que haremos en este ejemplo).*
+*Note that if we want to perform a two-tailed test (the most common one), we must apply the absolute value function to the statistic distribution (which is, in fact, what we do in this example).*
 
 ```{r, message=FALSE}
 true_statistic <- perms_stats %>% 
@@ -221,35 +219,35 @@ true_statistic <- perms_stats %>%
   pull(sdo)
 
 ggplot(perms_stats, 
-       # Aplicamos valor absoluto porque haremos un test de 2 colas
+       # Applying `abs` because we want a two tailed test
        aes(abs(sdo))) +
   geom_histogram() +
-  labs(x = "Valor absoluto del estadístico del test (SDO)",
+  labs(x = "Absolute value of the test statistic (SDO)",
        y = "count") +
   geom_vline(xintercept = true_statistic, colour = "red", size = 2) +
   annotate(geom = "label",
            x = true_statistic,
            y = 10,
-           label = "Estadístico 'verdadero'",
+           label = "'True' statistic",
            colour = "red") +
   annotate("segment", x = true_statistic+1, xend = true_statistic+3, y = 9, yend =9,
            colour = "purple", size = 2, arrow = arrow()) +
   annotate(geom = "label",
            x = true_statistic+2,
            y = 10,
-           label = "Estadísticos más extremos",
+           label = "More 'extreme' statistics",
            colour = "purple")
 ```
 
-Habiendo hecho esto pordemos proceder a calcular el **p-value** (que es lo que hemos estado buscando desde un comienzo).
+Having done this, we can calculate the **p-value** itself (which is what we have been looking for since the beginning).
 
-Este p-value se calcula en dos pasos:
+This p-value can be calculated through the following steps:
 
-1.  Se crea un **ranking descendiente de los estadísticos de test** obtenidos en las permutaciones (el con mayor valor tiene ranking 1 y el con menor valor tiene ranking N). Para los estadísticos "empatados" en un mismo valor, su ranking corresponde el máximo de los rankings originales de los estadísticos que comparten tal valor (por ejemplo, si tres estadísticos son iguales y tienen rankings 2, 3, y 4, todos ellos quedan con ranking igual a 4).
+1.  We create a **descending ranking with the test statistics** we obtained through the permutations (the highest value gets a ranking equal to 1, the lowest value gets a ranking equal to N). These rankings are assigned through a `row_number()`-like algorithm. When there are ties, the original ranking of the tied statistics is replaced with the maximum ranking inside that group. For instance, if three statistics have the same value and their original rankings are 2, 3 and 4, all of them end up with a ranking equal to 4.
 
 ```{r}
 perms_ranked <- perms_stats %>%
-  # Igual que antes, se aplica valor absoluto para tener un test de dos colas
+  # Just like before, we apply `abs()` to get a two tailed test
   mutate(abs_sdo = abs(sdo)) %>% 
   select(id_perm, abs_sdo) %>% 
   arrange(desc(abs_sdo)) %>% 
@@ -260,7 +258,7 @@ perms_ranked <- perms_stats %>%
 perms_ranked
 ```
 
-2.  Se calcula el ratio entre el ranking del estadístico verdadero y el total de permutaciones obtenidas (N).
+2.  We calculate the ratio between the final ranking of the true statistic and N, the total number of permutations we did.
 
 ```{r}
 n <- nrow(perms_ranked)
@@ -273,49 +271,55 @@ p_value <-
 p_value
 ```
 
-En nuestro caso, el p-value obtenido es de 0.86, lo que implica que no podemos rechazar la *sharp* null con un 5% de significancia (ni con un 10% ni un 20% ni un 30% 😅). Dicho de otra forma, **el valor de SDO observado no es un valor improbable de observar si asumimos que el tratamiento no tuvo efecto en ninguna unidad** y que la única fuente de variabilidad en el estadístico es la asignación aleatoria de $D$.
+In our example, the p-value we got is 0.86, which implies that we can't reject the sharp null at a 5% significance level (in fact, we can't reject it at any conventional significance level 😅). In other words, **the SDO from the original data is not an unlikely value to observe if we assume that the treatment had zero effect on all the units** and that the only source of variability in the statistic is the random assignment of $D$.
 
-## Haciéndolo más fácil con el paquete *ri2* 🤗
+## Making it easier with the *ri2* package 🤗
 
-El código en R mostrado arriba tenía como fin explicar en qué consiste cada paso del procedimiento. Sin embargo, no es muy conciso y adaptarlo para otros datasets puede resultar un poco tedioso. Por ello, para aplicar Randomization Inference en nuestros propios datos es recomendable usar paquetes de R diseñados para este fin, tales como `ri2`.
+The R code shown above had the goal of explaining each step of the RI procedure. However, it's not very concise and adapting it for other datasets would be tiresome and error prone. For that reason, it's recommended to perform RI using one of the R packages that have been designed and developed for that end, such as `ri2`.
 
 ```{r, message=FALSE}
 library(ri2)
 ```
 
-Algo que no cambia respecto al código "manual" es que siempre debemos suministrar 1) un estadístico de test, 2) una hipótesis nula *sharp*, y 3) un procedimiento de randomización. E igual que antes, el procedimiento de randomización indicado en el código debe ser idéntico al que se utilizó para asignar el tratamiento en primer lugar.
+However, something from the "manual" code that doesn't change is that we still have to provide 1) a test statistic, 2) a sharp null hypothesis, and 3) a randomization procedure. And just like before, the randomization procedure passed to `ri2` must be the same as the one used for assigning the treatment in the first place. 
 
-Para declarar el **procedimiento de randomización** se usa la función `ri2::declare_ra`. En este caso (igual que en el ejemplo de antes) estamos declarando la asignación aleatoria de 4 unidades tratadas (`m = 4`) dentro de una muestra de 8 unidades (`N = 8`).
+The difference is that now we can pass these elements more in an easier and clearer way.
+
+To declare the **randomization procedure** we use the function `ri2::declare_ra`. In this case (just like in the preceding example), we're declaring the random assignment of 4 treatment units (`m = 4`) in a sample of 8 units (`N = 8`).
 
 ```{r}
 declaration <- declare_ra(N = 8, m = 4)
 declaration
 ```
 
-El output de `declare_ra` se guarda en un objeto de R, que luego podremos pasar a la función `ri2::conduct_ri`, que es la que realiza el procedimiento de Randomization Inference en sí mismo.
+The output is stored in an R object that later we can pass to the function `ri2::conduct_ri`, which is the function that performs the RI procedure itself.
 
-Para declarar el **estadístico del test** tenemos 2 opciones.
+To declare the **test statistic** we have two options.
 
-Una es hacerlo mediante el argumento `formula` de `conduct_ri`. Si nuestro estadístico es simplemente la diferencia de medias entre tratados y controles, la fórmula será algo como `y ~ d` (con `y` como variable de outcome y `d` como variable de asignación de tratamiento).
+The first is to use the `formula` argument in the `conduct_ri` function. If our test statistic is just the SDO, then the formula will be something like `y ~ d`, where `y` is the outcome variable and `d` is the treatment assignment variable.
 
-Alternativamente, podemos especificar el estadístico mediante el argumento `test_function` (también de `conduct_ri`), el cual admite cualquier función de R capaz de recibir un dataframe y retornar un escalar (i.e., el valor del estadístico de test).
+Alternatively, we can specify the statistic through the argument `test_function` (also in the function `conduct_ri`), which admits any R function capable of receiving a dataframe and returning a scalar (i.e., the statistic value). 
+
+In our example we're going to use this last method:
 
 ```{r}
-# Declarando la `test_function`
+# Declaring the `test_function`
 sdo <- function(data) {
+  # it receives a dataframe
   data %>% 
   summarise(te1 = mean(y[d == 1], na.rm=TRUE),
             te0 = mean(y[d == 0], na.rm=TRUE),
             sdo = te1 - te0) %>% 
+    # and returns a scalar
     pull(sdo)
 }
 ```
 
-La **hipótesis nula *sharp*** se especifica mediante el argumento `sharp_hypothesis` de `conduct_ri`. Su valor por defecto es 0, así que si vamos a usar la *sharp* null de Fischer podemos omitirlo.
+The **sharp null hypothesis** can be specified through the `sharp_hypothesis` argument in `conduct_ri`. The default value for this argument is 0, so if we're going to use Fischer's sharp null then we omit it in our code.
 
-Otro detalle importante es que debemos indicar los nombres de las columnas correspondientes al outcome y al tratamiento en el dataset, usando los argumentos `assignment` y `outcome`. Y también hay que pasar el dataset en sí mismo con el argumento `data`.
+Last but not least, we have to indicate the names that the columns containing $Y$ and $D$ have in our data, using the `assignment` and `outcome` arguments, and we also have to pass the dataset itself through the argument `data`.
 
-Finalmente, ejecutamos la función `conduct_ri` con todos los argumentos necesarios e inspeccionamos los resultados con la función `summary`.
+After specifying all those arguments, we can execute the function `conduct_ri` and then inspect the output with the `summary`.
 
 ```{r}
 ri2_out <- conduct_ri(
@@ -330,48 +334,50 @@ ri2_out <- conduct_ri(
 summary(ri2_out)
 ```
 
-Como vemos, el p-value retornado por `conduct_ri` es idéntico al que obtuvimos ejecutando el código de la sección anterior, pero con la ventaja de que el código de `ri2` es mucho más conciso y legible.
+As we see, the p-value returned by `conduct_ri` is exactly the same as the one we got with the "manual" code from the previous section, but now the code is much simpler and easier to read 😊.
 
-Otra ventaja de `ri2::conduct_ri` es que su output puede ser graficado directamente con la función `plot()`.
+Another advantage of `conduct_ri` is that its output can be directly plotted by the function `plot()`.
 
 ```{r, message=FALSE}
 plot(ri2_out)
 ```
 
-Este gráfico es incluso mejor que el creado a mano en la sección anterior porque destaca automáticamente los estadísticos que son tan o más extremos que el estadístico simulado, y representa apropiadamente los tests de dos colas sin tener que transformar los estadísticos a valor absoluto ✨.
+This plot is even better than the one we created manually in the previous section because it automatically highlights the statistics that are as or more extreme than the real statistic. It also appropriately portrays two-tailed tests without having to transform the statistics to their absolute value ✨.
 
-Además, dado que el output de `plot(ri2_out)` es un objeto de ggplot2, podemos personalizar el gráfico usando las funciones de ggplot2 que ya conocemos. Por ejemplo, podemos aplicarle un tema de `ggthemes`:
+In addition, since the output of  `plot(ri2_out)` is a ggplot2 object, we can customize it or transform it through the ggplot2 functions we already know. For example, we can apply a `ggthemes` theme to make it look like a Stata plot:
 
 ```{r, warning=FALSE}
 plot(ri2_out) +
   ggthemes::theme_stata()
 ```
 
-Si queremos inspeccionar manualmente la data de las simulaciones, es posible hacerlo extrayendo el dataframe `sims_df` desde el output de `ri2::conduct_ri`. Este dataframe tendrá tantas filas como permutaciones de $D$ se hayan efectuado.
+If we want to manually inspect the simulations data, we can extract the dataframe `sims_df` from the output of `conduct_ri`. This dataframe will have as many rows as permutations of $D$ had been performed.
 
 ```{r}
 ri2_out[["sims_df"]] %>% head()
 ```
 
-Vale la pena mencionar además que `conduct_ri` tiene un argumento `sims` que indica la **cantidad de permutaciones** a realizar para obtener el p-value. Por defecto su valor es 1000, pero podemos querer incrementarlo en caso de que deseemos obtener una aproximación más exacta.
+It's worth noting that `conduct_ri` also has a `sims` argument that specifies the **number of permutations** that will be carried out in order to obtain the p-value. Its default value is 1000, but we may want to increase it to get a more precise estimate.
 
-### Bonus: usando el estadístico KS para medir diferencias en distribuciones de outcomes
+### Bonus: using the KS statistic to measure differences between outcome distributions
 
-Una de las ventajas de RI mencionadas al comienzo de este post era la posibilidad de utilizar estadísticos alternativos, siendo el único requisito sobre estos el que correspondan a valores escalares obtenidos a partir de $D$ e $Y$.
+One of the advantages of RI that were mentioned at the beginning of this post was the freedom to use alternative test statistics, having as only restriction to be scalar values obtained from $D$ and $Y$.
 
-Uno de los estadísticos "alternativos" más interesantes (en mi opinión) es el **estadístico KS** (Kolmogorov-Smirnov) que mide la diferencia máxima entre dos funciones de distribución acumuladas empíricas (en este caso, entre la de las unidades tratadas $\hat{F_T}$ y la de las unidades de control $\hat{F_C}$):
+One of the most interesting "alternative" statistics (in my opinion) is the **KS statistic** (Kolmogorov-Smirnov), which measures the maximum distance between two empirical cumulative distribution functions (ECDFs). In this case, it measures the distance between the ECDF of the treated units $\hat{F_T}$ and the ECDF of the control units $\hat{F_C}$:
 
 $$
 T_{KS}=\max|\hat{F_T}(Y_i) - \hat{F_C}(Y_i)|
 $$
 
-Lo cual se puede apreciar visualmente en el siguiente gráfico de ejemplo, donde el valor del estadístico corresponde al largo de la línea roja punteada.
+We can see a visual example in the following plot, where the KS statistic equals the length of the red dotted line.
 
-![*Ejemplo de estadístico KS con 2 funciones de distribución acumuladas. Fuente: [StackExchange](https://stats.stackexchange.com/questions/208517/kolmogorov-smirnov-test-vs-t-test)*](images/ks_example.png)
+![*Example of KS statistic with 2 cumulative distribution functions. Source: [StackExchange](https://stats.stackexchange.com/questions/208517/kolmogorov-smirnov-test-vs-t-test)*](images/ks_example.png)
 
-**¿Por qué querríamos usar el estadístico KS en vez de algo más familiar, como la diferencia de medias?**
+**Why would we use the KS statistic instead of something more familiar, like the difference in means?**
 
-Porque puede haber casos en que el tratamiento afecte la distribución de los outcomes, pero sin generar cambios importantes en la media, por ejemplo aumentando la dispersión, o generando una distribución bimodal. He aquí un ejemplo ([tomando del Mixtape](https://github.com/scunning1975/mixtape/blob/master/R/ks.R)) con datos simulados:
+Because we could have a treatment that affects the outcome distribution without changing the mean significantly. For instance, it could change the variance or generate a bi-modal distribution (translation into a real-world example: a treatment that has a large positive effect for half of the sample and a large negative effect for the other half).
+
+Here is an example from [the Mixtape](https://github.com/scunning1975/mixtape/blob/master/R/ks.R) with simulated data:
 
 ```{r, warning=FALSE}
 tb <- tibble(
@@ -409,7 +415,7 @@ ggplot(kdensity)+
   scale_color_discrete(labels = c("Control", "Treatment"))
 ```
 
-En el ejemplo de arriba, si hacemos randomization inference usando el SDO como estadístico no podemos descartar la *sharp* null de que el efecto del tratamiento es cero para todas las unidades, a pesar de que claramente las distribuciones son muy distintas.
+If we do RI with the data from above using the SDO as test statistic, we can't reject the sharp null of having zero effect for all the units, despite having two evidently different outcome distributions.
 
 ```{r}
 set.seed(1989)
@@ -425,10 +431,10 @@ conduct_ri(
 )
 ```
 
-Veamos qué resultado obtenemos al usar el estadístico KS en vez del SDO:
+Let's see what happens if we use the KS statistic instead of the SDO:
 
 ```{r}
-# Declarando la función que obtiene el estadístico KS a partir de un dataframe
+# Declaring the function that obtains the KS statistic from a dataframe
 ks_statistic <- function(data) {
   
   control <- data[data$d == 0, ]$y
@@ -453,7 +459,7 @@ ks_statistic <- function(data) {
   
 }
 
-# obteniendo el p-value con randomization inference
+# Obtaining the p-value through RI with the KS statistic
 set.seed(1989)
 
 ri_ks <-
@@ -470,12 +476,11 @@ ri_ks <-
 ri_ks
 ```
 
-El estadístico KS sí permite rechazar la nula de efecto 0 a un nivel de significancia del 5%[^5].
+The KS statistic does allow us to reject the sharp null at a 5% significance level[^5].
 
-[^5]: Por supuesto, es mala idea repetir el test con múltiples estadísticos hasta encontrar uno que permita rechazar la nula, ya que eso constituiría [p-hacking](https://en.wikipedia.org/wiki/Data_dredging#:~:text=Data%20dredging%20(or%20data%20fishing,increasing%20and%20understating%20the%20risk). El estadístico a usar debería, creo, ser parte del diseño del experimento.
+[^5]: Of course, it's a bad idea to repeat the RI test many times using different statistics until finding one that rejects the null since that would qualify as [p-hacking](https://en.wikipedia.org/wiki/Data_dredging). The test statistic, I think, should be part of the experiment design.
 
-En la siguiente figura podemos visualizar el estadístico KS correspondiente al vector $D$ verdadero, junto con las CDF empíricas de los grupos de tratamiento y control.
-
+In the following plot, we can visualise the KS statistic corresponding to the true treatment assignment, along with the empirical CDFs of the treatment and control groups.
 ```{r}
 tb2 <- tb %>%
 group_by(d) %>%
@@ -500,29 +505,31 @@ y1 <- cdf2(x0)
 ggplot(tb2) +
   geom_step(aes(x=y, y=rn, color=factor(d)),
             size = 1.5, stat="ecdf") +
-  labs(y = "Densidad") +
+  labs(y = "Density") +
   geom_segment(aes(x = x0[1], y = y0[1], xend = x0[1], yend = y1[1]),
                linetype = "dashed", color = "red", size = 1) +
   geom_point(aes(x = x0[1] , y= y0[1]), color="red", size=4) +
   geom_point(aes(x = x0[1] , y= y1[1]), color="red", size=4)
 ```
 
-## Consideraciones y referencias adicionales 🔍📚
+## Considerations and additional references 🔍📚
 
-Para concluir, quiero comentar algunos detalles adicionales y consideraciones respecto a esta metodología:
+To conclude, I would like to comment on some additional details and considerations regarding the RI methodology:
 
--   Para obtener **intervalos de confianza** con RI podemos crear un vector con un rango de valores posibles para el estadístico del test (ej, 0.1, 0.2, 0.3, etc) y usar cada uno de ellos como *sharp* null mediante iteración. El intervalo de confianza estará compuesto de todos aquellos valores para los cuales la *sharp* null no se rechace.
+-  In order to obtain **confidence intervals** with RI we can iterate over a range of possible values for the test statistic and use each of them as sharp null in each iteration. The confidence interval will include all those values for which the sharp null couldn't be rejected.
 
--   En el *Mixtape* se nos advierte que randomization inference presenta cierto **sesgo en contra de los efectos pequeños cuando se usa junto a la sharp null de Fischer**. Esto debido a que solo treatment effects relativamente grandes permitirán rechazar esta nula a niveles convencionales de significancia. Por ende, si el efecto esperado de nuestro tratamiento es pequeño, nos conviene buscar estadísticos alternativos, agregar covariates que expliquen la variable de outcome (esto se puede hacer con el argumento `formula` de `ri2::conduct_ri`), o directamente no usar RI.
+- *The Mixtape* warns us that RI has some **bias against small effects when it is used among Fischer's sharp null**. This is because only relatively large treatment effects will allow rejecting that null at conventional significance levels (small effects would be "swamped by the randomization process"). Therefore, if we expect the treatment effect to be small, we should either add covariates that explain the outcome variable (we can do that with the argument `formula` in `ri2::conduct_ri`) or just not use RI.
 
--   Otra crítica que existe hacia esta metodología es que, según algunos, [la *sharp* null representa una hipótesis "poco interesante y académica"](https://youtu.be/XUh8KsaWfJ4?t=546), ya que la idea de un efecto constante para todas las unidades sería demasiado restrictiva. En respuesta a eso, [en esta conferencia online de Xinran Li](https://youtu.be/XUh8KsaWfJ4?t=807) se plantea la idea de generalizar el procedimiento para obtener cuantiles de efectos individuales, y así llegar a conclusiones tales como "el X% de las unidades experimenta un efecto causal superior a Y".
+-   Another criticism regarding this methodology is that, according to [Andrew Gelman from Columbia University](http://www.stat.columbia.edu/~gelman/), the sharp null [represents an "uninteresting and academic hypothesis"](https://youtu.be/XUh8KsaWfJ4?t=546) since the idea of a constant effect for all the units would be excessively restrictive. In answer to that, [Xinran Li from UIUC proposes](https://youtu.be/XUh8KsaWfJ4?t=807) the idea of generalising the RI procedure by estimating quantiles of individual effects to get conclusions such as "X% of the units have a treatment effect equal or superior to Y ".
 
--   Existe un paquete alternativo a `ri2` para realizar Randomization Inference en R, denominado [`ritest`](http://grantmcdermott.com/ritest/index.html). Es un port de un comando de STATA con el mismo nombre, por lo que puede ser de interés para quienes estén más familiarizados con STATA.
+-   There is an alternative package [`ritest`](http://grantmcdermott.com/ritest/index.html) that also allows performing RI in R. It's a port of a STATA command with the same name, so it could be interesting for those folks who are more familiar with STATA.
 
-Finalmente, compartirles un par de **referencias** en caso de que deseen profundizar más.
+Finally, I share with you a couple of **references** in case you wish to go deeper on this topic.
 
--   [La vignette del paquete `ri2`](https://cran.r-project.org/web/packages/ri2/vignettes/ri2_vignette.html) contiene ejemplos de cómo usar sus funciones para diseños experimentales más complejos, tales como cuando se prueban varios tratamientos al mismo tiempo (multi-arm design), se desea evaluar interacciones con covariables, o se hace randomización con clustering o blocking por grupos.
+- [`ri2`'s vignette](https://cran.r-project.org/web/packages/ri2/vignettes/ri2_vignette.html) has examples of how to use its functions for doing RI with more complex experimental designs, such as multi-arm trials, when evaluating interactions between the treatment and covariates, or when using clustering or blocking by groups.
 
--   [Este apunte de Mathew Blackwell](https://www.mattblackwell.org/files/teaching/s05-fisher.pdf) resume muy bien los conceptos de randomization inference, por lo que resulta buen material de consulta o repaso (de hecho me apoye en él para escribir este artículo, junto con [el capítulo 4 de Causal Inference: The Mixtape](https://mixtape.scunning.com/potential-outcomes.html#randomization-inference)).
+-   [This document by Matthew Blackwell](https://www.mattblackwell.org/files/teaching/s05-fisher.pdf) summarises very well the key concepts of RI, so it's a good reference or review material for this topic (in fact, I used it for writing this post, along with [chapter 4 of Causal Inference: The Mixtape](https://www.mattblackwell.org/files/teaching/s05-fisher.pdf)).
 
-*Tu feedback es bienvenido. Si tienes comentarios sobre este artículo puedes enviármelos [por correo](mailto:francisco.yira@outlook.com).*
+-   [Chapter 5 of *Causal Inference for Statistics, Social, and Biomedical Sciences*](https://www.cambridge.org/core/books/abs/causal-inference-for-statistics-social-and-biomedical-sciences/fishers-exact-pvalues-for-completely-randomized-experiments/23AF990D2EF9C90D0A424D555FACE578) from Imbens and Rubin (2015) goes deeper into several RI topics, especially with regard to test statistics.
+
+*Your feedback is welcome! You can send me comments about this article to my [email](mailto:francisco.yira@outlook.com).*

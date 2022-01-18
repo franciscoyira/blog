@@ -5,18 +5,19 @@ date: '2022-01-21'
 slug: randomization-inference-causal-mixtape
 cover: "images/dices.jpg"
 useRelativeCover: true
-coverCaption: "Créditos de la imagen a [Bert Brus](https://www.bertbrus.nl/)"
+coverCaption: "Créditos de la imagen: © Bert Brus | [www.bertbrus.nl](https://www.bertbrus.nl/)"
 isMath: "true"
 categories:
   - inferencia-causal
-  - libros
   - data-science
   - R
+  - tutorial
 tags:
   - causal-inference-the-mixtape
+  - randomization-inference
   - resumenes
   - p-values
-  - tutorial
+  - libros 
 ---
 
 Bienvenidos a un nuevo artículo de [la serie](https://www.franciscoyira.com/es/tags/causal-inference-the-mixtape/) dedicada al libro [**Causal Inference: The Mixtape**](https://mixtape.scunning.com/). En el artículo anterior vimos una introducción a [la notación de outcomes potenciales](https://www.franciscoyira.com/es/post/potential-outcomes-causal-inference-mixtape/) y cómo esta permite expresar conceptos claves de inferencia causal.
@@ -238,7 +239,7 @@ ggplot(perms_stats,
            colour = "purple")
 ```
 
-Habiendo hecho esto pordemos proceder a calcular el **p-value** (que es lo que hemos estado buscando desde un comienzo).
+Habiendo hecho esto procedemos a calcular el **p-value** (que es lo que hemos estado buscando desde un comienzo).
 
 Este p-value se calcula en dos pasos:
 
@@ -270,7 +271,7 @@ p_value <-
 p_value
 ```
 
-En nuestro caso, el p-value obtenido es de 0.86, lo que implica que no podemos rechazar la *sharp* null con un 5% de significancia (ni con un 10% ni un 20% ni un 30% 😅). Dicho de otra forma, **el valor de SDO observado no es un valor improbable de observar si asumimos que el tratamiento no tuvo efecto en ninguna unidad** y que la única fuente de variabilidad en el estadístico es la asignación aleatoria de $D$.
+En nuestro caso, el p-value obtenido es de 0.86, lo que implica que no podemos rechazar la *sharp* null con un 5% de significancia (ni con ningún nivel de significancia convencional 😅). Dicho de otra forma, **el valor de SDO observado no es un valor improbable de observar si asumimos que el tratamiento no tuvo efecto en ninguna unidad** y que la única fuente de variabilidad en el estadístico es la asignación aleatoria de $D$.
 
 ## Haciéndolo más fácil con el paquete *ri2* 🤗
 
@@ -350,7 +351,7 @@ Si queremos inspeccionar manualmente la data de las simulaciones, es posible hac
 ri2_out[["sims_df"]] %>% head()
 ```
 
-Vale la pena mencionar además que `conduct_ri` tiene un argumento `sims` que indica la **cantidad de permutaciones** a realizar para obtener el p-value. Por defecto su valor es 1000, pero podemos querer incrementarlo en caso de que deseemos obtener una aproximación más exacta.
+Vale la pena mencionar además que `conduct_ri` tiene un argumento `sims` que indica la **cantidad de permutaciones** a realizar para obtener el p-value. Por defecto su valor es 1000, pero podemos querer incrementarlo en caso de que deseemos obtener una aproximación más precisa.
 
 ### Bonus: usando el estadístico KS para medir diferencias en distribuciones de outcomes
 
@@ -469,7 +470,7 @@ ri_ks
 
 El estadístico KS sí permite rechazar la nula de efecto 0 a un nivel de significancia del 5%[^5].
 
-[^5]: Por supuesto, es mala idea repetir el test con múltiples estadísticos hasta encontrar uno que permita rechazar la nula, ya que eso constituiría \[p-hacking\](<https://en.wikipedia.org/wiki/Data_dredging#>:\~:text=Data%20dredging%20(or%20data%20fishing,increasing%20and%20understating%20the%20risk). El estadístico a usar debería, creo, ser parte del diseño del experimento.
+[^5]: Por supuesto, es mala idea repetir el test con múltiples estadísticos hasta encontrar uno que permita rechazar la nula, ya que eso constituiría [p-hacking](https://en.wikipedia.org/wiki/Data_dredging). El estadístico a usar debería, creo, ser parte del diseño del experimento.
 
 En la siguiente figura podemos visualizar el estadístico KS correspondiente al vector $D$ verdadero, junto con las CDF empíricas de los grupos de tratamiento y control.
 
@@ -510,9 +511,9 @@ Para concluir, quiero comentar algunos detalles adicionales y consideraciones re
 
 -   Para obtener **intervalos de confianza** con RI podemos crear un vector con un rango de valores posibles para el estadístico del test (ej, 0.1, 0.2, 0.3, etc) y usar cada uno de ellos como *sharp* null mediante iteración. El intervalo de confianza estará compuesto de todos aquellos valores para los cuales la *sharp* null no se rechace.
 
--   En el *Mixtape* se nos advierte que randomization inference presenta cierto **sesgo en contra de los efectos pequeños cuando se usa junto a la sharp null de Fischer**. Esto debido a que solo treatment effects relativamente grandes permitirán rechazar esta nula a niveles convencionales de significancia. Por ende, si el efecto esperado de nuestro tratamiento es pequeño, nos conviene buscar estadísticos alternativos, agregar covariates que expliquen la variable de outcome (esto se puede hacer con el argumento `formula` de `ri2::conduct_ri`), o directamente no usar RI.
+-   En el *Mixtape* se nos advierte que randomization inference presenta cierto **sesgo en contra de los efectos pequeños cuando se usa junto a la sharp null de Fischer**. Esto debido a que solo treatment effects relativamente grandes permitirán rechazar esta nula a niveles convencionales de significancia. Por ende, si el efecto esperado de nuestro tratamiento es pequeño, nos conviene agregar *covariates* que expliquen la variable de outcome (esto se puede hacer con el argumento `formula` de `ri2::conduct_ri`), o directamente no usar RI.
 
--   Otra crítica que existe hacia esta metodología es que, según algunos, [la *sharp* null representa una hipótesis "poco interesante y académica"](https://youtu.be/XUh8KsaWfJ4?t=546), ya que la idea de un efecto constante para todas las unidades sería demasiado restrictiva. En respuesta a eso, [en esta conferencia online de Xinran Li](https://youtu.be/XUh8KsaWfJ4?t=807) se plantea la idea de generalizar el procedimiento para obtener cuantiles de efectos individuales, y así llegar a conclusiones tales como "el X% de las unidades experimenta un efecto causal superior a Y".
+-   Otra crítica que existe hacia esta metodología es que, según [Andrew Gelman de Columbia University](http://www.stat.columbia.edu/~gelman/), [la *sharp* null representa una hipótesis "poco interesante y académica"](https://youtu.be/XUh8KsaWfJ4?t=546), ya que la idea de un efecto constante para todas las unidades sería demasiado restrictiva. En respuesta a eso, [Xinran Li de UIUC plantea](https://youtu.be/XUh8KsaWfJ4?t=807) la idea de generalizar el procedimiento para obtener cuantiles de efectos individuales, y así llegar a conclusiones tales como "el X% de las unidades experimenta un efecto causal superior a Y".
 
 -   Existe un paquete alternativo a `ri2` para realizar Randomization Inference en R, denominado [`ritest`](http://grantmcdermott.com/ritest/index.html). Es un port de un comando de STATA con el mismo nombre, por lo que puede ser de interés para quienes estén más familiarizados con STATA.
 
@@ -520,6 +521,8 @@ Finalmente, compartirles un par de **referencias** en caso de que deseen profund
 
 -   [La vignette del paquete `ri2`](https://cran.r-project.org/web/packages/ri2/vignettes/ri2_vignette.html) contiene ejemplos de cómo usar sus funciones para diseños experimentales más complejos, tales como cuando se prueban varios tratamientos al mismo tiempo (multi-arm design), se desea evaluar interacciones con covariables, o se hace randomización con clustering o blocking por grupos.
 
--   [Este apunte de Mathew Blackwell](https://www.mattblackwell.org/files/teaching/s05-fisher.pdf) resume muy bien los conceptos de randomization inference, por lo que resulta buen material de consulta o repaso (de hecho me apoye en él para escribir este artículo, junto con [el capítulo 4 de Causal Inference: The Mixtape](https://mixtape.scunning.com/potential-outcomes.html#randomization-inference)).
+-   [Este apunte de Matthew Blackwell](https://www.mattblackwell.org/files/teaching/s05-fisher.pdf) resume muy bien los conceptos de randomization inference, por lo que resulta buen material de consulta o repaso (de hecho me apoye en él para escribir este artículo, junto con [el capítulo 4 de Causal Inference: The Mixtape](https://mixtape.scunning.com/potential-outcomes.html#randomization-inference)).
+
+-   El [capítulo 5 de *Causal Inference for Statistics, Social, and Biomedical Sciences*](https://www.cambridge.org/core/books/abs/causal-inference-for-statistics-social-and-biomedical-sciences/fishers-exact-pvalues-for-completely-randomized-experiments/23AF990D2EF9C90D0A424D555FACE578) de Imbens y Rubin (2015) entra en más detalle en varios tópicos de Randomization Inference, en especial en lo que respecta a los estadísticos de test. 
 
 *Tu feedback es bienvenido. Si tienes comentarios sobre este artículo puedes enviármelos [por correo](mailto:francisco.yira@outlook.com).*
