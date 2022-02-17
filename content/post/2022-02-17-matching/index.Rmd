@@ -1,0 +1,20 @@
+---
+title: 'A Brief Field Guide to Matching: Controlling by Confounders Without Assumming
+  Linearity'
+author: Francisco Yirá
+date: '2022-02-17'
+slug: matching
+categories:
+  - causal-inference
+  - data-science
+  - R
+tags:
+  - books
+  - causal-inference-the-mixtape
+  - the-effect
+  - english-only-ds
+  - dags
+  - summaries
+  - matching
+---
+
