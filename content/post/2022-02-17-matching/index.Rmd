@@ -1,9 +1,9 @@
 ---
-title: 'A Brief Field Guide to Matching: Controlling by Confounders Without Assumming
-  Linearity'
+title: 'A brief field guide to Matching (in R and with DAGs) - Part 1'
 author: Francisco Yirá
-date: '2022-02-17'
+date: '2022-02-20'
 slug: matching
+isMath: "true"
 categories:
   - causal-inference
   - data-science
@@ -18,3 +18,271 @@ tags:
   - matching
 ---
 
+Until this moment, the posts about causal inference on this blog have been centred around conceptual frameworks that enable the discussion of causal inference problems, such as Directed Acyclical Graphs and the Potential Outcomes model[^1]. Now it's time to go one step further and start talking about the "toolbox" that allows us to address causal inference questions when working with **observational data** (that is, data where the treatment variable is not under the full control of the researcher).
+
+[^1]: This blog post builds on top of the concepts introduced on those articles, so if you feel that there a lot of unkown words in this post, it may be helpful to check those previous posts first.
+
+We've already seen that in randomised experiments it's relatively easy to obtain unbiased estimates of causal effects because the **independence assumption holds**. If the data scientist has assigned the treatment variable in a way that has nothing to do with the potential outcomes of the units, then the simple difference in outcomes (SDO) between the control and treated group is an unbiased estimator of the average treatment effect (ATE).
+
+But there are a lot of situations when is not possible to carry out a randomised experiment. If this is the case, it's *almost certain* that the independence assumption doesn't hold[^2].
+
+[^2]: *Especially* if we have free agents deciding their treatment status on their own.
+
+Even worse, we could have experimental data and still not meet the independence assumption. How is that? Well, the treatment could be randomised within subgroups of the population (e.g. children grouped in schools or customers grouped in tiers or regions) but having different treatment probabilities across the subgroups. If these subgroups have systematic differences in potential outcomes, then there will be correlation between the potential outcomes and the treatment variable, and the independence assumption won't hold.
+
+But wait, we still have a way out in situations like that. We may leverage the **conditional independence assumption**.
+
+## Conditional Independence
+
+In most cases, expecting your data to meet $Y^1,Y^0 \perp D$ is asking for too much. A more realistic aspiration is to have $Y^1,Y^0 \perp D |X$, the cheap, more common version of the independence assumption, known as **conditional independence**.
+
+What conditional independence says is that $D$ could be correlated with potential outcomes in the data as a whole (no bueno), but if we look at subsets of observations with the same values of some covariates X (e.g. customers in the same tier or region, or children in the same school), then we have independence between $D$ and $Y^1,Y^0$ inside those subsets (good!).
+
+(mom, can we have X at home meme\])
+
+If the conditional independence assumption (CIA) is meet, then we can estimate the ATE using something known as the **subclassification estimator**. In plain English, all that this estimator does is calculating the SDO in each subgroup with the same values of X (strata) and then computing a **weighted average** of those SDOs using the frequency count of each strata as weight. Thus, if some strata has a lot of observations, its SDO is going to have a bigger influence on the final estimate.
+
+Let's see a code example to understand this better. First, I'm going to declare the estimator as an R function:
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(rlang)
+
+# Declaring the Subclassification Estimator as an R function
+subclas_estimator <- function(df, outcome = Y, treatment = D, covariates) {
+    df %>% 
+    # we create one strata for each set of values of X present in the data
+    group_nest({{ covariates }}) %>% 
+    # Then, we compute a frequency count and an SDO for each strata
+    mutate(freq = map_dbl(data, nrow),
+           strata_sdo = map_dbl(data, sdo, {{ outcome }}, {{ treatment }})) %>% 
+    # The estimate is a weighted average of the strata-specific SDOs 
+    # using the frequency counts as weights
+    summarise(estimate_ATE = weighted.mean(strata_sdo, freq)) %>% 
+    pull(estimate_ATE)
+
+}
+
+# Auxiliary function that computes the SDO
+sdo <- function(df, outcome = Y, treatment = D) {
+  
+  df <- df %>% 
+    group_by({{treatment}}) %>% 
+    summarise(mean = mean({{outcome}}))
+  
+  mean_t <- 
+    df %>% 
+    filter({{treatment}} == 1) %>% 
+    pull(mean)
+  
+  mean_u <- 
+    df %>% 
+    filter({{treatment}} == 0) %>% 
+    pull(mean)
+  
+  mean_t - mean_u
+  
+}
+```
+
+Now let's simulate a dataset where we have **conditional** independence (but not *un*conditional independence) and see the differences that emerge between the SDO and the subclassification estimator (i.e. the bias in the estimation due to not adjusting by X).
+
+Just for fun, I'll give some back-story to this simulated data. You work as a salesperson at the paper company Dunder Muffin, and one day you suggest your boss, Miguel Scott, doing an experiment to evaluate how much sales would increase if we given a promotional discount to your customers in this time of the year. Miguel likes your idea, but he requests you to have a smaller control group (i.e. giving the discount to more customers) in the regions that are having lower sales. He is assuming that the treatment will have a positive effect, and therefore the purpose of the experiment would be just to get an estimate of *how much* the sales will increase in each region.
+
+| Region | Number of customers | Average monthly sales per customer (USD) previous to the discount | Proportion Treated / Control |
+|--------|---------------------|-------------------------------------------------------------------|------------------------------|
+| East   | 130                 | 3,000                                                             | 50% / 50%                    |
+| West   | 220                 | 2,000                                                             | 80% / 20%                    |
+| North  | 500                 | 3,500                                                             | 20% / 80%                    |
+
+For this part, we will assume an homogeneous treatment effect across regions: a 300 USD average increase on monthly sales per customer, even after taking the discount into account.
+
+As you may already suspect, under this conditions the SDO will be biased, because the treatment assignment is correlated with the level of sales (the lower the monthly sales, the higher the chance of having $D=1$, that is, receiving the discount).
+
+```{r}
+set.seed(1989)
+
+n_east <- 130
+n_west <- 220
+n_north <- 500
+n_total <- n_east+n_west+n_north
+
+customers <-
+  tibble(
+    customer_id = seq(n_total),
+    region = c(rep("East", n_east),
+               rep("West", n_west),
+               rep("North", n_north)),
+    # Treatment effect is 300USD + random component
+    treatment_effect = rnorm(n_total, mean = 300, sd = 200),
+    # Sales per customer when no discount is offered (untreated)
+    y0 = c(
+      rnorm(n_east, mean = 3000, sd = 200),
+      rnorm(n_west, mean = 2000, sd = 200),
+      rnorm(n_north, mean = 3500, sd = 200)
+    ),
+    # Sales per customer when discount is offered (treated)
+    y1 = y0 + treatment_effect,
+    # Treatment status
+    d = c(
+      rbinom(n_east, 1, 0.5),
+      rbinom(n_west, 1, 0.8),
+      rbinom(n_north, 1, 0.2)
+    ),
+    # Switching equation
+    y = y0 + treatment_effect*d
+    
+  )
+```
+
+Obtaining the `sdo` over the whole customer base:
+
+```{r}
+sdo(customers, outcome = y, treatment = d)
+```
+
+And the `subclas_estimator` using `region` as covariate.
+
+```{r}
+subclas_estimator(customers,
+                  outcome = y,
+                  treatment = d,
+                  covariates = region)
+```
+
+Because we have conditional independence after controlling by `region`, the `subclas_estimator` returns an estimate very close to the real treatment effect. Meanwhile, the `sdo` on the whole data has a huge negative bias, due to the correlation between the treatment assignment and the potential outcomes (lack of *un*conditional independence).
+
+We can see this correlation more clearly in the following visualisations:
+
+```{r}
+customers_4_plot <- customers %>% 
+  select(region, d, y1, y0) %>% 
+  mutate(d = factor(d, levels = c(0,1),
+                    labels = c("Untreated", "Treated"))) %>% 
+  pivot_longer(cols = c(y1, y0),
+               names_to = "potential_outcome",
+               values_to = "value")
+
+ggplot(customers_4_plot) +
+  aes(potential_outcome, value, colour = factor(d)) +
+  geom_boxplot() +
+  labs(x = "Potential Outcome",
+       y = "Monthly sales per customer",
+       colour = "Treatment status",
+       title = "There is no unconditional independence in this data",
+       subtitle = "Potential outcomes are correlated with the treatment status")
+```
+
+```{r}
+ggplot(customers_4_plot) +
+  aes(potential_outcome, value, colour = factor(d)) +
+  geom_boxplot() +
+  facet_wrap(~region) +
+  labs(x = "Potential Outcome",
+       y = "Monthly sales per customer",
+       colour = "Treatment status",
+       title = "But there is conditional independence",
+       subtitle = str_wrap("After controlling by X (Region), potential outcomes are no longer correlated with the treatment status"))
+```
+
+Note that this kind of visualisations are impossible to do with real world data, since counterfactual potential outcomes are unknown. In this example, we were able to look at them only because the data was simulated / created by ourselves.
+
+This leads us to the following questions:
+
+### When do we have conditional independence? And what variables should we include in X?
+
+The best way to answer both questions is to draw a DAG (or causal diagram) of the relationships between the variables in our data. This diagram constitutes the best representation of all the knowledge we have about the data generating process.
+
+A convenient way of drawing the DAG is to use the `ggdag` package in R.
+
+For our Dunder Muffin example, the DAG and code would be as follows:
+
+```{r, message=FALSE, warning=FALSE, scale=0.5}
+library(ggdag)
+
+# The `dagify` function allows to declare the DAG as a set of R formulas,
+# plus a couple arguments to specify the outcome and treatment variables
+dag <- dagify(sales ~ discount + region,
+              discount ~ region,
+              exposure = "discount",
+              outcome = "sales") %>%
+  # This transforms the output of `dagify` into a tidy dataframe
+  tidy_dagitty()
+
+# And now we use the dataframe to create a ggplot with dag geoms
+dag %>% 
+ ggplot(aes(
+    x = x,
+    y = y,
+    xend = xend,
+    yend = yend
+  )) +
+  geom_dag_point(colour = "deepskyblue3", size = 15) +
+  geom_dag_edges() +
+  geom_dag_label_repel(aes(label = name)) +
+  theme_dag()
+```
+
+This particular DAG tells us that:
+
+-   `sales` (the outcome variable) is affected by both `region` and `discount` (the treatment variable)
+
+-   `discount` is affected by `region`: there is a different chance of receiving the treatment based on the region where the customer is located.
+
+The last relationship is the one that kills the independence assumption by opening a backdoor path between the treatment and the outcome: `sales` ⬅️`region` ➡️`discount`. In this backdoor path, `region` acts as a confounder that creates spurious correlation between the treatment and the outcome.
+
+```{r}
+confounder_triangle(x = "sales", y = "discount", z = "region") %>% 
+  ggdag_dconnected(text = FALSE, use_labels = "label") +
+  theme_dag()
+```
+
+Fortunately, the confounder variable is *observable*: we know its values for each observation. Thus, we can condition on it and block the backdoor path. By doing this, we isolate the true causal effect of `discount` on `sales`.
+
+This is what the `subclas_estimator` did, and it's the reason why it returned an appropriate estimate when the SDO was biased.
+
+So, ***when do we have conditional independence?***
+
+We have it when it's possible to close all the backdoors between the treatment and outcome variable by conditioning on a set of observable variables (*X*).
+
+***And what variables should we condition on?***
+
+Well, the ones that allows us to close the backdoors!
+
+**If there are backdoor paths that would require to condition on *un*observable variables to be closed, then we don't have conditional independence anymore, because we can't condition variables that are not available in our data.**
+
+If we have an accurate DAG, we can use the function `ggdag_adjustment_set` from `ggdag` to discover what sets of variables (if any) allow us to meet the conditional independence assumption.
+
+```{r}
+ggdag_adjustment_set(dag,
+                     text = FALSE, use_labels = "name", shadow = TRUE) +
+  theme_dag()
+
+```
+
+This highlights the importance of having a good DAG, since it will tell us if we have (...)
+
+Declaring this DAG was relatively easy because we know the true data generating process: the data was created by ourselves using R code. But in the real world (difficulty of drawing a good DAG, but thinking that in every estimate we're assuming a DAG)
+
+## The Rise of the Matching Estimator
+
+The conclusions above reveal some problems with our until now beloved `subclas_estimator`.
+
+## Differences with Regression
+
+If the CIA is meet in our data, we could just use regression.
+
+```{r}
+lm(y ~ d + region, data = customers) %>% 
+  summary()
+```
+
+## Distance Matching
+
+## Propensity Scores
+
+### Don't treat propensity scores as a machine learning prediction problem
+
+## Double Robust Estimator
+
+## ATE vs ATT vs ATU: How to get each one with matching?
