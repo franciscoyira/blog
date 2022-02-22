@@ -1,5 +1,5 @@
 ---
-title: 'A field guide to Matching (in R and with DAGs)'
+title: 'A brief field guide to Matching (in R and with DAGs) - Part 1'
 author: Francisco Yirá
 date: '2022-02-20'
 slug: matching
@@ -98,6 +98,7 @@ Just for fun, I'll give some back-story to this simulated data. You work as a sa
 +------------+---------------------+-------------------------------------------------------------------+------------------------------+
 | North      | 500                 | 3,500                                                             | 20% / 80%                    |
 +------------+---------------------+-------------------------------------------------------------------+------------------------------+
+
 
 For this part, we will assume an homogeneous treatment effect across regions: a 300 USD average increase on monthly sales per customer, even after taking the discount into account.
 
@@ -239,6 +240,7 @@ The last relationship is the one that kills the independence assumption by openi
 
 In this backdoor path, `region` acts as a confounder that creates spurious correlation between the treatment and the outcome.
 
+
 ```{r}
 confounder_triangle(x = "sales", y = "discount", z = "region") %>% 
   ggdag_dconnected(text = FALSE, use_labels = "label") +
@@ -253,13 +255,16 @@ So, ***when do we have conditional independence?***
 
 When it's possible to close all the backdoors between the treatment and outcome variable by conditioning on a set of observable variables (*X*).
 
+
 ***And what variables should we condition on?***
 
 Well, the ones that allows us to close the backdoors!
 
+
 **If there are backdoor paths that would require to condition on *un*observable variables to be closed, then we don't have conditional independence anymore (because we can't condition on variables that are not available in our data!).**
 
 If we have an accurate DAG, we can use the function `ggdag_adjustment_set` from `ggdag` to discover what sets of variables (if any) allow us to meet the conditional independence assumption. Pretty handy.
+
 
 ```{r}
 ggdag_adjustment_set(dag,
@@ -267,6 +272,7 @@ ggdag_adjustment_set(dag,
   theme_dag()
 
 ```
+
 
 ### Girls just want to have ~~fun~~ an accurate DAG
 
@@ -463,6 +469,7 @@ What can we do:
 (skip directly to the approximate matching estimator)
 
 (explain that there a lot of different parameters to decide when we do matching... but here we're going to use a specifical
+
 
 ## Differences with Regression
 
