@@ -1,5 +1,5 @@
 ---
-title: 'A brief field guide to Matching (in R and with DAGs) - Part 1'
+title: 'A guide to Matching, in R and with DAGs - Part 1'
 author: Francisco Yirá
 date: '2022-02-20'
 slug: matching
@@ -98,7 +98,6 @@ Just for fun, I'll give some back-story to this simulated data. You work as a sa
 +------------+---------------------+-------------------------------------------------------------------+------------------------------+
 | North      | 500                 | 3,500                                                             | 20% / 80%                    |
 +------------+---------------------+-------------------------------------------------------------------+------------------------------+
-
 
 For this part, we will assume an homogeneous treatment effect across regions: a 300 USD average increase on monthly sales per customer, even after taking the discount into account.
 
@@ -240,7 +239,6 @@ The last relationship is the one that kills the independence assumption by openi
 
 In this backdoor path, `region` acts as a confounder that creates spurious correlation between the treatment and the outcome.
 
-
 ```{r}
 confounder_triangle(x = "sales", y = "discount", z = "region") %>% 
   ggdag_dconnected(text = FALSE, use_labels = "label") +
@@ -255,16 +253,13 @@ So, ***when do we have conditional independence?***
 
 When it's possible to close all the backdoors between the treatment and outcome variable by conditioning on a set of observable variables (*X*).
 
-
 ***And what variables should we condition on?***
 
 Well, the ones that allows us to close the backdoors!
 
-
 **If there are backdoor paths that would require to condition on *un*observable variables to be closed, then we don't have conditional independence anymore (because we can't condition on variables that are not available in our data!).**
 
 If we have an accurate DAG, we can use the function `ggdag_adjustment_set` from `ggdag` to discover what sets of variables (if any) allow us to meet the conditional independence assumption. Pretty handy.
-
 
 ```{r}
 ggdag_adjustment_set(dag,
@@ -272,7 +267,6 @@ ggdag_adjustment_set(dag,
   theme_dag()
 
 ```
-
 
 ### Girls just want to have ~~fun~~ an accurate DAG
 
@@ -341,8 +335,9 @@ exact_matching_estimator_att <- function(df, #dataframe
   estimate_att <- 
     treated_matched %>% 
     # averaging the outcomes of the matches if there are several
-    group_by(id) %>% 
-    summarise(outcome_j = mean(outcome_j)) %>% 
+    group_by(id_i) %>%
+    summarise(outcome_j = mean(outcome_j),
+              outcome_i = first(outcome_i)) %>%
     # calculating differences between
     # outcome of each unit and 
     # the average outcome of their matches
@@ -370,6 +365,45 @@ trainees_df
 
 Here the treatment is a `trainee` program and each observation is an employee who may have taken the program or not. `earnings` is the outcome variable, and `age` is a covariate that turns out to be a confounder, since it affects both `earnings` and the likelihood to have taken the treatment: younger people are more likely to enrol in the program, but also have lower `earnings`, because they have less experience.
 
+```{r}
+library(ggside)
+
+trainees_df %>% 
+  mutate(treatment_status = factor(trainee,
+                          levels = c(0, 1),
+                          labels = c("Trainee", "Not Trainee"))) %>% 
+ggplot() +
+  aes(age, earnings, color = treatment_status) +
+  geom_jitter() +
+  geom_xsidedensity(
+    aes(
+      y = after_stat(density),
+      fill = treatment_status
+    ),
+    alpha = 0.5,
+    size = 1,
+    position = "identity"
+  ) +
+  geom_ysidedensity(
+    aes(
+      x = after_stat(density),
+      fill = treatment_status
+    ),
+    alpha = 0.5,
+    size = 1,
+    position = "identity"
+  ) + 
+  labs(title = "Trainees tend to be younger AND to have lower earnings") +
+  theme(
+    ggside.panel.scale.x = 0.3,
+    ggside.panel.scale.y = 0.3,
+    ggside.axis.text.y = element_blank(),
+    ggside.axis.ticks.y = element_blank(),
+    ggside.axis.text.x = element_blank(),
+    ggside.axis.ticks.x = element_blank()
+  )
+```
+
 Thus, the problem here is self-selection, not randomisation conditional on some variable. But we have conditional independence anyway (after adjusting by `age`):
 
 ```{r}
@@ -385,66 +419,151 @@ ggdag_adjustment_set(dag_trainees,
   theme_dag()
 ```
 
-```{r}
-ggplot(trainees_df) +
-  aes(age, fill = factor(trainee)) + 
-  geom_histogram(position = position_identity(),
-                 alpha = 0.7) +
-  labs(title = "Trainees tend to be younger and have lower earnings")
-```
+Great. Now it's time to use the `exact_matching_estimator_att` on this data:
 
 ```{r}
-ggplot(trainees_df) +
-  aes(age, earnings, color = factor(trainee)) +
-  geom_jitter() +
-  # stat_density_2d(aes(alpha = ..piece..)) +
-  # theme(plot.margin = margin())
-  labs(title = "Trainees tend to be younger and have lower earnings")
+exact_matching_estimator_att(
+  trainees_df,
+  outcome = earnings,
+  treatment = trainee,
+  covariates = "age"
+)
 ```
 
-Next: finish the plot
+As we see, once we adjust by `age` using exact matching, we get a large and positive treatment effect estimate. But, unlike in the `subclas_estimator`, this new function is estimating the treatment effect *on the treated only*. You can tell this by looking at its source code above, where only the treated units are matched with a control unit, but the control units are not matched with comparable treated units. Therefore, it's an ATT estimator.
 
-Obtain the estimate
+Let's see how an ATE exact matching estimator would look like (here I'm commenting only the parts that change compared to the ATT estimator).
 
-Show the ATE estimator
+```{r}
+# Extact Matching Estimator of the ATE
+exact_matching_estimator_ate <- function(df, #dataframe
+                                         outcome, # variable name
+                                         treatment, # variable name
+                                         covariates # string or vector of strings
+                                         ) {
+  df <- df %>%
+    rename(outcome := {{ outcome }},
+           # renaming treatment column for convenience
+           treatment := {{ treatment }}) %>% 
+    mutate(id = 1:n())
+  
+  treated_df <- df %>% 
+    filter(treatment == 1)
+  
+  control_df <- df %>% 
+    filter(treatment == 0)
+  
+  treated_matched <- treated_df %>% 
+    left_join(control_df, by = covariates,
+              suffix = c("_i", "_j"))
+  
+  # Now we also match the control units to treated units 
+  # with the same covariates values
+  control_matched <- control_df %>% 
+    left_join(treated_df, by = covariates,
+              suffix = c("_i", "_j"))
+  
+  estimate_ate <- 
+    # We merge the two matched samples
+    bind_rows(
+      treated_matched,
+      control_matched
+    ) %>% 
+    group_by(id_i) %>%
+    summarise(outcome_j = mean(outcome_j),
+              outcome_i = first(outcome_i),
+              treatment_i = first(treatment_i)) %>%
+    mutate(treat_effect = outcome_i - outcome_j,
+           # We multiply by -1 the differences between controls
+           # and their matches. This makes sense since those 
+           # differences are like an "anti treatment effect"
+           treat_effect = ifelse(
+             treatment_i == 1,
+             yes = treat_effect,
+             no = -1*treat_effect
+           )) %>%
+    summarise(estimate_ate = mean(treat_effect)) %>% 
+    pull(estimate_ate)
 
-Get an error
+  estimate_ate
+}
+```
 
-Move on to the common support assumption and the curse of dimensionality.
+The key difference between this ATE estimator and the previous ATT estimator is that here we also create a `control_matched` sample with treated units that are regarded as counterfactuals of the true control units (because they have the same `covariates` values).
 
-Another
+Then we `bind_rows()` both matched samples and compute the `mean` of the differences between actual and counterfactual outcomes as before, BUT first multiplying by -1 the differences between controls and their matches. We do this because, if you think about it, the difference between a control and its counterfactual can be seen as a "anti-treatment effect": if the treatment effect is positive, we expect this difference to be negative.
 
--   Replacement
+Now let's try this `exact_matching_estimator_ate` on our `trainee_df`:
 
--   ATT or ATE? I think I'm going to estimate the ATE for now, and then "scale back" to ATT after explaining the curse of dimensionality.
+```{r}
+exact_matching_estimator_ate(
+  trainees_df,
+  outcome = earnings,
+  treatment = trainee,
+  covariates = "age"
+)
+```
 
-And while the subclassification estimator left us little choice regarding how to implement it in code, the exact matching estimator is quite more flexible, in the sense that it allows for different variations depending on the answers to the following questions:
+We got `NA`. What happened? I'll do the matching manually to check what went wrong:
 
--   How many matches do we want to use for each unit?
+```{r}
+treated_df <- trainees_df %>%
+  filter(trainee == 1)
 
--   Do we want to use matching *with* replacement or *without* replacement? That is, once a unit is matched to another, will it still be part of the "donor pool" of potential matches for the other observations?
+control_df <- trainees_df %>%
+  filter(trainee == 0)
 
--   If we use matching *without* replacement, in which order are we going to match the units? If we remove the units from the "donor pool" as they used as matches, then the order in which we match the units could affect the final estimate.
+treated_matched <- treated_df %>%
+  left_join(control_df, by = "age",
+                     suffix = c("_i", "_j"))
 
-The answer to these questions has a lot to do with the **bias-variance trade-off**. If we do matching with replacement
+control_matched <- control_df %>%
+  left_join(treated_df, by = "age",
+            suffix = c("_i", "_j"))
+    
+bind_rows(
+  control_matched,
+  treated_matched
+)
+```
 
-Here we may ask what happens when there is more than one match for a given unit, or when one observation can be matched to several units. The answer is that we have several alternatives:
+We see several `NA`s in the columns with suffix `_j`, that is, the columns that should contain the values coming from the matches. Since the only change versus the previous estimator is that now we try to match the control units, the problems seems to be that **the "donor pool" of treated units doesn't contain exact matches for each control unit. Therefore, we can't estimate the ATE with** `exact_matching_estimator_ate`**.**
 
--   We could do matching *with replacement*. That is, after a control unit is matched to a treated unit, it is returned to the "donor pool" where it can be selected again to be matched to another treated unit with the same values of X.
+How unfortunate! But also convenient, because this helps to introduce a very important topic: the **common support assumption** and **the curse of dimensionality**.
 
--   Alternatively, we could do matching *without replacement*. Here the units are removed from the "donor pool" after being matched, so the units that come afterwards have to pick a match from a smaller donor pool.
+## The Common Support Assumption
 
-Which option is better? It depends. Specifically, it depends on the **bias-variance trade-off**. Matching *with replacement* reduces bias by maximising the donor pool available to each of the observations to be matched (this maximises the chance of finding a match with the same values of X for each unit), whereas matching *without replacement* reduces variance by ensuring that you use each observation in the donor pool only once. This is important because it makes the final estimate less vulnerable to random variation in our particular sample or dataset (at the expense of limiting our chances of finding matches for all the units). If some observations are allowed to be matched to multiple units, they will have more leverage, which may be problematic if they turn to have extreme or non-representative values in the outcome variable.
+Exact matching is a powerful and useful method, as long as two key assumptions are met. The first one is the CIA (conditional independence assumption), which we already discussed in detail. If the CIA is not met, the estimate we get through exact matching will be biased, because there will still be backdoors open in our DAG.
 
-TL;DR: you have to choose between having less bias (and thus pick matching with replacement) or less variance (and then choose matching without replacement).
+The second one is the **common support assumption**. It means that there should be both control and treated observations for each combination of values of X that exists in the data. If this assumption is not met, we will end up with units without matches, and the estimator for the ATE cannot be calculated (as it happened with `exact_matching_estimator_ate` and the `trainee_df`).
 
-Regarding what to do when a single unit has several potential matches, the most common solution is to take the average outcome of all the potential matches to impute the counterfactual for the original unit.
+One way to approach the lack of common support is to **just give up with estimating the ATE and focus on the ATT instead**. When estimating the ATT, we still need to have control units for all the values of X that have treated units, but not vice versa, so we're "lowering the bar". And if our treated group is small compared to the whole dataset, then it's much more likely to have common support to estimate the ATT. In fact, we already saw an example of this with the `trainee_df`, where it was possible to estimate the ATT (but not the ATE) with exact matching.
 
-As you see, the exact matching estimator leaves room
+But what if there is not even common support for the treated units? Well, then exact matching can not possible estimate the ATT. Still, it could provide a treatment effect estimate for "those units who got matched" (for example, in `exact_matching_estimator_ate` we could have dropped the rows without matches and have gotten a result anyway), but since this is not an estimate of the ATT or the ATE (the averages we are usually interested in), this figure probably won't be helpful to our audience or stakeholders.
+
+And now the time has come to meet the sinister archrival of the matching methodologies: **the curse of dimensionality**.
 
 ## The Curse of Dimensionality
 
-Now it's time to talk about the elephant in the room.
+This is a phenomena that occurs whenever we work with a lot of variables (a.k.a. dimensions). If you come from the machine learning world you may already be familiar with this problem, but for those who don't, I'm going to drop the [Wikipedia definition](https://en.wikipedia.org/wiki/Curse_of_dimensionality):
+
+> when the dimensionality increases, the volume of the space increases so fast that the available data become sparse. In order to obtain a reliable result, the amount of data needed often grows exponentially with the dimensionality
+
+For our matching estimators this means that as more variables are considered in the covariate matrix X, the likelihood of finding exact matches[^9] for all units quickly approaches zero. Put another way, this curse **reduces our chances of having common support**.
+
+[^9]: Or even approximate matches! As we're going to see later.
+
+![](images/matching_curse.jpg)
+
+In fact, the curse of dimensionality is particularly cruel with the matching estimators. While in predictive machine learning we have some sort of trade off, with more features bringing in more information at the expense of increasing the distance in the feature space (i.e. we have a choice), in matching methodologies we theoretically have a "true" set X of confounders for which we are obliged to control / adjust for.
+
+In other words, when doing matching it's not like we're using more covariates out of greed to have "as much information as we can"[^10], but instead, after carefully drawing our DAG we should end up with a list of variables for which we **must** control for in order to close the backdoors. We shouldn't use more variables, and we shouldn't use less.
+
+[^10]: Well, some people do that, but we shouldn't.
+
+If our confounding problem is simple, such as an experiment with randomisation conditional on some variable (like the Dunder Muffin example from above) then it's likely that we will only need a few covariates, or even just one, and thus the curse will be avoided.
+
+But if we end up needing more, we're in trouble.
 
 The conclusions above reveal some problems with our until now beloved `subclas_estimator`. In the toy example we studied there was, very conveniently, only one observable confounder: `region`. Moreover, this confounder was categorical and it divided the data in relatively big strata: the smallest `region` had 130 customers.
 
@@ -452,24 +571,13 @@ But what if we found out that we have to adjust for a lot of variables? And what
 
 This requirement (having observations of both groups in each stratum) is known as the **common support assumption**. And it becomes increasingly difficult to meet this assumption as the number of covariates X increases.
 
-![](images/dimensionlity_strikes_back.jpg)
-
-The reason for this is **the curse of dimensionality**, a phenomena that occurs whenever we work with a dataset with a lot of variables (a.k.a. dimensions). If you come from the ML world you may already be familiar with this problem, but for those who don't, I'm going to drop the [Wikipedia definition](https://en.wikipedia.org/wiki/Curse_of_dimensionality):
-
-> when the dimensionality increases, the volume of the space increases so fast that the available data become sparse. In order to obtain a reliable result, the amount of data needed often grows exponentially with the dimensionality
-
-What can we do:
-
--   estimate only the ATT
-
--   
+The reason for this is **the curse of dimensionality**,
 
 ## The (Approximate) Matching Estimator
 
 (skip directly to the approximate matching estimator)
 
 (explain that there a lot of different parameters to decide when we do matching... but here we're going to use a specifical
-
 
 ## Differences with Regression
 
