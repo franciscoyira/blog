@@ -1,8 +1,8 @@
 ---
-title: 'A guide to Matching, in R and with DAGs - Part 1'
+title: 'A guide to Matching estimators, in R and with DAGs - Part 1'
 author: Francisco Yirá
 date: '2022-02-20'
-slug: matching
+slug: matching-r-dags
 isMath: "true"
 categories:
   - causal-inference
@@ -365,7 +365,7 @@ trainees_df
 
 Here the treatment is a `trainee` program and each observation is an employee who may have taken the program or not. `earnings` is the outcome variable, and `age` is a covariate that turns out to be a confounder, since it affects both `earnings` and the likelihood to have taken the treatment: younger people are more likely to enrol in the program, but also have lower `earnings`, because they have less experience.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(ggside)
 
 trainees_df %>% 
@@ -419,7 +419,7 @@ ggdag_adjustment_set(dag_trainees,
   theme_dag()
 ```
 
-Great. Now it's time to use the `exact_matching_estimator_att` on this data:
+So, we can use matching use the `exact_matching_estimator_att` on this data:
 
 ```{r}
 exact_matching_estimator_att(
@@ -549,35 +549,133 @@ This is a phenomena that occurs whenever we work with a lot of variables (a.k.a.
 
 > when the dimensionality increases, the volume of the space increases so fast that the available data become sparse. In order to obtain a reliable result, the amount of data needed often grows exponentially with the dimensionality
 
-For our matching estimators this means that as more variables are considered in the covariate matrix X, the likelihood of finding exact matches[^9] for all units quickly approaches zero. Put another way, this curse **reduces our chances of having common support**.
+For our matching estimators this means that as more variables are considered in the covariate matrix X, the likelihood of finding exact matches[^9] for all units falls quickly. So, it may be almost impossible to meet the common support assumption when using a lot of variables in the matching process, unless we have also *a lot* of data.
 
 [^9]: Or even approximate matches! As we're going to see later.
 
 ![](images/matching_curse.jpg)
 
-In fact, the curse of dimensionality is particularly cruel with the matching estimators. While in predictive machine learning we have some sort of trade off, with more features bringing in more information at the expense of increasing the distance in the feature space (i.e. we have a choice), in matching methodologies we theoretically have a "true" set X of confounders for which we are obliged to control / adjust for.
+The curse of dimensionality is *particularly* cruel with the matching estimators. While in predictive machine learning we have some sort of trade off, with more features bringing in more information at the expense of increasing the distance in the feature space (i.e. we have a choice), in matching methodologies we theoretically have a "true" set X of confounders for which we are obliged to control / adjust for.
 
-In other words, when doing matching it's not like we're using more covariates out of greed to have "as much information as we can"[^10], but instead, after carefully drawing our DAG we should end up with a list of variables for which we **must** control for in order to close the backdoors. We shouldn't use more variables, and we shouldn't use less.
+In other words, when doing matching it's not like we're using more covariates out of greed to "use as much information as we can"[^10], but instead, after carefully drawing our DAG we should end up with a list of variables for which we **must** control for in order to close the backdoors. We shouldn't control for more, and we shouldn't control for less.
 
 [^10]: Well, some people do that, but we shouldn't.
 
-If our confounding problem is simple, such as an experiment with randomisation conditional on some variable (like the Dunder Muffin example from above) then it's likely that we will only need a few covariates, or even just one, and thus the curse will be avoided.
+If our confounding problem is simple, such as randomisation conditional on some variable (like the Dunder Muffin example above) then likely we will only need a few covariates, or even just one, and thus the curse could be avoided.
 
-But if we end up needing more, we're in trouble.
+But if we need to adjust for more, we could end up needing a really big dataset in order to have common support . That's why matching is often referred to as a **"data greedy"** method.
 
-The conclusions above reveal some problems with our until now beloved `subclas_estimator`. In the toy example we studied there was, very conveniently, only one observable confounder: `region`. Moreover, this confounder was categorical and it divided the data in relatively big strata: the smallest `region` had 130 customers.
+The good news is that we live in the age of big data, so it's not uncommon for data scientists to have access to tables with millions of observations. Assuming that the treated group is relatively small, these big datasets may allow finding matches for all the treated units even when we need to adjust for several covariates and hence estimate the ATT.
 
-But what if we found out that we have to adjust for a lot of variables? And what if some of those variables are continuous? We could address the continuous variable problem by discretising it in bins, but we could still end up with a lot of strata, and some of them could have no observations in either the treated or control group. If that is the case, the `subclas_estimator` will become undefined (return `NA`) because the `sdo` cannot be calculated for subgroups that don't have both control and treated observatiions.
+However, we may still have trouble finding exact matches for all the treated units, even with the so-called "big data". Additionally, some of you may feel uncomfortable with the arbitrariness of the *bining* or *coarsening* part of the exact matching estimator. We need to convert continuous variables into categorical by creating bins, but exactly how wide or narrow should these bins be?
 
-This requirement (having observations of both groups in each stratum) is known as the **common support assumption**. And it becomes increasingly difficult to meet this assumption as the number of covariates X increases.
+These two issues serve as a motivation to move into the next matching estimator.
 
-The reason for this is **the curse of dimensionality**,
+## The (Approximate) Distance Matching Estimator
 
-## The (Approximate) Matching Estimator
+As we saw, if we have to control for several features it's unlikely we'll find exact matches for all the treated units, let alone for the whole sample. Because of this, it's common to, instead of looking for perfect matches, use a proximity or distance metric that tell us how different or similar any two pair of units are, and then match each unit with the most similar unit with opposite treatment assignment.
 
-(skip directly to the approximate matching estimator)
+But before jumping into match each unit with its closest(s) neighbour(s), there are a couple of previous steps we should carry out.
 
-(explain that there a lot of different parameters to decide when we do matching... but here we're going to use a specifical
+The first one is **scaling the covariates X**[^11]. This means basically subtracting the corresponding mean to each feature, and then dividing by the corresponding standard deviation. The result of this is all covariates having a mean equal to 0 and a standard deviation equal to 1. If we don't do this, some features will have more importance in the final proximity calculation just because of their scale.
+
+[^11]: Again, if you come from the ML world this is evident and straightforward, but I'm going to explain it anyway for people with different backgrounds.
+
+For example, if one of the covariates is `age` and its measured in years, and another is `daily_food_intake` and its measured in calories, then the later will have much more influence on the distance, just because it's measured in a scale with higher values and more variation. What's more ridiculous, we could change the influence of each covariate just by transforming it to another equivalent scale, e.g. increase the weight of age by measuring it in months or days. Obviously, all of this is undesirable, so that's why you must scale your covariates.
+
+Then the second step is to choose a distance or proximity metric.
+
+The most common distance metric is the euclidean distance, which pretty much sums up to representing each observation as a point in a hyperplane with M dimensions (with M as the number of features) and then computing the length of a straight line between those two points.
+
+```{r}
+scaled_euclidian_distance <- function(x_i, x_j, sd) {
+  x_i <- x_i/sd
+  x_j <- x_j/sd
+  
+  map2_dbl(x_i, x_j, ~(.x - .y)^2) %>%
+    reduce(sum) %>% 
+    sqrt()
+    
+}
+```
+
+```{r}
+# x and y represent two observations with M features
+# i.e. vectors of length M.
+# Also this function assumes that features are already standarised
+euclidian_distance <- function(x, y, sd) {
+
+  map2_dbl(x, y, ~abs(.x - .y)) %>% 
+    map2_dbl(.y = sd, ~.x/.y) %>%
+    map_dbl(.f = ~.^2) %>% 
+    reduce(sum) %>% 
+    sqrt()
+  
+}
+```
+
+However, we can do better. According to The Effect, the best distance metric to use with approximate matching is the Mahalanobis distance. This metric is closely related to Principal Component Analysis, in the sense that it projects the vectors (observations) into a space where there is no correlation between the features
+
+Why would we want to do that? Because we could have two or more highly correlated variables, for example, gender and
+
+```{r}
+mahalanobis_distance <- function(x_i, x_j, cov){
+  inv_covar <- matlib::inv(cov)
+  
+  matrix_mult_output <-
+    (t(as.matrix(x_i - x_j)) %*% inv_covar %*% as.matrix(x_i - x_j))
+  
+  sqrt(matrix_mult_output)
+}
+```
+
+Why this distance metric is better?
+
+> Because this keeps us from our matching relying *really strongly* on some latent characteristic that happens to show up a bunch of times. For example, say you were matching on beard length, level of arm hair, and score on a "masculinity index." All three of those things are, to one degree or another, related to "being a male." Without dividing out the covariance, you'd basically be matching on "being a male" three times. Redundant, and the matching process will probably refuse to match any males to any non-males, even if they're good matches on other characteristics. If we divide out the covariance, we're still matching on male-ness, but it doesn't count multiple times.
+
+(comments on the quote above)
+
+Example with `mtcars`
+
+```{r}
+cars <- mpg %>% 
+  filter(str_detect(model, '4wd')) %>%
+  select(displ, hwy) %>%
+  unique()
+
+sd_cars <- matrixStats::colSds(as.matrix(cars))
+
+
+## Add euclidian distance
+cars %>% 
+  rowwise() %>% 
+  mutate(euclidian_distance = euclidian_distance(c(.$displ, .$hwy),
+                                                          y = c(4.7, 17),
+                                                          sd = sd_cars))
+```
+
+```{r}
+cars %>% 
+  ggplot() +
+  aes(displ, hwy) +
+  geom_point(size = 3)
+```
+
+Topics to cover here:
+
+-   Scaling the features
+
+-   Euclidean vs Mahalanobis distance
+
+-   Other things to decide: caliper, number of neighbours, replacement or not.
+
+(explain that there a lot of different parameters to decide when we do matching... but here we're going to use a specifical... talk about the "questions" that The Effect says we have to ask)
+
+## Bias correction in distance matching
+
+## Propensity Scores
+
+### Don't treat propensity scores as a machine learning prediction problem
 
 ## Differences with Regression
 
@@ -587,12 +685,6 @@ If the CIA is meet in our data, we could just use regression.
 lm(y ~ d + region, data = customers) %>% 
   summary()
 ```
-
-## Distance Matching
-
-## Propensity Scores
-
-### Don't treat propensity scores as a machine learning prediction problem
 
 ## Double Robust Estimator
 
