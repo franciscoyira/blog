@@ -145,15 +145,15 @@ for i in range(len(tracklist)):
 
 kinds=pd.Series(list(kinds))
 kinds</code></pre>
-<pre class="language-python"><code>## 0        Apple Lossless audio file
-## 1             Archivo de audio AAC
-## 2            Archivo de audio MPEG
-## 3               Archivo de Audible
-## 4         Purchased AAC audio file
-## 5          Archivo de video MPEG-4
-## 6    Archivo de audio AAC comprado
-## 7             Audio Apple Lossless
-## 8            Video MPEG-4 comprado
+<pre class="language-python"><code>## 0            Video MPEG-4 comprado
+## 1               Archivo de Audible
+## 2        Apple Lossless audio file
+## 3             Audio Apple Lossless
+## 4    Archivo de audio AAC comprado
+## 5         Purchased AAC audio file
+## 6             Archivo de audio AAC
+## 7          Archivo de video MPEG-4
+## 8            Archivo de audio MPEG
 ## dtype: object</code></pre>
 <p>I don’t want to perform an analysis on audiobooks or music videos, so I will filter those out.</p>
 <pre class="python language-python"><code>kinds_i_want = pd.Series([&#39;Archivo de audio AAC comprado&#39;,
@@ -179,7 +179,7 @@ def cols(kind):
               
 
 cols(&#39;Archivo de audio AAC comprado&#39;)</code></pre>
-<pre class="language-python"><code>## {&#39;Skip Count&#39;, &#39;Total Time&#39;, &#39;Track Number&#39;, &#39;Explicit&#39;, &#39;Size&#39;, &#39;Name&#39;, &#39;Release Date&#39;, &#39;Sort Name&#39;, &#39;Bit Rate&#39;, &#39;Sort Composer&#39;, &#39;Location&#39;, &#39;Track ID&#39;, &#39;Purchased&#39;, &#39;Disc Count&#39;, &#39;Track Count&#39;, &#39;Persistent ID&#39;, &#39;Artist&#39;, &#39;Album&#39;, &#39;Genre&#39;, &#39;Sample Rate&#39;, &#39;Track Type&#39;, &#39;Play Date UTC&#39;, &#39;Kind&#39;, &#39;Play Date&#39;, &#39;Date Added&#39;, &#39;Album Artist&#39;, &#39;Play Count&#39;, &#39;Library Folder Count&#39;, &#39;Loved&#39;, &#39;Sort Artist&#39;, &#39;Sort Album&#39;, &#39;Skip Date&#39;, &#39;Composer&#39;, &#39;File Folder Count&#39;, &#39;Artwork Count&#39;, &#39;Year&#39;, &#39;Date Modified&#39;}</code></pre>
+<pre class="language-python"><code>## {&#39;Sample Rate&#39;, &#39;Genre&#39;, &#39;Track Number&#39;, &#39;Location&#39;, &#39;Skip Count&#39;, &#39;Track Type&#39;, &#39;Play Count&#39;, &#39;Bit Rate&#39;, &#39;Year&#39;, &#39;Album&#39;, &#39;Track ID&#39;, &#39;Artist&#39;, &#39;Skip Date&#39;, &#39;Album Artist&#39;, &#39;File Folder Count&#39;, &#39;Release Date&#39;, &#39;Sort Name&#39;, &#39;Play Date UTC&#39;, &#39;Sort Album&#39;, &#39;Sort Composer&#39;, &#39;Size&#39;, &#39;Track Count&#39;, &#39;Composer&#39;, &#39;Sort Artist&#39;, &#39;Artwork Count&#39;, &#39;Total Time&#39;, &#39;Disc Count&#39;, &#39;Play Date&#39;, &#39;Persistent ID&#39;, &#39;Purchased&#39;, &#39;Date Added&#39;, &#39;Date Modified&#39;, &#39;Loved&#39;, &#39;Name&#39;, &#39;Library Folder Count&#39;, &#39;Kind&#39;, &#39;Explicit&#39;}</code></pre>
 <p>Once the function is defined, I use <code>map</code> to iterate over all the <code>kinds_i_want</code>, then I convert the <code>results</code> to a <code>result_list</code>.</p>
 <pre class="python language-python"><code>results = map(cols, kinds_i_want)
 results_list = [list(item) for item in results]</code></pre>
@@ -191,7 +191,7 @@ for item in results_list:
 
 unique_cols=set(flat_list)
 unique_cols</code></pre>
-<pre class="language-python"><code>## {&#39;Skip Count&#39;, &#39;Sort Album Artist&#39;, &#39;Comments&#39;, &#39;Total Time&#39;, &#39;Track Number&#39;, &#39;Explicit&#39;, &#39;Size&#39;, &#39;Name&#39;, &#39;Album Rating&#39;, &#39;Protected&#39;, &#39;Release Date&#39;, &#39;Clean&#39;, &#39;Content Rating&#39;, &#39;Rating&#39;, &#39;Album Rating Computed&#39;, &#39;Sort Name&#39;, &#39;Bit Rate&#39;, &#39;Sort Composer&#39;, &#39;Stop Time&#39;, &#39;Location&#39;, &#39;Track ID&#39;, &#39;Purchased&#39;, &#39;Disc Number&#39;, &#39;Disc Count&#39;, &#39;Track Count&#39;, &#39;Persistent ID&#39;, &#39;Artist&#39;, &#39;Album&#39;, &#39;Genre&#39;, &#39;Sample Rate&#39;, &#39;Grouping&#39;, &#39;Track Type&#39;, &#39;Album Loved&#39;, &#39;Play Date UTC&#39;, &#39;Kind&#39;, &#39;Play Date&#39;, &#39;Date Added&#39;, &#39;Album Artist&#39;, &#39;Play Count&#39;, &#39;Rating Computed&#39;, &#39;Music Video&#39;, &#39;Disliked&#39;, &#39;Library Folder Count&#39;, &#39;Loved&#39;, &#39;Part Of Gapless Album&#39;, &#39;Sort Artist&#39;, &#39;Has Video&#39;, &#39;Sort Album&#39;, &#39;Volume Adjustment&#39;, &#39;Disabled&#39;, &#39;Skip Date&#39;, &#39;Composer&#39;, &#39;Start Time&#39;, &#39;File Folder Count&#39;, &#39;Compilation&#39;, &#39;Artwork Count&#39;, &#39;Year&#39;, &#39;Date Modified&#39;}</code></pre>
+<pre class="language-python"><code>## {&#39;Sample Rate&#39;, &#39;Genre&#39;, &#39;Track Number&#39;, &#39;Location&#39;, &#39;Skip Count&#39;, &#39;Track Type&#39;, &#39;Play Count&#39;, &#39;Part Of Gapless Album&#39;, &#39;Bit Rate&#39;, &#39;Year&#39;, &#39;Album&#39;, &#39;Track ID&#39;, &#39;Artist&#39;, &#39;Skip Date&#39;, &#39;Album Artist&#39;, &#39;Album Loved&#39;, &#39;Disliked&#39;, &#39;File Folder Count&#39;, &#39;Content Rating&#39;, &#39;Music Video&#39;, &#39;Release Date&#39;, &#39;Sort Name&#39;, &#39;Play Date UTC&#39;, &#39;Volume Adjustment&#39;, &#39;Sort Album&#39;, &#39;Sort Composer&#39;, &#39;Sort Album Artist&#39;, &#39;Grouping&#39;, &#39;Clean&#39;, &#39;Rating&#39;, &#39;Size&#39;, &#39;Start Time&#39;, &#39;Album Rating&#39;, &#39;Protected&#39;, &#39;Track Count&#39;, &#39;Composer&#39;, &#39;Sort Artist&#39;, &#39;Artwork Count&#39;, &#39;Total Time&#39;, &#39;Disc Count&#39;, &#39;Play Date&#39;, &#39;Disc Number&#39;, &#39;Has Video&#39;, &#39;Stop Time&#39;, &#39;Rating Computed&#39;, &#39;Persistent ID&#39;, &#39;Comments&#39;, &#39;Purchased&#39;, &#39;Album Rating Computed&#39;, &#39;Date Added&#39;, &#39;Date Modified&#39;, &#39;Loved&#39;, &#39;Name&#39;, &#39;Disabled&#39;, &#39;Library Folder Count&#39;, &#39;Kind&#39;, &#39;Compilation&#39;, &#39;Explicit&#39;}</code></pre>
 <pre class="python language-python"><code>len(unique_cols)</code></pre>
 <pre class="language-python"><code>## 58</code></pre>
 <p>There we have it: a superset containing all the song attributes available in the XML file. There are 58 in total, and some are only available for specific kinds of media.</p>
@@ -666,12 +666,12 @@ library(tidyverse)</code></pre>
             locations = cells_body(rows = Genre == &quot;Urbano latino&quot;)) %&gt;% 
     tab_style(style = cell_fill(color = &quot;#f2f2f2&quot;),
             locations = cells_body(rows = Genre == &quot;Other&quot;))</code></pre>
-<div id="bickcqpxnm" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<div id="hordgyvfiw" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>html {
   font-family: Bahnschrift;
 }
 
-#bickcqpxnm .gt_table {
+#hordgyvfiw .gt_table {
   display: table;
   border-collapse: collapse;
   margin-left: auto;
@@ -696,7 +696,7 @@ library(tidyverse)</code></pre>
   border-left-color: #D3D3D3;
 }
 
-#bickcqpxnm .gt_heading {
+#hordgyvfiw .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -708,7 +708,7 @@ library(tidyverse)</code></pre>
   border-right-color: #D3D3D3;
 }
 
-#bickcqpxnm .gt_title {
+#hordgyvfiw .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -718,7 +718,7 @@ library(tidyverse)</code></pre>
   border-bottom-width: 0;
 }
 
-#bickcqpxnm .gt_subtitle {
+#hordgyvfiw .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -728,13 +728,13 @@ library(tidyverse)</code></pre>
   border-top-width: 0;
 }
 
-#bickcqpxnm .gt_bottom_border {
+#hordgyvfiw .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#bickcqpxnm .gt_col_headings {
+#hordgyvfiw .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -749,7 +749,7 @@ library(tidyverse)</code></pre>
   border-right-color: #D3D3D3;
 }
 
-#bickcqpxnm .gt_col_heading {
+#hordgyvfiw .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -769,7 +769,7 @@ library(tidyverse)</code></pre>
   overflow-x: hidden;
 }
 
-#bickcqpxnm .gt_column_spanner_outer {
+#hordgyvfiw .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -781,15 +781,15 @@ library(tidyverse)</code></pre>
   padding-right: 4px;
 }
 
-#bickcqpxnm .gt_column_spanner_outer:first-child {
+#hordgyvfiw .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#bickcqpxnm .gt_column_spanner_outer:last-child {
+#hordgyvfiw .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#bickcqpxnm .gt_column_spanner {
+#hordgyvfiw .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -801,7 +801,7 @@ library(tidyverse)</code></pre>
   width: 100%;
 }
 
-#bickcqpxnm .gt_group_heading {
+#hordgyvfiw .gt_group_heading {
   padding: 8px;
   color: #333333;
   background-color: #FFFFFF;
@@ -823,7 +823,7 @@ library(tidyverse)</code></pre>
   vertical-align: middle;
 }
 
-#bickcqpxnm .gt_empty_group_heading {
+#hordgyvfiw .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -838,15 +838,15 @@ library(tidyverse)</code></pre>
   vertical-align: middle;
 }
 
-#bickcqpxnm .gt_from_md > :first-child {
+#hordgyvfiw .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#bickcqpxnm .gt_from_md > :last-child {
+#hordgyvfiw .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#bickcqpxnm .gt_row {
+#hordgyvfiw .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -865,7 +865,7 @@ library(tidyverse)</code></pre>
   overflow-x: hidden;
 }
 
-#bickcqpxnm .gt_stub {
+#hordgyvfiw .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -877,7 +877,7 @@ library(tidyverse)</code></pre>
   padding-left: 12px;
 }
 
-#bickcqpxnm .gt_summary_row {
+#hordgyvfiw .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -887,7 +887,7 @@ library(tidyverse)</code></pre>
   padding-right: 5px;
 }
 
-#bickcqpxnm .gt_first_summary_row {
+#hordgyvfiw .gt_first_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -897,7 +897,7 @@ library(tidyverse)</code></pre>
   border-top-color: #D3D3D3;
 }
 
-#bickcqpxnm .gt_grand_summary_row {
+#hordgyvfiw .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -907,7 +907,7 @@ library(tidyverse)</code></pre>
   padding-right: 5px;
 }
 
-#bickcqpxnm .gt_first_grand_summary_row {
+#hordgyvfiw .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -917,11 +917,11 @@ library(tidyverse)</code></pre>
   border-top-color: #D3D3D3;
 }
 
-#bickcqpxnm .gt_striped {
+#hordgyvfiw .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#bickcqpxnm .gt_table_body {
+#hordgyvfiw .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -930,7 +930,7 @@ library(tidyverse)</code></pre>
   border-bottom-color: #D3D3D3;
 }
 
-#bickcqpxnm .gt_footnotes {
+#hordgyvfiw .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -944,13 +944,13 @@ library(tidyverse)</code></pre>
   border-right-color: #D3D3D3;
 }
 
-#bickcqpxnm .gt_footnote {
+#hordgyvfiw .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding: 4px;
 }
 
-#bickcqpxnm .gt_sourcenotes {
+#hordgyvfiw .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -964,41 +964,41 @@ library(tidyverse)</code></pre>
   border-right-color: #D3D3D3;
 }
 
-#bickcqpxnm .gt_sourcenote {
+#hordgyvfiw .gt_sourcenote {
   font-size: 90%;
   padding: 4px;
 }
 
-#bickcqpxnm .gt_left {
+#hordgyvfiw .gt_left {
   text-align: left;
 }
 
-#bickcqpxnm .gt_center {
+#hordgyvfiw .gt_center {
   text-align: center;
 }
 
-#bickcqpxnm .gt_right {
+#hordgyvfiw .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#bickcqpxnm .gt_font_normal {
+#hordgyvfiw .gt_font_normal {
   font-weight: normal;
 }
 
-#bickcqpxnm .gt_font_bold {
+#hordgyvfiw .gt_font_bold {
   font-weight: bold;
 }
 
-#bickcqpxnm .gt_font_italic {
+#hordgyvfiw .gt_font_italic {
   font-style: italic;
 }
 
-#bickcqpxnm .gt_super {
+#hordgyvfiw .gt_super {
   font-size: 65%;
 }
 
-#bickcqpxnm .gt_footnote_marks {
+#hordgyvfiw .gt_footnote_marks {
   font-style: italic;
   font-weight: normal;
   font-size: 65%;
