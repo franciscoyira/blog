@@ -1,8 +1,10 @@
 ---
 title: 'A guide to Matching estimators, in R and with DAGs - Part 1'
 author: Francisco Yirá
-date: '2022-02-20'
-slug: matching-r-dags
+date: '2022-02-27'
+slug: matching-in-r-part-1
+cover: "images/pikachus.png"
+useRelativeCover: true
 isMath: "true"
 categories:
   - causal-inference
@@ -30,15 +32,15 @@ But there are a lot of situations when is not possible to carry out a randomised
 
 Even worse, we could have experimental data and still not meet the independence assumption. How is that? Well, the treatment could be randomised within subgroups of the population (e.g. children grouped in schools or customers grouped in tiers or regions) but having different treatment probabilities across the subgroups. If these subgroups have systematic differences in potential outcomes, then there will be correlation between the potential outcomes and the treatment variable, and the independence assumption won't hold.
 
-But wait, we still have a way out in situations like that. We may leverage the **conditional independence assumption**.
+But wait, we still have a way out in situations like that. We can leverage the **conditional independence assumption**.
 
-## Conditional Independence
+## The Conditional Independence Assumption
 
 In most cases, expecting your data to meet $Y^1,Y^0 \perp D$ is asking for too much. A more realistic aspiration is to have $Y^1,Y^0 \perp D |X$, the cheap, more common version of the independence assumption, known as **conditional independence**.
 
 What conditional independence says is that $D$ could be correlated with potential outcomes in the data as a whole (no bueno), but if we look at subsets of observations with the same values of some covariates X (e.g. customers in the same tier or region, or children in the same school), then we have independence between $D$ and $Y^1,Y^0$ inside those subsets (good!).
 
-(mom, can we have X at home meme\])
+![](images/meme_conditional_independence.jpg){width="800"}
 
 If the conditional independence assumption (CIA) is meet, then we can estimate the ATE using something known as the **subclassification estimator**. In plain English, all that this estimator does is calculating the SDO in each subgroup with the same values of X (strata) and then computing a **weighted average** of those SDOs using the frequency count of each strata as weight. Thus, if some strata has a lot of observations, its SDO is going to have a bigger influence on the final estimate.
 
@@ -297,6 +299,8 @@ On the other hand, if your data is *observational*, then drawing the DAG and arg
 Now let's move on to a more advanced (and more commonly used) version of the `subclas_estimator`: the **Exact Matching Estimator**. This estimator does in principle the same thing as the `subclas_estimator`, it splits the dataset based on the values of the confounders X and then looks at the differences between treatment and control units within each sub-group.
 
 However, instead of calculating the `sdo` in each sub-group and then weighting it by frequency, it tries to **impute the counterfactual value for *each observation* by matching them to another observation that has the same values in the variables X, but opposite treatment status**. Then, it computes the difference in outcome for each pair unit-counterfactual and take the average of those differences.
+
+![](images/its_a_match-01.png)
 
 In real-world analysis, exact matching often comes accompanied with *coarsening* or *binning* of continuous variables in X (in which case is regarded as **coarsened exact matching** or CEM). The reason for this is that you will usually have continuous variables for which is impossible to find pairs of units with exactly the same value, even if the dataset is very large. So, you have to do a sensible discretisation (e.g. creating bins such as 0 to 2, 2 to 4, 4 to 6, and so on) and then match based on the categorical values.
 
@@ -577,21 +581,21 @@ As we saw, if we have to control for several features it's unlikely we'll find e
 
 But before jumping into match each unit with its closest(s) neighbour(s), there are a couple of previous steps we should carry out.
 
-The first one is **scaling the covariates X**[^11]. This means basically subtracting the corresponding mean to each feature, and then dividing by the corresponding standard deviation. The result of this is all covariates having a mean equal to 0 and a standard deviation equal to 1. If we don't do this, some features will have more importance in the final proximity calculation just because of their scale.
+### Scaling and choosing a distance metric
+
+The first step is **scaling the covariates X**[^11]. This means dividing each feature by the corresponding standard deviation. The result is all covariates having a standard deviation equal to 1. If we don't do this, some features will have more importance in the final proximity calculation just because of their measurement units.
 
 [^11]: Again, if you come from the ML world this is evident and straightforward, but I'm going to explain it anyway for people with different backgrounds.
 
-For example, if one of the covariates is `age` and its measured in years, and another is `daily_food_intake` and its measured in calories, then the later will have much more influence on the distance, just because it's measured in a scale with higher values and more variation. What's more ridiculous, we could change the influence of each covariate just by transforming it to another equivalent scale, e.g. increase the weight of age by measuring it in months or days. Obviously, all of this is undesirable, so that's why you must scale your covariates.
+For example, if one of the covariates is `age` and its measured in years, and another is `daily_food_intake` and its measured in calories, then the later will have much more influence on the distance, just because it's measured in a scale with higher values and more variation. What's more problematic, we could change the influence of each covariate just by transforming it to another equivalent scale, e.g. increase the weight of age by measuring it in months or days. Obviously, all of this is undesirable, so that's why you must scale your covariates.
 
 Then the second step is to choose a distance or proximity metric.
 
-The most common distance metric is the euclidean distance, which pretty much sums up to representing each observation as a point in a hyperplane with M dimensions (with M as the number of features) and then computing the length of a straight line between those two points.
+The most common distance metric is the euclidean distance, which pretty much sums up to representing each observation as a point in a hyperplane with M dimensions (with M as the number of features) and then computing the length of a straight line between those two points. If you have calculated a distance between two points in a Cartesian plane, it probably was euclidian distance.
 
 ```{r}
-scaled_euclidian_distance <- function(x_i, x_j, sd) {
-  x_i <- x_i/sd
-  x_j <- x_j/sd
-  
+euclidian_distance <- function(x_i, x_j) {
+
   map2_dbl(x_i, x_j, ~(.x - .y)^2) %>%
     reduce(sum) %>% 
     sqrt()
@@ -599,93 +603,292 @@ scaled_euclidian_distance <- function(x_i, x_j, sd) {
 }
 ```
 
-```{r}
-# x and y represent two observations with M features
-# i.e. vectors of length M.
-# Also this function assumes that features are already standarised
-euclidian_distance <- function(x, y, sd) {
-
-  map2_dbl(x, y, ~abs(.x - .y)) %>% 
-    map2_dbl(.y = sd, ~.x/.y) %>%
-    map_dbl(.f = ~.^2) %>% 
-    reduce(sum) %>% 
-    sqrt()
-  
-}
-```
-
-However, we can do better. According to The Effect, the best distance metric to use with approximate matching is the Mahalanobis distance. This metric is closely related to Principal Component Analysis, in the sense that it projects the vectors (observations) into a space where there is no correlation between the features
-
-Why would we want to do that? Because we could have two or more highly correlated variables, for example, gender and
-
-```{r}
-mahalanobis_distance <- function(x_i, x_j, cov){
-  inv_covar <- matlib::inv(cov)
-  
-  matrix_mult_output <-
-    (t(as.matrix(x_i - x_j)) %*% inv_covar %*% as.matrix(x_i - x_j))
-  
-  sqrt(matrix_mult_output)
-}
-```
-
-Why this distance metric is better?
+But we can do better. According to The Effect, the best proximity metric to use for approximate matching is the **Mahalanobis distance**. Not only does this metric scale the features to a standard deviation of 1, but it also divides by their *covariances* in order to eliminate the correlation between them before calculating the distance. Why would we do this? Nick Huntington-Klein, author of The Effect, provides a crystal-clear explanation:
 
 > Because this keeps us from our matching relying *really strongly* on some latent characteristic that happens to show up a bunch of times. For example, say you were matching on beard length, level of arm hair, and score on a "masculinity index." All three of those things are, to one degree or another, related to "being a male." Without dividing out the covariance, you'd basically be matching on "being a male" three times. Redundant, and the matching process will probably refuse to match any males to any non-males, even if they're good matches on other characteristics. If we divide out the covariance, we're still matching on male-ness, but it doesn't count multiple times.
 
-(comments on the quote above)
+This idea of "dividing out the covariance" may be difficult to grasp, so here are a series of figures that illustrate what are we doing to the feature-space when computing the Mahalanobis distance:
 
-Example with `mtcars`
+![*Source: [StackExchange](https://stats.stackexchange.com/questions/62092/bottom-to-top-explanation-of-the-mahalanobis-distance)*](images/mahalanobis.png){width="800"}
 
-```{r}
-cars <- mpg %>% 
-  filter(str_detect(model, '4wd')) %>%
-  select(displ, hwy) %>%
-  unique()
+The top-left image represents the raw, original feature-space of two correlated variables, and the bottom-left represents what the space we end up with after dividing out the covariance matrix. Then, an euclidian distance is calculated in this transformed space. That is the Mahalanobis distance.
 
-sd_cars <- matrixStats::colSds(as.matrix(cars))
+Note that only doing the scaling can be seen as "stretching" the original space to achieve equal variance among all the dimensions, but dividing by the covariance implies also "rotating" it in order to eliminate the correlation[^12].
 
+[^12]: If you're familiar with Principal Component Analysis, it may be helpful to see Mahalanobis distance as just euclidian distance in a PCA-rotated and standarised space, that is, a feature-space in which you applied PCA, but kept all the resulting uncorrelated features (i.e. no dimensionality reduction) and then scaled them to have the same variance.
 
-## Add euclidian distance
-cars %>% 
-  rowwise() %>% 
-  mutate(euclidian_distance = euclidian_distance(c(.$displ, .$hwy),
-                                                          y = c(4.7, 17),
-                                                          sd = sd_cars))
-```
+Okey, that was the "intuitive" explanation. Now let's express this metric in code:
 
 ```{r}
-cars %>% 
-  ggplot() +
-  aes(displ, hwy) +
-  geom_point(size = 3)
+# `x_i` and `x_j` are two numeric vectors that represent two observations in the
+# data. Both vectors have the same length M, where M is the number of covariates
+# or features
+
+# cov is the variance-covariance matrix of variables X, a MxM matrix
+mahalanobis_distance <- function(x_i,
+                                 x_j,
+                                 cov){
+  # We compute the inverse of the `cov` matrix
+  inv_covar <- matlib::inv(cov)
+  
+  matrix_multiplication_output <-
+    # a 1xM vector * a MxM matrix * a Mx1 vector = a scalar
+    (t(as.matrix(x_i - x_j)) %*% inv_covar %*% as.matrix(x_i - x_j))
+  
+  sqrt(matrix_multiplication_output)
+}
 ```
 
-Topics to cover here:
+As a fun fact, if `cov` is equal to the identity matrix (a matrix with ones in the diagonal and zeros everywhere else) then the `mahalanobis_distance` is equal to the `euclidian_distance`. This means that if X is already scaled and there is zero correlation between the variables, both distance metrics should return the same value.
 
--   Scaling the features
+### More decisions: bias or variance?
 
--   Euclidean vs Mahalanobis distance
+So the proximity metric thing wasn't actually a choice because the Mahalanobis distance is always the best option. Good. Also, we don't have to decide on the bin sizes for continuous variables anymore (as we had to do with exact matching). However, approximate matching still require us to take some other decisions.
 
--   Other things to decide: caliper, number of neighbours, replacement or not.
+-   **How many matches we'll use for each unit?** After calculating distances, we will have a sorted ranking of potential matches for each unit. So, how many units from that list we'll use to impute the counterfactual? Just one (the closest)? Two? Or more?[^13].
 
-(explain that there a lot of different parameters to decide when we do matching... but here we're going to use a specifical... talk about the "questions" that The Effect says we have to ask)
+-   **Calliper** (also known as bandwidth): how far can two units be before we stop considering them as potential matches? Note that if we choose a very narrow calliper, we could end up with a lot of unmatched units.
 
-## Bias correction in distance matching
+-   **Matching *with* replacement or *without* replacement?** If the treated unit *i* is matched to the control unit *j*, will the unit *j* remain available to be matched to other treated units? (i.e. will it remain in the control "donor pool"?).
 
-## Propensity Scores
+[^13]: If you have worked with the K-nearest neighbours algorithm, this is equivalent to choosing the K parameter.
 
-### Don't treat propensity scores as a machine learning prediction problem
+These seem like a lot of decisions, but the answer to all of them largely comes down to only one thing: the **bias-variance tradeoff**. The setting that minimises bias is the following:
 
-## Differences with Regression
+-   Use just one match for each unit (the best/closest).
 
-If the CIA is meet in our data, we could just use regression.
+-   Choose a narrow calliper.
+
+-   Do matching with replacement (so we have the whole donor pool available when matching each unit).
+
+By doing this, we're ensuring that the matched samples are as similar as possible to the original units in their covariates values (i.e. that they have minimum bias). This, in turn, maximises our chances of closing the nasty backdoors in our DAG.
+
+![*Source: <http://scott.fortmann-roe.com/docs/BiasVariance.html>*](https://www.cs.cornell.edu/courses/cs4780/2018fa/lectures/images/bias_variance/bullseye.png){width="800"}
+
+However, this setting also maximises variance: if we use just one match to estimate each counterfactual, then that estimate is going to be very noisy. And the problem becomes worse if we allow each unit in the donor pool to be matched to several original units. This is bad because we become susceptible to sample variance or random variation in the observed data. The *expected value* of the estimator will be close to the true ATT or ATE (little bias) but the *realisation* we observe given our current sample may fall far off from that.
+
+To reduce variance, we may consider using more matches for each unit, widening the calliper, and doing matching *without* replacement, but all this would increase bias.
+
+![](images/choose_variance_bias.jpg)
+
+So what should we do? For the number of matches, [*The Effect* suggest to use more matches when our dataset is big](https://theeffectbook.net/ch-Matching.html#:~:text=So%20the%20choice,Not%20worth%20it.) because then we can reduce variance at the expense of just a small increase in bias. But if the data is small, the price of such variance reduction is much higher, since the second-best or third-best matches could be far off the original unit in their covariate values.
+
+Regarding replacement and calliper/bandwidth, I guess a similar principle comes into play. For bigger datasets we could "afford" choices that reduce variance such as not using replacement and increase the bandwidth, but for small data it may be too much to ask[^14].
+
+[^14]: *The Effect* also points out that there is extensive literature on how to choose the optimal bandwidth/calliper when doing approximate matching, so you may want to look at that.
+
+### Distance Matching Estimator ✨as code✨
+
+Now let's implement a distance matching estimator as an R function. For this example, I'm going to pick an estimator with replacement, without calliper restriction and with just one match per unit (the best/closest). This is not necessarily the most appropriate estimator for *your* data, but it's the easier to code and understand[^15].
+
+[^15]: And anyway, the purpose of these code examples is just to explain what these estimators do. If you really want to use matching estimators in your analysis, you should use an implementation from an R package such as `MatchIt`. I'm going to cover this in Part 2 of this blog post.
+
+```{r, warning=FALSE}
+distance_matching_estimator_att <- function(df,
+                                            treatment,
+                                            outcome,
+                                            covariates) {
+  # Renaming the treatment variable for convenience
+  df <- df %>% 
+    rename(treatment := {{ treatment }})
+  
+  # Copying the covariates in a separate DF to calcule the variance matrix
+  covariates <- df %>% 
+    select({{ covariates }})
+  
+  # Calculating the covariance matrix
+  cov_matrix <- cov(covariates)
+  
+  # Pair-wise Mahalanobis distance between all the observations
+  m_distances <- 
+    HDMD::pairwise.mahalanobis(
+      x = covariates,
+      grouping = 1:nrow(covariates),
+      cov = cov_matrix
+      ) %>% magrittr::extract2("distance")
+  
+  # Getting the indexes of treated units
+  treated_indexes <- which(df$treatment == 1)
+  control_indexes <- which(df$treatment == 0)
+  
+  # Subsetting the distance matrix to keep only distances 
+  # from treated units to untreated units
+  dist_treated_to_control <- m_distances[treated_indexes, control_indexes]
+  
+  # Getting the index of the closest control unit for each treated unit
+  indexes_matched_controls <- apply(dist_treated_to_control, 1, which.min)
+  
+  # Getting the outome values of control matches
+  matched_controls_values <- 
+    df %>% 
+    filter(treatment == 0) %>% 
+    slice(indexes_matched_controls) %>% 
+    select(outcome_match := {{ outcome }})
+  
+  # Binding those values to the corresponding treated units, 
+  # and then estimating the ATT
+  df %>% 
+    filter(treatment == 1) %>% 
+    bind_cols(matched_controls_values) %>% 
+    mutate(treat_effect := {{ outcome }} - outcome_match) %>% 
+    pull(treat_effect) %>% 
+    mean()
+  
+}
+```
+
+Again, we're going to try the estimator with some data. This time is a dataset measuring the effects of a new medication on the recovery period for patient, measured in days (this dataset also [comes from the book *Causal Inference for The Brave and True*](https://github.com/matheusfacure/python-causality-handbook/blob/master/causal-inference-for-the-brave-and-true/data/medicine_impact_recovery.csv)).
 
 ```{r}
-lm(y ~ d + region, data = customers) %>% 
-  summary()
+medicine_impact_recovery <- 
+  read_csv("https://raw.githubusercontent.com/matheusfacure/python-causality-handbook/master/causal-inference-for-the-brave-and-true/data/medicine_impact_recovery.csv",
+           show_col_types = FALSE)
+
+medicine_impact_recovery
+
 ```
 
-## Double Robust Estimator
+In this dataset, `medication` is the treatment variable and `recovery` is the outcome variable. The desired result of the treatment is to reduce the `recovery` days. As before, we have conditional independence after adjusting for confounders, but this time there are three confounders instead of one, and two of them are continuous variables. So, it looks like an appropriate setting for using distance matching.
 
-## ATE vs ATT vs ATU: How to get each one with matching?
+```{r}
+dag_medication <- dagify(recovery ~ age + severity + sex + medication,
+                       medication ~ age + severity + sex,
+                       exposure = "medication",
+                       outcome = "recovery")
+
+ggdag_adjustment_set(dag_medication,
+                     text = FALSE,
+                     use_labels = "name",
+                     shadow = TRUE) +
+  theme_dag()
+```
+
+Due to selection bias, the simple difference in means between treated and control groups implies that the `medication` has a negative effect: patients who take it have a longer recovery period.
+
+```{r}
+mean_treated <- medicine_impact_recovery %>% 
+  filter(medication == 1) %>% 
+  pull(recovery) %>% 
+  mean()
+  
+mean_untreated <- medicine_impact_recovery %>% 
+  filter(medication == 0) %>% 
+  pull(recovery) %>% 
+  mean()
+
+mean_treated - mean_untreated
+```
+
+But after using distance matching to adjust for the confounders, we found a positive effect: the `medication` seems to reduce the `recovery` period in 6.74 days on average (for the treated group).
+
+```{r, message=FALSE, warning=FALSE, cache=TRUE}
+distance_matching_estimator_att(
+  medicine_impact_recovery,
+  treatment = medication,
+  outcome = recovery,
+  covariates = c(sex, age, severity)
+)
+```
+
+### One more thing: Bias correction
+
+Okay, this section has been pretty long, but that's because talking about the distance matching estimator entails necessarily talking about all those topics. And there is still one more topic left! It's the **bias correction method** that is often used when doing approximate matching.
+
+Since it's almost impossible for the distance between two units to be zero, we can take for granted that there will be some bias due to differences in covariates between the original and the matched units. Fortunately, [Abadie and Imbens (2011)](https://economics.mit.edu/files/11861) introduced a bias correction method, which leverages the fact that discrepancies in coviariates are *observed*.
+
+You can read the original paper or [the reference](https://mixtape.scunning.com/matching-and-subclassification.html?panelset3=r-code4#bias-correction) [books](https://matheusfacure.github.io/python-causality-handbook/10-Matching.html#matching-bias) if you want to go into more detail, but, for the ATT, it basically mounts up to each unit contributing this expression to the total amount of bias in the estimator[^16]:
+
+[^16]: I REALLY wanted this blog post to have zero math equations and express literally everything as code, but I realised that doesn't make sense for equations that represent "true" parameters or functions, since they can't be calculated. On the other hand, code can represent estimators very well, because they're actually algorithms that are meant to be applied on real data.
+
+$$
+\mu_0(X_i)-\mu_0(X_{j(i)})
+$$
+
+The elements of this subtraction represent the expected potential outcome $Y_0$ given the covariates values inside the parenthesis. $X_i$ are the covariates values for the original unit, and $X_{j(i)}$ are the covariates values for the matched control unit. Since those covariate values are not exactly the same, the bias contributed by the unit will be non-zero.
+
+We can **estimate this bias** and then **subtract it** from the treatment effect estimated for each unit:
+
+$$
+\hat{ATT} = \frac{1}{N_T}\sum_{i=1}^{N_T}{ (Y_i - Y_{i(j)}) -(\hat{\mu}_0(X_i)-\hat{\mu}_0(X_{j(i)})) }
+$$
+
+*In this expression* $N_T$ *is the number of treated units,* $Y_i$ *is the outcome of the original unit and* $Y_{i(j)}$ *is the outcome of the matched unit. The functions* $\mu(\cdot)$ *now have hats because they are being estimated.*
+
+How to estimate the bias? A way of doing it is fitting a linear regression with the covariates as predictors and the outcome and response, *but using only data from the untreated units*. Then we'll feed $X_i$ and $X_{j(i)}$ to the fitted regression in order to obtain corresponding predicted values. The difference between those predicted values is our estimate of the bias for the untreated matched sample.
+
+Let's see it implemented in code. This example builds on top of the previously defined `distance_matching_estimator_att`, so now I'm only commenting the lines that are new:
+
+```{r}
+distance_matching_att_w_bias_adj <- function(df,
+                                             treatment,
+                                             outcome,
+                                             covariates) {
+  df <- df %>% 
+    rename(treatment := {{ treatment }})
+  
+  covariates <- df %>% 
+    select({{ covariates }})
+  
+  cov_matrix <- cov(covariates)
+  
+  m_distances <- 
+    HDMD::pairwise.mahalanobis(
+      x = covariates,
+      grouping = 1:nrow(covariates),
+      cov = cov_matrix
+      ) %>% magrittr::extract2("distance")
+  
+  treated_indexes <- which(df$treatment == 1)
+  control_indexes <- which(df$treatment == 0)
+  
+  dist_treated_to_control <- m_distances[treated_indexes, control_indexes]
+  
+  indexes_matched_controls <- apply(dist_treated_to_control, 1, which.min)
+  
+  # Fitting a regression Y ~ x using the control units
+  df_reg <- df %>% 
+    filter(treatment == 0) %>% 
+    select({{ outcome }}, {{ covariates }})
+  # (don't mind the rlang part, it's R black magic for putting this 
+  # inside a function, just focus on the regression)
+  ysym <- rlang::ensym(outcome)
+  rlang::inject(
+    u0 <- lm(outcome ~ ., data = df_reg)
+  )
+  
+  matched_controls_values <- 
+    df %>% 
+    filter(treatment == 0) %>% 
+    slice(indexes_matched_controls) %>%
+    # We add the predicted Y value based on the `u0` model 
+    # and the coviariates in the control matched sample
+    mutate(u0_j = predict(u0)) %>% 
+    select(outcome_match := {{ outcome }},
+           u0_j)
+
+  df %>% 
+    filter(treatment == 1) %>% 
+    # And we also add predicted values corresponding to the covariates 
+    # of the original treated units
+    mutate(u0_i = predict(u0)) %>% 
+    bind_cols(matched_controls_values) %>% 
+    mutate(treat_effect := {{ outcome }} - outcome_match,
+           # subtracting both predicted values to get the bias correction term
+           bias_correction = u0_i - u0_j,
+           # and putting the bias correction into the final estimate
+           treat_effect_debias = treat_effect - bias_correction) %>% 
+    pull(treat_effect_debias) %>% 
+    mean()
+  
+}
+```
+
+How would this work if we were estimating the ATE instead? As in `exact_matching_estimator_ate`, we would have also a sample of matched treated units, acting as estimated counterfactuals for the original treated units. But in this case the bias correction term has to be estimated with a linear regression *fitted only with the original treated units*. Everything else is the same. Then we do `bind_rows` of both matched samples and average the `treat_effect_debias` of each unit.
+
+## But wait! There is even more!
+
+Stay tuned for **part 2** of this post, where I'll be discussing more Matching estimators and topics, such as **Propensity Score** and **Inverse Probability Weighting**, the differences between Matching and Multivariate Linear Regression, and the **Double Robust Estimator**, a clever way to combine both Regression and Matching in order to increase our chances of obtaining a credible estimate of the average treatment effect.
+
+![](C:/Users/franc/AppData/Local/RStudio/tmp/paste-820A6CF1.png){width="800"}
+
+*You can [subscribe](https://www.franciscoyira.com/subscribe/) to receive an email when I publish the next post (I'll never send you spam, and you can unsubscribe whenever you want).*
