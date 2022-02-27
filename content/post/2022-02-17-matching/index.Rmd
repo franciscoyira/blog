@@ -20,9 +20,13 @@ tags:
   - matching
 ---
 
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+knitr::opts_chunk$set(class.source="language-r", class.output="language-r")
+```
+
 Until this moment, the posts about causal inference on this blog have been centred around conceptual frameworks that enable the discussion of causal inference problems, such as Directed Acyclical Graphs and the Potential Outcomes model[^1]. Now it's time to go one step further and start talking about the "toolbox" that allows us to address causal inference questions when working with **observational data** (that is, data where the treatment variable is not under the full control of the researcher).
 
-[^1]: This blog post builds on top of the concepts introduced on those articles, so if you feel that there a lot of unkown words in this post, it may be helpful to check those previous posts first.
+[^1]: This blog post builds on top of the concepts introduced on those articles, so if you feel that there a lot of unknown words in this post, it may be helpful to check those previous posts first.
 
 We've already seen that in randomised experiments it's relatively easy to obtain unbiased estimates of causal effects because the **independence assumption holds**. If the data scientist has assigned the treatment variable in a way that has nothing to do with the potential outcomes of the units, then the simple difference in outcomes (SDO) between the control and treated group is an unbiased estimator of the average treatment effect (ATE).
 
@@ -91,11 +95,15 @@ Now let's simulate a dataset where we have **conditional** independence (but not
 
 Just for fun, I'll give some back-story to this simulated data. You work as a salesperson at the paper company Dunder Muffin, and one day you suggest your boss, Miguel Scott, doing an experiment to evaluate how much sales would increase if we given a promotional discount to your customers in this time of the year. Miguel likes your idea, but he requests you to have a smaller control group (i.e. giving the discount to more customers) in the regions that are having lower sales. He is assuming that the treatment will have a positive effect, and therefore the purpose of the experiment would be just to get an estimate of *how much* the sales will increase in each region.
 
-| Region | Number of customers | Average monthly sales per customer (USD) previous to the discount | Proportion Treated / Control |
-|--------|---------------------|-------------------------------------------------------------------|------------------------------|
-| East   | 130                 | 3,000                                                             | 50% / 50%                    |
-| West   | 220                 | 2,000                                                             | 80% / 20%                    |
-| North  | 500                 | 3,500                                                             | 20% / 80%                    |
++-----------+---------------------+-------------------------------------------------------------------+------------------------------+
+| Region    | Number of customers | Average monthly sales per customer (USD) previous to the discount | Proportion Treated / Control |
++===========+=====================+===================================================================+==============================+
+| East      | 130                 | 3,000                                                             | 50% / 50%                    |
++-----------+---------------------+-------------------------------------------------------------------+------------------------------+
+| West      | 220                 | 2,000                                                             | 80% / 20%                    |
++-----------+---------------------+-------------------------------------------------------------------+------------------------------+
+| North     | 500                 | 3,500                                                             | 20% / 80%                    |
++-----------+---------------------+-------------------------------------------------------------------+------------------------------+
 
 For this part, we will assume an homogeneous treatment effect across regions: a 300 USD average increase on monthly sales per customer, even after taking the discount into account.
 

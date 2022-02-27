@@ -18,7 +18,17 @@ tags:
   - resumenes
   - p-values
   - libros 
+output:
+  html_document:
+    highlight: true
+    css: /resources/primsr/css/adam-one-dark.css
+    includes:
+      in_header: /resources/prismr/utils/header.html
 ---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+knitr::opts_chunk$set(class.source="language-r", class.output="language-r")
+```
 
 Bienvenidos a un nuevo artículo de [la serie](https://www.franciscoyira.com/es/tags/causal-inference-the-mixtape/) dedicada al libro [**Causal Inference: The Mixtape**](https://mixtape.scunning.com/). En el artículo anterior vimos una introducción a [la notación de outcomes potenciales](https://www.franciscoyira.com/es/post/potential-outcomes-causal-inference-mixtape/) y cómo esta permite expresar conceptos claves de inferencia causal.
 

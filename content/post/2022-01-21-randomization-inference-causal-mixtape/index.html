@@ -63,7 +63,7 @@ Which posits that the treatment has zero effect for each of the units in the sam
 <p>For the sake of simplicity, on this post we will use Fischer’s sharp null, but note that we may as well use alternative sharp nulls such as <span class="math inline">\(\delta_i=1\)</span> or <span class="math inline">\(\delta_i=2\)</span>. We could even test sharp nulls in which different groups or units have different values of <span class="math inline">\(\delta_i\)</span>. All that is required is to have a null that states <em>something</em> about each <span class="math inline">\(\delta_i\)</span>, and not just about <span class="math inline">\(E[\delta_i]\)</span>.</p>
 <p>Why would we want to use null hypotheses like these? Because it allows us to <strong>complete the missing potential outcomes values in our dataset</strong>.</p>
 <p>The data we usually see in an experiment has this structure:</p>
-<pre class="r"><code>library(tidyverse)
+<pre class="r language-r"><code>library(tidyverse)
 library(magrittr)
 library(causaldata)
 
@@ -73,7 +73,7 @@ ri &lt;- causaldata::ri %&gt;%
          y1 = as.numeric(y1))
 
 ri</code></pre>
-<pre><code>## # A tibble: 8 x 6
+<pre class="language-r"><code>## # A tibble: 8 x 6
 ##   name       d     y    y0    y1 id_unit
 ##   &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;int&gt;
 ## 1 Andy       1    10    NA    10       1
@@ -85,12 +85,12 @@ ri</code></pre>
 ## 7 George     0     8     8    NA       7
 ## 8 Hank       0    10    10    NA       8</code></pre>
 <p>For each unit, we observe both <span class="math inline">\(D_i\)</span> and <span class="math inline">\(Y_i\)</span>, but just one of the potential outcomes (<span class="math inline">\(Y_i^0\)</span> or <span class="math inline">\(Y_i^1\)</span>). By leveraging the sharp null, we can fill in the missing values in the columns <code>y0</code> and <code>y1</code> (in this case, based on <span class="math inline">\(Y_i=Y_i^0=Y_i^1\)</span>).</p>
-<pre class="r"><code>ri_fischer_null &lt;- ri %&gt;% 
+<pre class="r language-r"><code>ri_fischer_null &lt;- ri %&gt;% 
   mutate(y0 = y,
          y1 = y)
 
 ri_fischer_null</code></pre>
-<pre><code>## # A tibble: 8 x 6
+<pre class="language-r"><code>## # A tibble: 8 x 6
 ##   name       d     y    y0    y1 id_unit
 ##   &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;int&gt;
 ## 1 Andy       1    10    10    10       1
@@ -108,7 +108,7 @@ ri_fischer_null</code></pre>
 <h3>Step 2: pick a test statistic</h3>
 <p>To conduct a hypothesis test, we also need a <strong>statistic</strong>. In a standard hypothesis test, it would be necessary to use a statistic for which we had a variance estimator but, when doing RI, we can use literally any scalar statistic that can be obtained from a treatment assignments vector (<span class="math inline">\(D\)</span>) and an outcomes vector (<span class="math inline">\(Y\)</span>).</p>
 <p>One of the simplest statistics we can use is the <strong>simple difference in mean outcomes (SDO)</strong> between groups.</p>
-<pre class="r"><code># Function that defines the statistic: it receives a dataframe as input,
+<pre class="r language-r"><code># Function that defines the statistic: it receives a dataframe as input,
 # with the columns `y` (outcome) and `d` (treatment assignment), and returns
 # a scalar value
 sdo &lt;- function(data) {
@@ -120,7 +120,7 @@ sdo &lt;- function(data) {
 }
 
 sdo(ri_fischer_null)</code></pre>
-<pre><code>## [1] 1</code></pre>
+<pre class="language-r"><code>## [1] 1</code></pre>
 <p>However, as I said before, there is no reason why we couldn’t use a different test statistic. This freedom is one of the main reasons for which we would want to do RI in the first place.</p>
 <p>Some examples of alternative test statistics we could use are:</p>
 <ul>
@@ -137,7 +137,7 @@ sdo(ri_fischer_null)</code></pre>
 <ol style="list-style-type: decimal">
 <li><p>We will do permutations over the vector <span class="math inline">\(D\)</span> using the same random process that was used for obtaining the random treatment assignments in the first place. For example, if the treatment was assigned by a process equivalent to tossing a coin for each unit (<a href="https://en.wikipedia.org/wiki/Binomial_distribution"><span class="math inline">\(B(n, 0.5)\)</span></a>), then the permutations must be generated in the same way.<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a></p>
 <p>In our example, the random process consists in drafting 4 treatment assignments for a sample of 8 observations, which translates to 70 possible permutations in total. The following code obtains such permutations:</p>
-<pre class="r"><code>perms &lt;- t(combn(ri_fischer_null$id_unit, 4)) %&gt;% asplit(1) 
+<pre class="r language-r"><code>perms &lt;- t(combn(ri_fischer_null$id_unit, 4)) %&gt;% asplit(1) 
 
 perms_df &lt;- 
   tibble(treated_units = perms) %&gt;% 
@@ -149,7 +149,7 @@ ri_permuted &lt;-
   mutate(d = map2_dbl(id_unit, treated_units, ~.x %in% .y))
 
 ri_permuted</code></pre>
-<pre><code>## # A tibble: 560 x 8
+<pre class="language-r"><code>## # A tibble: 560 x 8
 ##    id_perm treated_units name       d     y    y0    y1 id_unit
 ##      &lt;int&gt; &lt;list&gt;        &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;int&gt;
 ##  1       1 &lt;int [4]&gt;     Andy       1    10    10    10       1
@@ -163,13 +163,13 @@ ri_permuted</code></pre>
 ##  9       2 &lt;int [4]&gt;     Andy       1    10    10    10       1
 ## 10       2 &lt;int [4]&gt;     Ben        1     5     5     5       2
 ## # ... with 550 more rows</code></pre>
-<pre class="r"><code>ri_permuted %&gt;% 
+<pre class="r language-r"><code>ri_permuted %&gt;% 
   pull(id_perm) %&gt;% 
   n_distinct()</code></pre>
-<pre><code>## [1] 70</code></pre></li>
+<pre class="language-r"><code>## [1] 70</code></pre></li>
 <li><p>For each permutation, we simulate the values of <span class="math inline">\(Y\)</span> based on the previously chosen sharp null and the now complete potential outcomes columns. <strong>For Fischer’s sharp null, we don’t have to do anything</strong> because it states that <span class="math inline">\(Y_i=Y_i^0=Y_i^1\)</span>, which leads to the vector <span class="math inline">\(Y\)</span> remaining unchanged no matter the values in <span class="math inline">\(D\)</span>. However, if our sharp null was something like <span class="math inline">\(\delta_i=1\)</span>, then it would be necessary to update/change the values of <span class="math inline">\(Y\)</span> in each permutation.</p></li>
 <li><p>We compute the test statistic value (the SDO in our example) for each permutation and then save those values.</p>
-<pre class="r"><code>perms_stats &lt;- 
+<pre class="r language-r"><code>perms_stats &lt;- 
   ri_permuted %&gt;%
   group_by(id_perm) %&gt;%
   summarise(te1 = mean(y[d == 1]),
@@ -178,7 +178,7 @@ ri_permuted</code></pre>
 
 perms_stats %&gt;% 
   select(id_perm, sdo)</code></pre>
-<pre><code>## # A tibble: 70 x 2
+<pre class="language-r"><code>## # A tibble: 70 x 2
 ##    id_perm   sdo
 ##      &lt;int&gt; &lt;dbl&gt;
 ##  1       1   1  
@@ -193,7 +193,7 @@ perms_stats %&gt;%
 ## 10      10  -2.5
 ## # ... with 60 more rows</code></pre></li>
 <li><p>Voilà! The statistic values obtained in (3) tell us what the statistic’s distribution is under the sharp null assumption.</p>
-<pre class="r"><code>ggplot(perms_stats, aes(sdo)) +
+<pre class="r language-r"><code>ggplot(perms_stats, aes(sdo)) +
   geom_histogram() +
   labs(x = &quot;Test statistic (SDO)&quot;)</code></pre>
 <p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p></li>
@@ -205,7 +205,7 @@ perms_stats %&gt;%
 <h3>Step 4: obtaining the p-value by comparing the “real” statistic with its simulated distribution</h3>
 <p>After having obtained the statistic’s distribution (exact or approximated) under the sharp null, we can proceed to locate the true statistic (the one that comes from the real values of <span class="math inline">\(D\)</span> and <span class="math inline">\(Y\)</span>) inside that distribution.</p>
 <p><em>Note that if we want to perform a two-tailed test (the most common one), we must apply the absolute value function to the statistic distribution (which is, in fact, what we do in this example).</em></p>
-<pre class="r"><code>true_statistic &lt;- perms_stats %&gt;% 
+<pre class="r language-r"><code>true_statistic &lt;- perms_stats %&gt;% 
   filter(id_perm == 1) %&gt;% 
   pull(sdo)
 
@@ -234,7 +234,7 @@ ggplot(perms_stats,
 <ol style="list-style-type: decimal">
 <li>We create a <strong>descending ranking with the test statistics</strong> we obtained through the permutations (the highest value gets a ranking equal to 1, the lowest value gets a ranking equal to N). These rankings are assigned through a <code>row_number()</code>-like algorithm. When there are ties, the original ranking of the tied statistics is replaced with the maximum ranking inside that group. For instance, if three statistics have the same value and their original rankings are 2, 3 and 4, all of them end up with a ranking equal to 4.</li>
 </ol>
-<pre class="r"><code>perms_ranked &lt;- perms_stats %&gt;%
+<pre class="r language-r"><code>perms_ranked &lt;- perms_stats %&gt;%
   # Just like before, we apply `abs()` to get a two tailed test
   mutate(abs_sdo = abs(sdo)) %&gt;% 
   select(id_perm, abs_sdo) %&gt;% 
@@ -244,7 +244,7 @@ ggplot(perms_stats,
   mutate(new_rank = max(rank))
 
 perms_ranked</code></pre>
-<pre><code>## # A tibble: 70 x 4
+<pre class="language-r"><code>## # A tibble: 70 x 4
 ## # Groups:   abs_sdo [11]
 ##    id_perm abs_sdo  rank new_rank
 ##      &lt;int&gt;   &lt;dbl&gt; &lt;int&gt;    &lt;int&gt;
@@ -262,7 +262,7 @@ perms_ranked</code></pre>
 <ol start="2" style="list-style-type: decimal">
 <li>We calculate the ratio between the final ranking of the true statistic and N, the total number of permutations we did.</li>
 </ol>
-<pre class="r"><code>n &lt;- nrow(perms_ranked)
+<pre class="r language-r"><code>n &lt;- nrow(perms_ranked)
 
 p_value &lt;- 
   perms_ranked %&gt;% 
@@ -270,20 +270,20 @@ p_value &lt;-
   pull(new_rank)/n
 
 p_value</code></pre>
-<pre><code>## [1] 0.8571429</code></pre>
+<pre class="language-r"><code>## [1] 0.8571429</code></pre>
 <p>In our example, the p-value we got is 0.86, which implies that we can’t reject the sharp null at a 5% significance level (in fact, we can’t reject it at any conventional significance level 😅). In other words, <strong>the SDO from the original data is not an unlikely value to observe if we assume that the treatment had zero effect on all the units</strong> and that the only source of variability in the statistic is the random assignment of <span class="math inline">\(D\)</span>.</p>
 </div>
 </div>
 <div id="making-it-easier-with-the-ri2-package" class="section level2">
 <h2>Making it easier with the <em>ri2</em> package 🤗</h2>
 <p>The R code shown above had the goal of explaining each step of the RI procedure. However, it’s not very concise and adapting it for other datasets would be tiresome and error prone. For that reason, it’s recommended to perform RI using one of the R packages that have been designed and developed for that end, such as <code>ri2</code>.</p>
-<pre class="r"><code>library(ri2)</code></pre>
+<pre class="r language-r"><code>library(ri2)</code></pre>
 <p>However, something from the “manual” code that doesn’t change is that we still have to provide 1) a test statistic, 2) a sharp null hypothesis, and 3) a randomization procedure. And just like before, the randomization procedure passed to <code>ri2</code> must be the same as the one used for assigning the treatment in the first place.</p>
 <p>The difference is that now we can pass these elements more in an easier and clearer way.</p>
 <p>To declare the <strong>randomization procedure</strong> we use the function <code>ri2::declare_ra</code>. In this case (just like in the preceding example), we’re declaring the random assignment of 4 treatment units (<code>m = 4</code>) in a sample of 8 units (<code>N = 8</code>).</p>
-<pre class="r"><code>declaration &lt;- declare_ra(N = 8, m = 4)
+<pre class="r language-r"><code>declaration &lt;- declare_ra(N = 8, m = 4)
 declaration</code></pre>
-<pre><code>## Random assignment procedure: Complete random assignment 
+<pre class="language-r"><code>## Random assignment procedure: Complete random assignment 
 ## Number of units: 8 
 ## Number of treatment arms: 2 
 ## The possible treatment categories are 0 and 1.
@@ -296,7 +296,7 @@ declaration</code></pre>
 <p>The first is to use the <code>formula</code> argument in the <code>conduct_ri</code> function. If our test statistic is just the SDO, then the formula will be something like <code>y ~ d</code>, where <code>y</code> is the outcome variable and <code>d</code> is the treatment assignment variable.</p>
 <p>Alternatively, we can specify the statistic through the argument <code>test_function</code> (also in the function <code>conduct_ri</code>), which admits any R function capable of receiving a dataframe and returning a scalar (i.e., the statistic value).</p>
 <p>In our example we’re going to use this last method:</p>
-<pre class="r"><code># Declaring the `test_function`
+<pre class="r language-r"><code># Declaring the `test_function`
 sdo &lt;- function(data) {
   # it receives a dataframe
   data %&gt;% 
@@ -309,7 +309,7 @@ sdo &lt;- function(data) {
 <p>The <strong>sharp null hypothesis</strong> can be specified through the <code>sharp_hypothesis</code> argument in <code>conduct_ri</code>. The default value for this argument is 0, so if we’re going to use Fischer’s sharp null then we omit it in our code.</p>
 <p>Last but not least, we have to indicate the names that the columns containing <span class="math inline">\(Y\)</span> and <span class="math inline">\(D\)</span> have in our data, using the <code>assignment</code> and <code>outcome</code> arguments, and we also have to pass the dataset itself through the argument <code>data</code>.</p>
 <p>After specifying all those arguments, we can execute the function <code>conduct_ri</code> and then inspect the output with the <code>summary</code>.</p>
-<pre class="r"><code>ri2_out &lt;- conduct_ri(
+<pre class="r language-r"><code>ri2_out &lt;- conduct_ri(
   test_function = sdo,
   assignment = &quot;d&quot;,
   outcome = &quot;y&quot;,
@@ -319,22 +319,22 @@ sdo &lt;- function(data) {
 )
 
 summary(ri2_out)</code></pre>
-<pre><code>##                    term estimate two_tailed_p_value
+<pre class="language-r"><code>##                    term estimate two_tailed_p_value
 ## 1 Custom Test Statistic        1          0.8571429</code></pre>
 <p>As we see, the p-value returned by <code>conduct_ri</code> is exactly the same as the one we got with the “manual” code from the previous section, but now the code is much simpler and easier to read 😊.</p>
 <p>Another advantage of <code>conduct_ri</code> is that its output can be directly plotted by the function <code>plot()</code>.</p>
-<pre class="r"><code>plot(ri2_out)</code></pre>
+<pre class="r language-r"><code>plot(ri2_out)</code></pre>
 <pre><code>## Warning: It is deprecated to specify `guide = FALSE` to remove a guide. Please
 ## use `guide = &quot;none&quot;` instead.</code></pre>
 <p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
 <p>This plot is even better than the one we created manually in the previous section because it automatically highlights the statistics that are as or more extreme than the real statistic. It also appropriately portrays two-tailed tests without having to transform the statistics to their absolute value ✨.</p>
 <p>In addition, since the output of <code>plot(ri2_out)</code> is a ggplot2 object, we can customize it or transform it through the ggplot2 functions we already know. For example, we can apply a <code>ggthemes</code> theme to make it look like a Stata plot:</p>
-<pre class="r"><code>plot(ri2_out) +
+<pre class="r language-r"><code>plot(ri2_out) +
   ggthemes::theme_stata()</code></pre>
 <p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
 <p>If we want to manually inspect the simulations data, we can extract the dataframe <code>sims_df</code> from the output of <code>conduct_ri</code>. This dataframe will have as many rows as permutations of <span class="math inline">\(D\)</span> had been performed.</p>
-<pre class="r"><code>ri2_out[[&quot;sims_df&quot;]] %&gt;% head()</code></pre>
-<pre><code>##   est_sim est_obs                  term
+<pre class="r language-r"><code>ri2_out[[&quot;sims_df&quot;]] %&gt;% head()</code></pre>
+<pre class="language-r"><code>##   est_sim est_obs                  term
 ## 1    -1.0       1 Custom Test Statistic
 ## 2    -2.0       1 Custom Test Statistic
 ## 3    -3.0       1 Custom Test Statistic
@@ -357,7 +357,7 @@ T_{KS}=\max|\hat{F_T}(Y_i) - \hat{F_C}(Y_i)|
 <p><strong>Why would we use the KS statistic instead of something more familiar, like the difference in means?</strong></p>
 <p>Because we could have a treatment that affects the outcome distribution without changing the mean significantly. For instance, it could change the variance or generate a bi-modal distribution (translation into a real-world example: a treatment that has a large positive effect for half of the sample and a large negative effect for the other half).</p>
 <p>Here is an example from <a href="https://github.com/scunning1975/mixtape/blob/master/R/ks.R">the Mixtape</a> with simulated data:</p>
-<pre class="r"><code>tb &lt;- tibble(
+<pre class="r language-r"><code>tb &lt;- tibble(
   d = c(rep(0, 20), rep(1, 20)),
   y = c(0.22, -0.87, -2.39, -1.79, 0.37, -1.54, 
         1.28, -0.31, -0.74, 1.72, 
@@ -392,7 +392,7 @@ ggplot(kdensity)+
   scale_color_discrete(labels = c(&quot;Control&quot;, &quot;Treatment&quot;))</code></pre>
 <p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
 <p>If we do RI with the data from above using the SDO as test statistic, we can’t reject the sharp null of having zero effect for all the units, despite having two evidently different outcome distributions.</p>
-<pre class="r"><code>set.seed(1989)
+<pre class="r language-r"><code>set.seed(1989)
 
 conduct_ri(
   test_function = sdo,
@@ -403,10 +403,10 @@ conduct_ri(
   data = tb,
   sims = 10000
 )</code></pre>
-<pre><code>##                    term estimate two_tailed_p_value
+<pre class="language-r"><code>##                    term estimate two_tailed_p_value
 ## 1 Custom Test Statistic    1.415             0.1361</code></pre>
 <p>Let’s see what happens if we use the KS statistic instead of the SDO:</p>
-<pre class="r"><code># Declaring the function that obtains the KS statistic from a dataframe
+<pre class="r language-r"><code># Declaring the function that obtains the KS statistic from a dataframe
 ks_statistic &lt;- function(data) {
   
   control &lt;- data[data$d == 0, ]$y
@@ -446,11 +446,11 @@ ri_ks &lt;-
   )
 
 ri_ks</code></pre>
-<pre><code>##                    term estimate two_tailed_p_value
+<pre class="language-r"><code>##                    term estimate two_tailed_p_value
 ## 1 Custom Test Statistic     0.45             0.0227</code></pre>
 <p>The KS statistic does allow us to reject the sharp null at a 5% significance level<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>.</p>
 <p>In the following plot, we can visualise the KS statistic corresponding to the true treatment assignment, along with the empirical CDFs of the treatment and control groups.</p>
-<pre class="r"><code>tb2 &lt;- tb %&gt;%
+<pre class="r language-r"><code>tb2 &lt;- tb %&gt;%
 group_by(d) %&gt;%
 arrange(y) %&gt;%
 mutate(rn = row_number()) %&gt;%

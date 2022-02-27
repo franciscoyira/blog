@@ -20,6 +20,10 @@ tags:
   - books
 ---
 
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+knitr::opts_chunk$set(class.source="language-r", class.output="language-r")
+```
+
 Welcome to a new post of [the series](https://www.franciscoyira.com/es/tags/causal-inference-the-mixtape/) about the book [**Causal Inference: The Mixtape**](https://mixtape.scunning.com/). 
 In the previous post, we saw an introduction to the [potential outcomes notation](/es/post/potential-outcomes-causal-inference-mixtape/) and how this notation allows us to express key concepts in the causal inference field.
 
