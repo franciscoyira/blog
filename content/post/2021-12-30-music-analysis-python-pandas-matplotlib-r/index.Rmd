@@ -38,8 +38,9 @@ In this post I will show you:
 
 Also, note that if you use iTunes (or Apple Music), you can do this too. All you need to do is locate the 'iTunes Library.xml' file and then run the Python code in this post against that file (although you probably will need some minor modifications).
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(class.source="language-python", class.output="language-python")
 library(reticulate)
 knitr::knit_engines$set(python = reticulate::eng_python)
 ```
