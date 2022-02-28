@@ -1,0 +1,830 @@
+---
+title: 'A guide to Matching estimators, in R and with DAGs - Part 1'
+author: Francisco Yirá
+date: '2022-02-27'
+slug: matching-in-r-part-1
+cover: "images/pikachus.png"
+useRelativeCover: true
+isMath: "true"
+categories:
+  - causal-inference
+  - data-science
+  - R
+tags:
+  - books
+  - causal-inference-the-mixtape
+  - the-effect
+  - english-only-ds
+  - dags
+  - summaries
+  - matching
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>Until this moment, <a href="https://www.franciscoyira.com/categories/causal-inference/">the posts about causal inference on this blog</a> have been centred around frameworks that enable the discussion of causal inference problems, such as <a href="https://franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">Directed Acyclical Graphs (DAGs)</a> and <a href="https://franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/">the Potential Outcomes model</a><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>. Now it’s time to go one step further and start talking about the “toolbox” that allows us to address causal inference questions when working with <strong>observational data</strong> (that is, data where the treatment variable is not under the full control of the researcher).</p>
+<p>We’ve already seen that, in randomised experiments, it’s relatively easy to obtain unbiased estimates of causal effects because <a href="https://www.franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/#:~:text=The%20independence%20assumption%20(and%20the%20effectiveness%20of%20randomization)">the <strong>independence assumption holds</strong></a>. If the data scientist has assigned the treatment variable in a way that has nothing to do with the potential outcomes of the units, then the simple difference in outcomes (SDO) between the control and treated group is enough to get an unbiased estimate of the average treatment effect (ATE).</p>
+<p>But there are many situations when it’s impossible to carry out a randomised experiment. In such cases, it’s <em>almost certain</em> that the independence assumption doesn’t hold.<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.</p>
+<p>In fact, we could have experimental data and still not meet the independence assumption. How is that? Well, the treatment could be randomised within subgroups of the population (e.g. children grouped in schools or customers grouped in tiers or regions) but having different treatment probabilities across the subgroups. If these subgroups have systematic differences in potential outcomes, then there will be correlation between the potential outcomes and the treatment variable, and the independence assumption won’t hold.</p>
+<p>Fortunately, we still have a way out in situations like that. We can leverage the <strong>conditional independence assumption</strong>.</p>
+<div id="the-conditional-independence-assumption" class="section level2">
+<h2>The Conditional Independence Assumption</h2>
+<p>In most cases, expecting your data to meet <span class="math inline">\(Y^1,Y^0 \perp D\)</span> is asking for too much. A more realistic aspiration is to have <span class="math inline">\(Y^1,Y^0 \perp D |X\)</span>, the cheap, more common version of the independence assumption, known as <strong>conditional independence</strong>.</p>
+<p>What conditional independence says is that <span class="math inline">\(D\)</span> could be correlated with potential outcomes in the data as a whole (no bueno), but that if we look at subsets of observations with the same values of some covariates X (e.g. customers in the same tier or region, or children in the same school), then we have independence between <span class="math inline">\(D\)</span> and <span class="math inline">\(Y^1,Y^0\)</span> inside those subsets (good!).</p>
+<p><img src="images/meme_conditional_independence.jpg" width="800" /></p>
+<p>If the conditional independence assumption (CIA) is met, then we can estimate the ATE using any estimator that adjusts for X. The simplest of those is the <strong>subclassification estimator</strong>. In plain English, all that this estimator does is calculate the SDO in each subgroup with the same values of X (stratum) and then compute a <strong>weighted average</strong> of those SDOs using the frequency count of each stratum as weight. Thus, if some stratum has a lot of observations, its SDO is going to have a bigger influence on the final estimate.</p>
+<p>Let’s see a code example to understand this better. First, I’m going to declare the estimator as an R function:</p>
+<pre class="r language-r"><code>library(tidyverse)
+library(rlang)
+
+subclas_estimator &lt;- function(df, outcome = Y, treatment = D, covariates) {
+    df %&gt;% 
+    # we create strata for each set of values of X present in the data
+    group_nest({{ covariates }}) %&gt;% 
+    # Then, we compute a frequency count and an SDO for each stratum
+    mutate(freq = map_dbl(data, nrow),
+           strata_sdo = map_dbl(data, sdo, {{ outcome }}, {{ treatment }})) %&gt;% 
+    # The estimate is a weighted average of the strata-specific SDOs 
+    # using the frequency counts as weights
+    summarise(estimate_ATE = weighted.mean(strata_sdo, freq)) %&gt;% 
+    pull(estimate_ATE)
+
+}</code></pre>
+<pre class="r language-r"><code># Auxiliary function that computes the SDO
+sdo &lt;- function(df, outcome = Y, treatment = D) {
+  
+  df &lt;- df %&gt;% 
+    group_by({{treatment}}) %&gt;% 
+    summarise(mean = mean({{outcome}}))
+  
+  mean_t &lt;- 
+    df %&gt;% 
+    filter({{treatment}} == 1) %&gt;% 
+    pull(mean)
+  
+  mean_u &lt;- 
+    df %&gt;% 
+    filter({{treatment}} == 0) %&gt;% 
+    pull(mean)
+  
+  mean_t - mean_u
+  
+}</code></pre>
+<p>Now let’s simulate a dataset where we have <strong>conditional</strong> independence (but not <em>un</em>conditional independence) and see the differences that emerge between the SDO and the subclassification estimator (i.e. the bias in the estimation due to not adjusting by X).</p>
+<p>Just for fun, I’ll give some back-story for this simulated data. You work as a salesperson at the paper company Dunder Muffin, and one day you suggest your boss, Miguel Scott, do an experiment to evaluate how much sales would increase if we given a promotional discount to our customers in this period of the year. Miguel likes your idea, but he requests you to have a smaller control group (i.e. giving the discount to more customers) in the regions with lower sales. He is assuming that the treatment will have a positive effect, and therefore the purpose of the experiment would be just to estimate by <em>how much</em> the sales will increase in each region.</p>
+<p>The final design of the experiment is as follows:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center;">
+Region
+</th>
+<th style="text-align:center;">
+Number of customers
+</th>
+<th style="text-align:center;">
+Monthly sales per customer before the discount
+</th>
+<th style="text-align:center;">
+Proportion Treated / Control
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center;">
+East
+</td>
+<td style="text-align:center;">
+130
+</td>
+<td style="text-align:center;">
+3000
+</td>
+<td style="text-align:center;">
+50% / 50%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+West
+</td>
+<td style="text-align:center;">
+220
+</td>
+<td style="text-align:center;">
+2000
+</td>
+<td style="text-align:center;">
+80% / 20%
+</td>
+</tr>
+<tr>
+<td style="text-align:center;">
+North
+</td>
+<td style="text-align:center;">
+500
+</td>
+<td style="text-align:center;">
+3500
+</td>
+<td style="text-align:center;">
+20% / 80%
+</td>
+</tr>
+</tbody>
+</table>
+<p>We’ll assume a homogeneous treatment effect across regions: a 300 USD average increase on monthly sales per customer (even after taking the discount into account).</p>
+<p>As you may already suspect, under this setting the SDO will be biased because the treatment assignment is correlated with monthly sales (our outcome variable). The lower the monthly sales, the higher the chance of receiving a discount (i.e. having <span class="math inline">\(D=1\)</span>).</p>
+<pre class="r language-r"><code>set.seed(1989)
+
+n_east &lt;- 130
+n_west &lt;- 220
+n_north &lt;- 500
+n_total &lt;- n_east+n_west+n_north
+
+customers &lt;-
+  tibble(
+    customer_id = seq(n_total),
+    region = c(rep(&quot;East&quot;, n_east),
+               rep(&quot;West&quot;, n_west),
+               rep(&quot;North&quot;, n_north)),
+    # Treatment effect is 300USD + random noise
+    treatment_effect = rnorm(n_total, mean = 300, sd = 200),
+    # Sales per customer when no discount is offered (untreated)
+    y0 = c(
+      rnorm(n_east, mean = 3000, sd = 200),
+      rnorm(n_west, mean = 2000, sd = 200),
+      rnorm(n_north, mean = 3500, sd = 200)
+    ),
+    # Sales per customer when discount is offered (treated)
+    y1 = y0 + treatment_effect,
+    # Treatment status
+    d = c(
+      rbinom(n_east, 1, 0.5),
+      rbinom(n_west, 1, 0.8),
+      rbinom(n_north, 1, 0.2)
+    ),
+    # Switching equation
+    y = y0 + treatment_effect*d
+    
+  )</code></pre>
+<p>Obtaining the <code>sdo</code> over the whole customer base:</p>
+<pre class="r language-r"><code>sdo(customers, outcome = y, treatment = d)</code></pre>
+<pre class="language-r"><code>## [1] -333.7119</code></pre>
+<p>And the <code>subclas_estimator</code> using <code>region</code> as covariate.</p>
+<pre class="r language-r"><code>subclas_estimator(customers,
+                  outcome = y,
+                  treatment = d,
+                  covariates = region)</code></pre>
+<pre class="language-r"><code>## [1] 312.2853</code></pre>
+<p>Because we have conditional independence after controlling by <code>region</code>, the <code>subclas_estimator</code> returns an estimate very close to the real treatment effect. Meanwhile, the <code>sdo</code> over the whole data has a huge negative bias, due to the correlation between the treatment assignment and the potential outcomes (lack of <em>un</em>conditional independence).</p>
+<p>We can see this correlation more clearly in the following visualisations:</p>
+<pre class="r language-r"><code>customers_4_plot &lt;- customers %&gt;% 
+  select(region, d, y1, y0) %&gt;% 
+  mutate(d = factor(d, levels = c(0,1),
+                    labels = c(&quot;Untreated&quot;, &quot;Treated&quot;))) %&gt;% 
+  pivot_longer(cols = c(y1, y0),
+               names_to = &quot;potential_outcome&quot;,
+               values_to = &quot;value&quot;)
+
+ggplot(customers_4_plot) +
+  aes(potential_outcome, value, colour = factor(d)) +
+  geom_boxplot() +
+  labs(x = &quot;Potential Outcome&quot;,
+       y = &quot;Monthly sales per customer&quot;,
+       colour = &quot;Treatment status&quot;,
+       title = &quot;There is no unconditional independence in this data&quot;,
+       subtitle = &quot;Potential outcomes are correlated with the treatment status&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r language-r"><code>ggplot(customers_4_plot) +
+  aes(potential_outcome, value, colour = factor(d)) +
+  geom_boxplot() +
+  facet_wrap(~region) +
+  labs(x = &quot;Potential Outcome&quot;,
+       y = &quot;Monthly sales per customer&quot;,
+       colour = &quot;Treatment status&quot;,
+       title = &quot;But there is conditional independence&quot;,
+       subtitle = str_wrap(&quot;After controlling by X (Region), potential outcomes are no longer correlated with the treatment status&quot;))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p><em>Note that these kinds of visualisations are impossible to do with real-world data since counterfactual potential outcomes are unknown. Here we were able to look at them only because the data was created by ourselves.</em></p>
+<div id="when-do-we-have-conditional-independence-and-what-variables-should-we-include-in-x" class="section level3">
+<h3>When do we have conditional independence? And what variables should we include in X?</h3>
+<p>The best way to answer both questions is to draw a DAG (or causal diagram) of the relationships between the variables in our data. This diagram is the best representation of all the knowledge we have about the data generating process.</p>
+<p>A convenient way of drawing the DAG is to use the <code>ggdag</code> package in R.</p>
+<p>For our Dunder Muffin example, the DAG and code would be as follows:</p>
+<pre class="r language-r"><code>library(ggdag)
+
+# The `dagify` function allows us to declare the DAG as a set of R formulas,
+# plus a couple of arguments to specify the outcome and treatment variables
+dag &lt;- dagify(sales ~ discount + region,
+              discount ~ region,
+              exposure = &quot;discount&quot;,
+              outcome = &quot;sales&quot;) %&gt;%
+  # This transforms the output of `dagify` into a tidy dataframe
+  tidy_dagitty()
+
+# And now we use the dataframe to create the visualisation
+dag %&gt;% 
+ ggplot(aes(
+    x = x,
+    y = y,
+    xend = xend,
+    yend = yend
+  )) +
+  geom_dag_point(colour = &quot;deepskyblue3&quot;, size = 15) +
+  geom_dag_edges() +
+  geom_dag_label_repel(aes(label = name)) +
+  theme_dag()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>This particular DAG tells us that:</p>
+<ul>
+<li><p><code>sales</code> (the outcome variable) is affected by both <code>region</code> and <code>discount</code> (the treatment variable)</p></li>
+<li><p><code>discount</code> is affected by <code>region</code>: there is a different chance of receiving the treatment according to the region where the customer is located.</p></li>
+</ul>
+<p>The last relationship is the one that kills the independence assumption by opening a backdoor path between the treatment and the outcome:</p>
+<p><code>sales</code> ⬅️<code>region</code> ➡️<code>discount</code></p>
+<p>In this backdoor path, <code>region</code> acts as a confounder that creates spurious correlation between the treatment and the outcome.</p>
+<pre class="r language-r"><code>confounder_triangle(x = &quot;sales&quot;, y = &quot;discount&quot;, z = &quot;region&quot;) %&gt;% 
+  ggdag_dconnected(text = FALSE, use_labels = &quot;label&quot;) +
+  theme_dag()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>Fortunately, the confounder variable is <em>observable</em>: we know its values for each observation. Thus, we can condition on it and block the backdoor path. By doing this, we isolate the true causal effect of <code>discount</code> on <code>sales</code>.</p>
+<p>This is what the <code>subclas_estimator</code> did, and it’s the reason why it returned an appropriate estimate when the SDO was biased.</p>
+<p>So, <strong><em>when do we have conditional independence?</em></strong></p>
+<p>When it’s possible to close all the backdoors between the treatment and the outcome by conditioning on a set of observable covariates (<em>X</em>).</p>
+<p><strong><em>And what variables should we condition on?</em></strong></p>
+<p>Well, the ones that allow us to close the backdoors!</p>
+<p><strong>If there are backdoor paths that would require to condition on <em>un</em>observable variables to be closed, then we don’t have conditional independence anymore (because we can’t condition on variables that are not available in our data!).</strong></p>
+<p>If we have an accurate DAG, we can use the function <code>ggdag_adjustment_set</code> from <code>ggdag</code> to discover what sets of variables (if any) allow us to meet the conditional independence assumption. Pretty handy.</p>
+<pre class="r language-r"><code>ggdag_adjustment_set(dag,
+                     text = FALSE, use_labels = &quot;name&quot;, shadow = TRUE) +
+  theme_dag()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+</div>
+<div id="girls-just-want-to-have-fun-an-accurate-dag" class="section level3">
+<h3>Girls just want to have <del>fun</del> an accurate DAG</h3>
+<p>What we saw above highlights the importance of having an accurate DAG since it will tell us if we can achieve conditional independence or not.</p>
+<p>Here someone may ask where does this magical accurate DAG come from. As it was said before, it is a representation of our current knowledge about the problem. This knowledge could be flawed, and then the DAG would be flawed too.</p>
+<p><img src="images/myprecious.jpg" /></p>
+<p>Unfortunately, there is no workaround to this conundrum. In order to do causal inference, we must have a clear understanding of the data generating process. <strong>And whether we draw the DAG or not, we’re assuming an underlying DAG anyway (a set of relationships between the variables)</strong>.</p>
+<p>If you go ahead and use the <code>subclas_estmator</code>, then you’re assuming that you have conditional independence after adjusting by X. So, better to make these assumptions explicit in a DAG and then look at it and asks ourselves if it’s a good representation of the data generating process or if we are missing something<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</p>
+<p>The good news is that whenever you have experimental data (i.e. when <em>you</em> decide the treatment assignment) drawing the DAG is relatively simple: you know exactly what is causing <span class="math inline">\(D\)</span>, so you can easily adjust for it if it’s a confounder (i.e. if it also affects <span class="math inline">\(Y\)</span>). In our Dunder Muffin example, we are 100% sure that the treatment depends on <code>region</code> and nothing else, so closing the backdoor is a walk in the park<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>.</p>
+<p>On the other hand, if your data is <em>observational</em>, then drawing the DAG and arguing that the CIA is met is a much more challenging task. In this case, you may want to take more time to learn everything you can about how the data is generated<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a> and how the variables relate to each other (<em>especially</em> the variables linked to the outcome or the treatment)<a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a>.</p>
+</div>
+</div>
+<div id="the-exact-matching-estimator" class="section level2">
+<h2>The Exact Matching Estimator</h2>
+<p>Now let’s move on to a more advanced (and more commonly used) version of the <code>subclas_estimator</code>: the <strong>Exact Matching Estimator</strong>. This estimator does, in principle, the same thing as the <code>subclas_estimator</code>: it splits the dataset based on the values of the confounders X and then looks at the differences between treatment and control units within each sub-group.</p>
+<p>However, instead of calculating the <code>sdo</code> in each sub-group and then weighting it by frequency, it tries to <strong>impute the counterfactual value for <em>each observation</em> by matching them to another observation that has the same values in the variables X, but opposite treatment status</strong>. Then, it computes the difference in outcome for each pair unit-counterfactual and takes the average of those differences.</p>
+<p><img src="images/its_a_match-01.png" /></p>
+<p>In real-world analyses, exact matching often comes accompanied by <em>coarsening</em> or <em>binning</em> of continuous variables in X (in which case is called <strong>coarsened exact matching</strong> or CEM). The reason for this is that you will usually have continuous variables for which is impossible to find pairs of units with exactly the same value, even if the dataset is very large. So, you have to do a sensible discretisation (e.g. creating bins such as 0 to 2, 2 to 4, 4 to 6, and so on) and then match based on the categorical values.</p>
+<p>Let’s look at this exact matching estimator defined as an R function<a href="#fn7" class="footnote-ref" id="fnref7"><sup>7</sup></a>:</p>
+<pre class="r language-r"><code># Extact Matching Estimator of the ATT
+exact_matching_estimator_att &lt;- function(df, #dataframe
+                                         outcome, # variable name
+                                         treatment, # variable name
+                                         covariates # string or vector of strings
+                                         ) {
+  
+   # Renaming the outcome column internally for convenience
+  df &lt;- df %&gt;%
+    rename(outcome := {{ outcome }}) %&gt;% 
+    mutate(id = 1:n())
+  
+  # Creating a dataset that contains only the treated units
+  treated_df &lt;- df %&gt;% 
+    filter({{ treatment }} == 1)
+  
+  # And another only with the untreated units
+  control_df &lt;- df %&gt;% 
+    filter({{ treatment }} == 0)
+  
+  # Matching the treated to untreated units with equal covariate values, 
+  # thus creating a comparable control sample
+  treated_matched &lt;- treated_df %&gt;% 
+    left_join(control_df, by = covariates,
+              suffix = c(&quot;_i&quot;, &quot;_j&quot;))
+  
+  estimate_att &lt;- 
+    treated_matched %&gt;% 
+    # averaging the outcomes of the matches if there are several
+    group_by(id_i) %&gt;%
+    summarise(outcome_j = mean(outcome_j),
+              outcome_i = first(outcome_i)) %&gt;%
+    # calculating differences between the outcome of each unit 
+    # and the average outcome of their matches
+    mutate(treat_effect = outcome_i - outcome_j) %&gt;% 
+    # averaging those differences
+    summarise(estimate_att = mean(treat_effect)) %&gt;% 
+    # voila
+    pull(estimate_att)
+
+  estimate_att
+}</code></pre>
+<p>Now let’s try this estimator on a dataset (this one comes from the book <a href="https://matheusfacure.github.io/python-causality-handbook/10-Matching.html#matching-estimator">Causal Inference for the Brave and True</a>):</p>
+<pre class="r language-r"><code>trainees_df &lt;- read_csv(&quot;https://github.com/matheusfacure/python-causality-handbook/raw/master/causal-inference-for-the-brave-and-true/data/trainees.csv&quot;,
+                        show_col_types=FALSE) %&gt;% 
+  rename(trainee = trainees)
+
+trainees_df</code></pre>
+<pre class="language-r"><code>## # A tibble: 40 x 4
+##     unit trainee   age earnings
+##    &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;
+##  1     1       1    28    17700
+##  2     2       1    34    10200
+##  3     3       1    29    14400
+##  4     4       1    25    20800
+##  5     5       1    29     6100
+##  6     6       1    23    28600
+##  7     7       1    33    21900
+##  8     8       1    27    28800
+##  9     9       1    31    20300
+## 10    10       1    26    28100
+## # ... with 30 more rows</code></pre>
+<p>Here the treatment is a <code>trainee</code> program, and each observation is an employee who may have taken the program or not. <code>earnings</code> are the outcome variable, and <code>age</code> is a covariate that turns out to be a confounder since it affects both <code>earnings</code> and the likelihood to have taken the treatment: younger people are more likely to enrol in the program, but also have lower <code>earnings</code> because they have less experience.</p>
+<pre class="r language-r"><code>library(ggside)
+
+trainees_df %&gt;% 
+  mutate(treatment_status = factor(trainee,
+                          levels = c(0, 1),
+                          labels = c(&quot;Trainee&quot;, &quot;Not Trainee&quot;))) %&gt;% 
+ggplot() +
+  aes(age, earnings, color = treatment_status) +
+  geom_jitter() +
+  geom_xsidedensity(
+    aes(
+      y = after_stat(density),
+      fill = treatment_status
+    ),
+    alpha = 0.5,
+    size = 1,
+    position = &quot;identity&quot;
+  ) +
+  geom_ysidedensity(
+    aes(
+      x = after_stat(density),
+      fill = treatment_status
+    ),
+    alpha = 0.5,
+    size = 1,
+    position = &quot;identity&quot;
+  ) + 
+  labs(title = &quot;Trainees tend to be younger AND to have lower earnings&quot;) +
+  theme(
+    ggside.panel.scale.x = 0.3,
+    ggside.panel.scale.y = 0.3,
+    ggside.axis.text.y = element_blank(),
+    ggside.axis.ticks.y = element_blank(),
+    ggside.axis.text.x = element_blank(),
+    ggside.axis.ticks.x = element_blank()
+  )</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<p>Thus, the problem here is self-selection, not randomisation conditional on some variable. But we have conditional independence anyway (after adjusting by <code>age</code>):</p>
+<pre class="r language-r"><code>dag_trainees &lt;- dagify(earnings ~ age + trainee,
+                       trainee ~ age,
+                       exposure = &quot;trainee&quot;,
+                       outcome = &quot;earnings&quot;)
+
+ggdag_adjustment_set(dag_trainees,
+                     text = FALSE,
+                     use_labels = &quot;name&quot;,
+                     shadow = TRUE) +
+  theme_dag()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p>So, we can use matching use the <code>exact_matching_estimator_att</code> on this data:</p>
+<pre class="r language-r"><code>exact_matching_estimator_att(
+  trainees_df,
+  outcome = earnings,
+  treatment = trainee,
+  covariates = &quot;age&quot;
+)</code></pre>
+<pre class="language-r"><code>## [1] 2450</code></pre>
+<p>As we see, once we adjust by <code>age</code> using exact matching, we get a large and positive treatment effect estimate. But, unlike with the <code>subclas_estimator</code>, this new function is estimating the treatment effect <em>on the treated only</em>. You can tell this by looking at its source code above, where only the treated units are matched with a control unit, but the control units are not matched with comparable treated units. Therefore, it’s an ATT estimator.</p>
+<p>Let’s see what an ATE exact matching estimator would look like (here I’m commenting only the parts that change compared to the ATT estimator).</p>
+<pre class="r language-r"><code># Extact Matching Estimator of the ATE
+exact_matching_estimator_ate &lt;- function(df, #dataframe
+                                         outcome, # variable name
+                                         treatment, # variable name
+                                         covariates # string or vector of strings
+                                         ) {
+  df &lt;- df %&gt;%
+    rename(outcome := {{ outcome }},
+           # renaming the treatment column for convenience
+           treatment := {{ treatment }}) %&gt;% 
+    mutate(id = 1:n())
+  
+  treated_df &lt;- df %&gt;% 
+    filter(treatment == 1)
+  
+  control_df &lt;- df %&gt;% 
+    filter(treatment == 0)
+  
+  treated_matched &lt;- treated_df %&gt;% 
+    left_join(control_df, by = covariates,
+              suffix = c(&quot;_i&quot;, &quot;_j&quot;))
+  
+  # Now we also match the control units to treated units 
+  control_matched &lt;- control_df %&gt;% 
+    left_join(treated_df, by = covariates,
+              suffix = c(&quot;_i&quot;, &quot;_j&quot;))
+  
+  estimate_ate &lt;- 
+    # We merge the two matched samples
+    bind_rows(
+      treated_matched,
+      control_matched
+    ) %&gt;% 
+    group_by(id_i) %&gt;%
+    summarise(outcome_j = mean(outcome_j),
+              outcome_i = first(outcome_i),
+              treatment_i = first(treatment_i)) %&gt;%
+    mutate(treat_effect = outcome_i - outcome_j,
+           # We multiply by -1 the differences between controls
+           # and their matches. This makes sense since those 
+           # differences are like an &quot;anti treatment effect&quot;
+           treat_effect = ifelse(
+             treatment_i == 1,
+             yes = treat_effect,
+             no = -1*treat_effect
+           )) %&gt;%
+    summarise(estimate_ate = mean(treat_effect)) %&gt;% 
+    pull(estimate_ate)
+
+  estimate_ate
+}</code></pre>
+<p>The key difference between this ATE estimator and the previous ATT estimator is that here we also create a <code>control_matched</code> sample with treated units that are regarded as counterfactuals of the true control units (because they have the same <code>covariates</code> values).</p>
+<p>Then we <code>bind_rows()</code> both matched samples and compute the <code>mean</code> difference between actual and counterfactual outcomes as before, BUT first multiplying by -1 the differences between controls and their matches. We do this because, if you think about it, the difference between a control and its counterfactual can be seen as an “anti-treatment effect”. If the treatment effect is positive, we expect this difference to be negative.</p>
+<p>Now let’s try this <code>exact_matching_estimator_ate</code> on our <code>trainee_df</code>:</p>
+<pre class="r language-r"><code>exact_matching_estimator_ate(
+  trainees_df,
+  outcome = earnings,
+  treatment = trainee,
+  covariates = &quot;age&quot;
+)</code></pre>
+<pre class="language-r"><code>## [1] NA</code></pre>
+<p>We got <code>NA</code>. What happened? I’ll do the matching manually to check what went wrong:</p>
+<pre class="r language-r"><code>treated_df &lt;- trainees_df %&gt;%
+  filter(trainee == 1)
+
+control_df &lt;- trainees_df %&gt;%
+  filter(trainee == 0)
+
+treated_matched &lt;- treated_df %&gt;%
+  left_join(control_df, by = &quot;age&quot;,
+                     suffix = c(&quot;_i&quot;, &quot;_j&quot;))
+
+control_matched &lt;- control_df %&gt;%
+  left_join(treated_df, by = &quot;age&quot;,
+            suffix = c(&quot;_i&quot;, &quot;_j&quot;))
+    
+bind_rows(
+  control_matched,
+  treated_matched
+)</code></pre>
+<pre class="language-r"><code>## # A tibble: 50 x 7
+##    unit_i trainee_i   age earnings_i unit_j trainee_j earnings_j
+##     &lt;dbl&gt;     &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;  &lt;dbl&gt;     &lt;dbl&gt;      &lt;dbl&gt;
+##  1     20         0    43      20900     16         1      10700
+##  2     21         0    50      31000     NA        NA         NA
+##  3     22         0    30      21000     NA        NA         NA
+##  4     23         0    27       9300      8         1      28800
+##  5     23         0    27       9300     12         1      14300
+##  6     23         0    27       9300     18         1      10700
+##  7     24         0    54      41100     NA        NA         NA
+##  8     25         0    48      29800     NA        NA         NA
+##  9     26         0    39      42000     NA        NA         NA
+## 10     27         0    28       8800      1         1      17700
+## # ... with 40 more rows</code></pre>
+<p>We see several <code>NA</code>s in the columns with suffix <code>_j</code>, that is, the columns that should contain the values coming from the matches. Since the only change versus the previous estimator is that now we try to match the control units, the problem seems to be that <strong>the “donor pool” of treated units doesn’t contain exact matches for each control unit. Therefore, we can’t estimate the ATE with</strong> <code>exact_matching_estimator_ate</code><strong>.</strong></p>
+<p>How unfortunate! But also convenient, because this helps to introduce a very important topic: the <strong>common support assumption</strong>.</p>
+</div>
+<div id="the-common-support-assumption" class="section level2">
+<h2>The Common Support Assumption</h2>
+<p>Exact matching is a powerful and useful method, as long as two key assumptions are met. The first one is the CIA (conditional independence assumption), which we already discussed in detail. If the CIA is not met, the estimate we get through exact matching will be biased, because there will still be backdoors open in our DAG.</p>
+<p>The second one is the <strong>common support assumption</strong>. It states that there should be both control and treated observations for each combination of values of X that exists in the data. If this assumption is not met, we end up with units without matches, and the estimator for the ATE cannot be calculated (as it happened with <code>exact_matching_estimator_ate</code> and the <code>trainee_df</code>).</p>
+<p><img src="images/matching_without_common_support.jpg" /></p>
+<p>One way to approach the lack of common support is to <strong>just give up on estimating the ATE and focus on the ATT instead</strong>. When estimating the ATT, we still need control units for all the values of X that have treated units, but not vice versa, so we’re “lowering the bar”. And if our treated group is small compared to the whole dataset, then it’s much more likely to have common support to estimate the ATT. In fact, we already saw an example of this with the <code>trainee_df</code>, where it was possible to estimate the ATT, but not the ATE, through exact matching.</p>
+<p>But what if there is not even common support for the treated units? Well, then exact matching can’t possibly estimate the ATT. Still, it could provide a treatment effect estimate for “those units who got matched” (for example, in <code>exact_matching_estimator_ate</code> we could have dropped the rows without matches and have gotten a result anyway), but since this is not an estimate of the ATT or the ATE (the averages we are usually interested in), this figure probably won’t be helpful to our audience or stakeholders.</p>
+<p>And now the time has come to meet the sinister archrival of the matching methodologies: <strong>the curse of dimensionality</strong>.</p>
+</div>
+<div id="the-curse-of-dimensionality" class="section level2">
+<h2>The Curse of Dimensionality</h2>
+<p>This is a phenomenon that occurs whenever we work with a lot of variables (a.k.a. dimensions). If you come from the machine learning world, you may already be familiar with this problem, but for those who don’t, I’m going to drop the <a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality">Wikipedia definition</a>:</p>
+<blockquote>
+<p>when the dimensionality increases, the volume of the space increases so fast that the available data becomes sparse. In order to obtain a reliable result, the amount of data needed often grows exponentially with the dimensionality</p>
+</blockquote>
+<p>For our matching estimators, this means that as more variables are considered in the covariate matrix X, the likelihood of finding exact matches<a href="#fn8" class="footnote-ref" id="fnref8"><sup>8</sup></a> for all units falls quickly. So, it may be almost impossible to meet the common support assumption when using a lot of variables in the matching process unless we also have <em>a lot</em> of data.</p>
+<p><img src="images/matching_curse.jpg" /></p>
+<p>The curse of dimensionality is <em>particularly</em> cruel with the matching estimators. While in predictive machine learning we have some sort of tradeoff, with more features bringing in more information at the expense of increasing the distance in the feature space (i.e. we have a choice), in matching methodologies we theoretically have a “true” set X of confounders for which we are obliged to control/adjust for.</p>
+<p>In other words, when doing matching, it’s not like we’re using more covariates out of greed to “use as much information as we can”<a href="#fn9" class="footnote-ref" id="fnref9"><sup>9</sup></a>, but instead, after carefully drawing our DAG, we should end up with a list of variables for which we <strong>must</strong> control for in order to close the backdoors. We shouldn’t control for more, and we shouldn’t control for less.</p>
+<p>If our confounding problem is simple (such as randomisation conditional on some variable, like the Dunder Muffin example above), then likely we will only need a few covariates, or even just one, and thus the curse can be avoided.</p>
+<p>But if we need to adjust for more, we could end up needing a really big dataset in order to have common support. That’s why matching is often referred to as a <strong>“data greedy”</strong> method.</p>
+<p>The good news is that we live in the age of big data, so it’s not uncommon for data scientists to have access to tables with millions of observations. Assuming that the treated group is relatively small, these big datasets may allow finding matches for all the treated units even when we need to adjust for several covariates and, hence, estimate the ATT.</p>
+<p>However, we may still have trouble finding exact matches for all the treated units, even with the so-called “big data”. Additionally, some of you may feel uncomfortable with the arbitrariness of the <em>bining</em> or <em>coarsening</em> part of the exact matching estimator. We need to convert continuous variables into categorical by creating bins, but exactly how wide or narrow should these bins be?</p>
+<p>These two issues serve as a motivation to move into the next matching estimator.</p>
+</div>
+<div id="the-approximate-distance-matching-estimator" class="section level2">
+<h2>The (Approximate) Distance Matching Estimator</h2>
+<p>As we saw, if we have to control for several features it’s unlikely we’ll find exact matches for all the treated units, let alone for the whole sample. Because of this, it’s common to, instead of looking for perfect matches, use a proximity or distance metric that tells us how different or similar any two pair of units are and then match each unit with the most similar observation with opposite treatment assignment.</p>
+<p>But before doing this, there are a couple of steps we should carry out.</p>
+<div id="scaling-and-choosing-a-distance-metric" class="section level3">
+<h3>Scaling and choosing a distance metric</h3>
+<p>The first step is <strong>scaling the covariates X</strong><a href="#fn10" class="footnote-ref" id="fnref10"><sup>10</sup></a>. This means dividing each feature by its standard deviation. The result is having all covariates with a standard deviation equal to 1. If we don’t do this, some features will have more importance in the final proximity calculation just because of their measurement units.</p>
+<p>For example, if one of the covariates is <code>age</code> and is measured in years, and another is <code>daily_food_intake</code> and its measured in calories, then the latter will have much more influence on the distance, just because of being measured in a scale with higher values and more variation. What’s more problematic, we could change the weight of each covariate just by transforming it to another equivalent scale, e.g. increase the weight of age by measuring it in months or days. Obviously, all of this is undesirable, so that’s why you must scale your covariates.</p>
+<p>Then the second step is <strong>to choose a distance or proximity metric</strong>.</p>
+<p>The most common distance metric is the euclidean distance, which just boils down to representing each observation as a point in a hyperplane with M dimensions (with M as the number of features) and then computing the length of a straight line between those two points. If you have calculated a distance between two points in a Cartesian plane, it probably was a euclidian distance.</p>
+<pre class="r language-r"><code>euclidian_distance &lt;- function(x_i, x_j) {
+
+  map2_dbl(x_i, x_j, ~(.x - .y)^2) %&gt;%
+    reduce(sum) %&gt;% 
+    sqrt()
+    
+}</code></pre>
+<p>But we can do better. According to <a href="https://theeffectbook.net/ch-Matching.html#matching-in-concept-a-single-matching-variable">The Effect</a>, the best proximity metric to use for approximate matching is the <strong>Mahalanobis distance</strong>. Not only does this metric scale the features to a standard deviation of 1, but it also divides by their <em>covariances</em> in order to eliminate the correlation between them before calculating the distance. Why would we do this? Nick Huntington-Klein, author of The Effect, provides a crystal-clear explanation:</p>
+<blockquote>
+<p>Because this keeps us from our matching relying <em>really strongly</em> on some latent characteristic that happens to show up a bunch of times. For example, say you were matching on beard length, level of arm hair, and score on a “masculinity index.” All three of those things are, to one degree or another, related to “being a male.” Without dividing out the covariance, you’d basically be matching on “being a male” three times. Redundant, and the matching process will probably refuse to match any males to any non-males, even if they’re good matches on other characteristics. If we divide out the covariance, we’re still matching on male-ness, but it doesn’t count multiple times.</p>
+</blockquote>
+<p>This idea of “dividing out the covariance” may be difficult to grasp, so here are a series of figures that illustrate what are we doing to the feature-space when computing the Mahalanobis distance:</p>
+<div class="figure">
+<img src="images/mahalanobis.png" width="800" alt="" />
+<p class="caption"><em>Source: <a href="https://stats.stackexchange.com/questions/62092/bottom-to-top-explanation-of-the-mahalanobis-distance">StackExchange</a></em></p>
+</div>
+<p>The top-left image represents the raw, original feature-space of two correlated variables and the bottom-left represents what the space we end up with after dividing out the covariance matrix. Then, a euclidian distance is calculated in this transformed space. That is the Mahalanobis distance.</p>
+<p>Note that only doing the scaling can be seen as “stretching” the original space to achieve equal variance among all the dimensions, but dividing by the covariance implies also “rotating” it in order to eliminate the correlation<a href="#fn11" class="footnote-ref" id="fnref11"><sup>11</sup></a>.</p>
+<p>Okay, that was the “intuitive” explanation. Now let’s express this metric in code:</p>
+<pre class="r language-r"><code># `x_i` and `x_j` are two numeric vectors representing two observations in the
+# data. Both vectors have the same length M, where M is the number of covariates
+
+# cov is the variance-covariance matrix of variables X, an MxM matrix
+mahalanobis_distance &lt;- function(x_i,
+                                 x_j,
+                                 cov){
+  # We compute the inverse of the `cov` matrix
+  inv_covar &lt;- matlib::inv(cov)
+  
+  matrix_multiplication_output &lt;-
+    # a 1xM vector * a MxM matrix * a Mx1 vector = a scalar
+    (t(as.matrix(x_i - x_j)) %*% inv_covar %*% as.matrix(x_i - x_j))
+  
+  sqrt(matrix_multiplication_output)
+}</code></pre>
+<p>As a fun fact, if <code>cov</code> is equal to the identity matrix (a matrix with ones in the diagonal and zeros everywhere else), then the <code>mahalanobis_distance</code> is equal to the <code>euclidian_distance</code>. This means that if X is already scaled and there is zero correlation between the variables, both distance metrics should return the same value.</p>
+</div>
+<div id="more-decisions-bias-or-variance" class="section level3">
+<h3>More decisions: bias or variance?</h3>
+<p>So the proximity metric thing wasn’t actually a choice because the Mahalanobis distance is always the best option. Good. Also, we don’t have to decide on the bin sizes for continuous variables anymore (as we had to do with exact matching). However, approximate matching still requires us to take some other decisions.</p>
+<ul>
+<li><p><strong>How many matches we’ll use for each unit?</strong> After calculating distances, we will have a sorted ranking of potential matches for each unit. So, how many units from that list we’ll use to impute the counterfactual? Just one (the closest)? Two? Or more?<a href="#fn12" class="footnote-ref" id="fnref12"><sup>12</sup></a>.</p></li>
+<li><p><strong>Calliper</strong> (also known as bandwidth): how far can two units be before we stop considering them as potential matches? Note that if we choose a very narrow calliper, we could end up with many unmatched units.</p></li>
+<li><p><strong>Matching <em>with</em> replacement or <em>without</em> replacement?</strong> If the treated unit <em>i</em> is matched to the control unit <em>j</em>, will the unit <em>j</em> remain available to be matched to other treated units? (i.e. will it remain in the control “donor pool”?).</p></li>
+</ul>
+<p>These seem like a lot of decisions, but the answer to all of them largely comes down to only one thing: the <strong>bias-variance tradeoff</strong>. The setting that minimises bias is the following:</p>
+<ul>
+<li><p>Use just one match for each unit (the best/closest).</p></li>
+<li><p>Choose a narrow calliper.</p></li>
+<li><p>Do matching with replacement (so we have the whole donor pool available when matching each unit).</p></li>
+</ul>
+<p>By doing this, we’re ensuring that the matched samples are as similar as possible to the original units in their covariates values (i.e. that they have a minimum bias). This, in turn, maximises our chances of closing the nasty backdoors in our DAG.</p>
+<div class="figure">
+<img src="https://www.cs.cornell.edu/courses/cs4780/2018fa/lectures/images/bias_variance/bullseye.png" width="800" alt="" />
+<p class="caption"><em>Source: <a href="http://scott.fortmann-roe.com/docs/BiasVariance.html" class="uri">http://scott.fortmann-roe.com/docs/BiasVariance.html</a></em></p>
+</div>
+<p>However, this setting also maximises variance: if we use just one match to estimate each counterfactual, then that estimate is going to be very noisy. And the problem becomes worse if we allow each unit in the donor pool to be matched to several original units. This is bad because we become susceptible to sample variance in the observed data. The <em>expected value</em> of the estimator will be close to the true ATT or ATE (little bias) but the specific <em>realisation</em> we observe, given our current sample, may fall far off from that.</p>
+<p>To reduce variance, we may consider using more matches for each unit, widening the calliper, and doing matching <em>without</em> replacement. But all this would increase the bias.</p>
+<p><img src="images/choose_variance_bias.jpg" /></p>
+<p>So what should we do? For the number of matches, <a href="https://theeffectbook.net/ch-Matching.html#:~:text=So%20the%20choice,Not%20worth%20it."><em>The Effect</em> suggests using more matches when our dataset is big</a> because then we can reduce variance at the expense of just a small increase in bias. But if the data is small, the price of such variance reduction is much higher since the second-best or third-best matches could be far off the original unit in their covariate values.</p>
+<p>Regarding replacement and calliper/bandwidth, I guess a similar principle comes into play. For bigger datasets, we could “afford” choices that reduce variance such as not using replacement and increasing the bandwidth, but for small data, it may be too much to ask<a href="#fn13" class="footnote-ref" id="fnref13"><sup>13</sup></a>.</p>
+</div>
+<div id="distance-matching-estimator-as-code" class="section level3">
+<h3>Distance Matching Estimator ✨as code✨</h3>
+<p>Now let’s implement a distance matching estimator as an R function. For this example, I’ll to pick an estimator with replacement, without calliper restriction and with just one match per unit (the best/closest). This is not necessarily the most appropriate estimator for <em>your</em> data but is the easiest to code and understand<a href="#fn14" class="footnote-ref" id="fnref14"><sup>14</sup></a>.</p>
+<pre class="r language-r"><code>distance_matching_estimator_att &lt;- function(df,
+                                            treatment,
+                                            outcome,
+                                            covariates) {
+  # Renaming the treatment variable for convenience
+  df &lt;- df %&gt;% 
+    rename(treatment := {{ treatment }})
+  
+  # Copying the covariates in a separate DF to calculate the variance matrix
+  covariates &lt;- df %&gt;% 
+    select({{ covariates }})
+  
+  # Calculating the covariance matrix
+  cov_matrix &lt;- cov(covariates)
+  
+  # Pair-wise Mahalanobis distance between all the observations
+  m_distances &lt;- 
+    HDMD::pairwise.mahalanobis(
+      x = covariates,
+      grouping = 1:nrow(covariates),
+      cov = cov_matrix
+      ) %&gt;% magrittr::extract2(&quot;distance&quot;)
+  
+  # Getting the indexes of treated units
+  treated_indexes &lt;- which(df$treatment == 1)
+  control_indexes &lt;- which(df$treatment == 0)
+  
+  # Subsetting the distance matrix to keep only distances 
+  # from treated units to untreated units
+  dist_treated_to_control &lt;- m_distances[treated_indexes, control_indexes]
+  
+  # Getting the index of the closest control unit for each treated unit
+  indexes_matched_controls &lt;- apply(dist_treated_to_control, 1, which.min)
+  
+  # Getting the outcome values of control matches
+  matched_controls_values &lt;- 
+    df %&gt;% 
+    filter(treatment == 0) %&gt;% 
+    slice(indexes_matched_controls) %&gt;% 
+    select(outcome_match := {{ outcome }})
+  
+  # Binding those values to the corresponding treated units 
+  # and then estimating the ATT
+  df %&gt;% 
+    filter(treatment == 1) %&gt;% 
+    bind_cols(matched_controls_values) %&gt;% 
+    mutate(treat_effect := {{ outcome }} - outcome_match) %&gt;% 
+    pull(treat_effect) %&gt;% 
+    mean()
+  
+}</code></pre>
+<p>Again, we’re going to try the estimator with some data. This time is a dataset measuring the effects of a new medication on the recovery period for some patients, measured in days (this dataset also <a href="https://github.com/matheusfacure/python-causality-handbook/blob/master/causal-inference-for-the-brave-and-true/data/medicine_impact_recovery.csv">comes from the book <em>Causal Inference for The Brave and True</em></a>).</p>
+<pre class="r language-r"><code>medicine_impact_recovery &lt;- 
+  read_csv(&quot;https://raw.githubusercontent.com/matheusfacure/python-causality-handbook/master/causal-inference-for-the-brave-and-true/data/medicine_impact_recovery.csv&quot;,
+           show_col_types = FALSE)
+
+medicine_impact_recovery</code></pre>
+<pre class="language-r"><code>## # A tibble: 20,000 x 5
+##      sex   age severity medication recovery
+##    &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;      &lt;dbl&gt;    &lt;dbl&gt;
+##  1     0  35.0    0.888          1       31
+##  2     1  41.6    0.900          1       49
+##  3     1  28.1    0.486          0       38
+##  4     1  36.4    0.323          0       35
+##  5     0  25.1    0.209          0       15
+##  6     0  23.2    0.203          0       14
+##  7     0  17.7    0.205          0       12
+##  8     0  48.6    0.833          1       38
+##  9     0  30.0    0.540          0       30
+## 10     0  32.2    0.706          0       36
+## # ... with 19,990 more rows</code></pre>
+<p>In this dataset, <code>medication</code> is the treatment variable and <code>recovery</code> is the outcome variable. The desired result of the treatment is to reduce the <code>recovery</code> days. As before, we have conditional independence after adjusting for confounders, but this time there are three confounders instead of one, and two of them are continuous variables. So, it looks like an appropriate setting for using distance matching.</p>
+<pre class="r language-r"><code>dag_medication &lt;- dagify(recovery ~ age + severity + sex + medication,
+                       medication ~ age + severity + sex,
+                       exposure = &quot;medication&quot;,
+                       outcome = &quot;recovery&quot;)
+
+ggdag_adjustment_set(dag_medication,
+                     text = FALSE,
+                     use_labels = &quot;name&quot;,
+                     shadow = TRUE) +
+  theme_dag()</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-24-1.png" width="672" /></p>
+<p>Due to selection bias, the simple difference in means between treated and control groups implies that the <code>medication</code> has a negative effect: patients who take it have a longer recovery period.</p>
+<pre class="r language-r"><code>mean_treated &lt;- medicine_impact_recovery %&gt;% 
+  filter(medication == 1) %&gt;% 
+  pull(recovery) %&gt;% 
+  mean()
+  
+mean_untreated &lt;- medicine_impact_recovery %&gt;% 
+  filter(medication == 0) %&gt;% 
+  pull(recovery) %&gt;% 
+  mean()
+
+mean_treated - mean_untreated</code></pre>
+<pre class="language-r"><code>## [1] 16.8958</code></pre>
+<p>But after using distance matching to adjust for the confounders, we found a positive effect: the <code>medication</code> seems to reduce the <code>recovery</code> period by 6.74 days on average (for the treated group).</p>
+<pre class="r language-r"><code>distance_matching_estimator_att(
+  medicine_impact_recovery,
+  treatment = medication,
+  outcome = recovery,
+  covariates = c(sex, age, severity)
+)</code></pre>
+<pre class="language-r"><code>## [1] -6.744079</code></pre>
+</div>
+<div id="one-more-thing-bias-correction" class="section level3">
+<h3>One more thing: Bias correction</h3>
+<p>Okay, this section has been pretty long, but that’s because talking about the distance matching estimator necessarily entails talking about all those topics. And there is still one more topic left! It’s the <strong>bias correction method</strong>, which is often used when doing approximate matching.</p>
+<p>Since it’s almost impossible for the distance between two units to be zero, we can take for granted that there will be some bias due to differences in covariates between the original and the matched units. Fortunately, <a href="https://economics.mit.edu/files/11861">Abadie and Imbens (2011)</a> introduced a bias correction method, which leverages the fact that discrepancies in covariates are <em>observed</em>.</p>
+<p>You can read the original paper or <a href="https://mixtape.scunning.com/matching-and-subclassification.html?panelset3=r-code4#bias-correction">the reference</a> <a href="https://matheusfacure.github.io/python-causality-handbook/10-Matching.html#matching-bias">books</a> if you want to go into more detail but, for the ATT, it basically mounts up to each unit contributing the following expression to the total amount of bias in the estimator:</p>
+<p><span class="math display">\[
+\mu_0(X_i)-\mu_0(X_{j(i)})
+\]</span></p>
+<p>The elements of this subtraction represent the expected potential outcome <span class="math inline">\(Y_0\)</span> given the covariates values inside the parenthesis. <span class="math inline">\(X_i\)</span> are the covariates values for the original unit, and <span class="math inline">\(X_{j(i)}\)</span> are the covariates values for the matched control unit. Since those covariate values are not exactly the same, the bias contributed by the unit will be non-zero.</p>
+<p>We can <strong>estimate this bias</strong> and then <strong>subtract it</strong> from the treatment effect estimated for each unit:</p>
+<p><span class="math display">\[
+\hat{ATT} = \frac{1}{N_T}\sum_{i=1}^{N_T}{ (Y_i - Y_{i(j)}) -(\hat{\mu}_0(X_i)-\hat{\mu}_0(X_{j(i)})) }
+\]</span></p>
+<p><em>In this expression</em> <span class="math inline">\(N_T\)</span> <em>is the number of treated units,</em> <span class="math inline">\(Y_i\)</span> <em>is the outcome of the original unit and</em> <span class="math inline">\(Y_{i(j)}\)</span> <em>is the outcome of the matched unit. The functions</em> <span class="math inline">\(\mu(\cdot)\)</span> <em>now have hats because they are being estimated.</em></p>
+<p>How to estimate the bias? A way of doing it is fitting a linear regression with the covariates as predictors and the outcome as response, <em>but using only data from the untreated units</em>. Then we’ll feed <span class="math inline">\(X_i\)</span> and <span class="math inline">\(X_{j(i)}\)</span> to the fitted regression in order to obtain the corresponding predicted values. The difference between those predicted values is our estimate of the bias for the untreated matched sample.</p>
+<p>Let’s see it implemented in code. This example builds on top of the previously defined <code>distance_matching_estimator_att</code>, so now I’m only commenting the lines that are new:</p>
+<pre class="r language-r"><code>distance_matching_att_w_bias_adj &lt;- function(df,
+                                             treatment,
+                                             outcome,
+                                             covariates) {
+  df &lt;- df %&gt;% 
+    rename(treatment := {{ treatment }})
+  
+  covariates_df &lt;- df %&gt;% 
+    select({{ covariates }})
+  
+  cov_matrix &lt;- cov(covariates_df)
+  
+  m_distances &lt;- 
+    HDMD::pairwise.mahalanobis(
+      x = covariates_df,
+      grouping = 1:nrow(covariates_df),
+      cov = cov_matrix
+      ) %&gt;% magrittr::extract2(&quot;distance&quot;)
+  
+  treated_indexes &lt;- which(df$treatment == 1)
+  control_indexes &lt;- which(df$treatment == 0)
+  
+  dist_treated_to_control &lt;- m_distances[treated_indexes, control_indexes]
+  
+  indexes_matched_controls &lt;- apply(dist_treated_to_control, 1, which.min)
+  
+  # Fitting a regression Y ~ X using the control units
+  df_reg &lt;- df %&gt;% 
+    filter(treatment == 0) %&gt;% 
+    select(c({{ outcome }}, {{ covariates }}))
+  # (don&#39;t mind the rlang part, it&#39;s R black magic for putting this 
+  # inside a function, just focus on the regression)
+  ysym &lt;- rlang::ensym(outcome)
+  rlang::inject(
+    u0 &lt;- lm(!!ysym ~ ., data = df_reg)
+  )
+  
+  matched_controls_values &lt;- 
+    df %&gt;% 
+    filter(treatment == 0) %&gt;% 
+    slice(indexes_matched_controls) %&gt;%
+    # We add the predicted Y value based on the `u0` model 
+    # and the covariates in the control matched sample
+    modelr::add_predictions(u0, &quot;u0_j&quot;) %&gt;% 
+    select(outcome_match := {{ outcome }},
+           u0_j)
+
+  df %&gt;% 
+    filter(treatment == 1) %&gt;% 
+    # And we also add predicted values corresponding to the covariates 
+    # of the original treated units
+    modelr::add_predictions(u0, &quot;u0_i&quot;) %&gt;%  
+    bind_cols(matched_controls_values) %&gt;% 
+    mutate(treat_effect := {{ outcome }} - outcome_match,
+           # subtracting both predicted values to get the bias correction term
+           bias_correction = u0_i - u0_j,
+           # and putting the bias correction into the final estimate
+           treat_effect_debias = treat_effect - bias_correction) %&gt;% 
+    pull(treat_effect_debias) %&gt;% 
+    mean()
+  
+}</code></pre>
+<pre class="r language-r"><code>distance_matching_att_w_bias_adj(
+  medicine_impact_recovery,
+  treatment = medication,
+  outcome = recovery,
+  covariates = c(sex, age, severity)
+)</code></pre>
+<pre class="language-r"><code>## [1] -12.45033</code></pre>
+<p>How would this work if we were estimating the ATE instead? As in <code>exact_matching_estimator_ate</code>, we would also have a sample of matched treated units, acting as estimated counterfactuals for the original treated units. But in this case, the bias correction term has to be estimated with a linear regression <em>fitted only with the original treated units</em>. Everything else is the same. Then we do <code>bind_rows</code> of both matched samples and average the <code>treat_effect_debias</code> of each unit.</p>
+</div>
+</div>
+<div id="but-wait-there-is-even-more" class="section level2">
+<h2>But wait! There is even more!</h2>
+<p>Stay tuned for <strong>part 2</strong> of this post, where I’ll be discussing more Matching estimators and topics, such as <strong>Propensity Score</strong> and <strong>Inverse Probability Weighting</strong>, the differences between Matching and Multivariate Linear Regression, and the <strong>Double Robust Estimator</strong>, a clever way to combine both Regression and Matching in order to increase our chances of obtaining a credible estimate of the average treatment effect.</p>
+<p><img src="images/to_be_continued.jpg" /></p>
+<p><em>You can <a href="https://www.franciscoyira.com/subscribe/">subscribe</a> to receive an email when I publish the next post (I’ll never send you spam, and you can unsubscribe whenever you want).</em></p>
+</div>
+<div id="references" class="section level2">
+<h2>References 📚</h2>
+<ul>
+<li><p><a href="https://mixtape.scunning.com/matching-and-subclassification.html">Causal Inference: The Mixtape - Scott Cunningham. Chapter 5.</a></p></li>
+<li><p><a href="https://theeffectbook.net/ch-Matching.html">The Effect - Nick Huntington-Klein. Chapter 14.</a></p></li>
+<li><p><a href="https://matheusfacure.github.io/python-causality-handbook/10-Matching.html">Causal Inference for the Brave and True - Matheus Facure Alves. Chapter 10.</a></p></li>
+</ul>
+<p><em>Your feedback is welcome! You can send me comments about this article to my <a href="mailto:francisco.yira@outlook.com">email</a>.</em></p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>This blog post builds on top of the concepts introduced on those articles, so if you feel that there a lot of unknown words in this post, it may be helpful to check those previous posts first.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p><em>Especially</em> if we have free agents deciding their treatment status on their own.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>All this is explained with greater detail in a previous blog post about DAGs. If these paragraphs sound weird, then it’s a good idea to pause and read that post first.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>The part that may be tricky in the real world is to know whether the variables that cause <span class="math inline">\(D\)</span> are also linked with <span class="math inline">\(Y\)</span>. In our example, we know <code>region</code> affects <code>sales</code> because the data itself was created by us, but the relationships between <span class="math inline">\(X\)</span> and <span class="math inline">\(Y\)</span> are going to be assumptions most of the time.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="fn5"><p>If you work as a data scientist in a company, get up from your desk, roll up your sleeves and ask questions to those involved in the data collection or data generation itself.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn6"><p>Seriously, this is <strong><em>extremely important</em></strong>. If you can’t plausibly argue about having conditional independence in your data, then none of the estimators described in this post will help you to isolate the relevant causal effect.<a href="#fnref6" class="footnote-back">↩︎</a></p></li>
+<li id="fn7"><p>I will leave the coarsening part out of this code because it can be regarded as pre-processing step you have to do on a case-by-case basis and, therefore, can’t be abstracted away in the estimator function. The function itself will assume that the <code>covariates</code> are categorical (in the general sense, not necessarily R factors).<a href="#fnref7" class="footnote-back">↩︎</a></p></li>
+<li id="fn8"><p>Or even approximate matches!<a href="#fnref8" class="footnote-back">↩︎</a></p></li>
+<li id="fn9"><p>Well, some people do that, but we shouldn’t.<a href="#fnref9" class="footnote-back">↩︎</a></p></li>
+<li id="fn10"><p>Again, if you come from the ML world, this is evident and straightforward, but I’ll explain it anyway for people with different backgrounds.<a href="#fnref10" class="footnote-back">↩︎</a></p></li>
+<li id="fn11"><p>If you’re familiar with Principal Component Analysis, it may be helpful to see Mahalanobis distance as just euclidian distance in a PCA-rotated and standardised space. That is, a feature-space in which you applied PCA, but kept all the resulting uncorrelated features (i.e. no dimensionality reduction) and then scaled them to have the same variance.<a href="#fnref11" class="footnote-back">↩︎</a></p></li>
+<li id="fn12"><p>If you have worked with the K-nearest neighbours algorithm, this is equivalent to choosing the K parameter.<a href="#fnref12" class="footnote-back">↩︎</a></p></li>
+<li id="fn13"><p><em>The Effect</em> also points out that there is extensive literature on choosing the optimal bandwidth/calliper when doing approximate matching, so you may want to look at that.<a href="#fnref13" class="footnote-back">↩︎</a></p></li>
+<li id="fn14"><p>And anyway, the purpose of these code examples is just to explain what these estimators do. If you really want to use matching estimators in your analysis, you should use an implementation from an R package such as <code>MatchIt</code>. I’m going to cover this in Part 2 of this blog post.<a href="#fnref14" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
