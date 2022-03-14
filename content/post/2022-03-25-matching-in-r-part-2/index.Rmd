@@ -1,0 +1,109 @@
+---
+title: A guide to Matching estimators, in R and with DAGs - Part 2
+author: Francisco Yirá
+date: '2022-03-11'
+slug: matching-in-r-part-2
+cover: "images/clones_orphan_black.jpg"
+useRelativeCover: true
+isMath: "true"
+categories:
+  - causal-inference
+  - data-science
+  - R
+tags:
+  - causal-inference-the-mixtape
+  - books
+  - dags
+  - potential-outcomes
+  - the-effect
+  - matching
+  - english-only-ds
+---
+
+Welcome to the second part of this article about Matching estimators. If you haven't read the first part, I recommend you to do so, since this second part will build on top of that, but here is a quick summary in case you don't have time for reading another whole article:
+
+The first part covered the conditional independence assumption, which is like a "weak version" of the independence we find in fully randomised trials. It states that the treatment assignment is random inside subgroups of the data with the same values of some covariates X, despite not being random in the data as a whole. For example, you could have an experiment with kids in schools where the treatment is randomised, but different schools have different proportions of treatment assignment. There the school would be our X (a confounder and covariate), and there would be independence between the treatment and (TALK ABOUT potential outcomes).
+
+## Matching vs. Regression: What's the difference?
+
+If you're more familiar with DAGs, you may have realised that, DAG-wise, the contexts in which we can use Matching and Multiple Linear Regression for estimating causal effects are the same. Both require the Conditional Independence Assumption (CIA) to hold, which translates to being able to close all the backdoors by conditioning on a set X of observable variables.
+
+Put another way, if you need to condition on the covariates X to isolate the causal effect, you could either do Matching based on X or add X as controls to a regression ($Y = D + X$).
+
+So, how to choose between these two techniques?
+
+To answer that we must know the differences between these methods, which is what we're going to talk about now.
+
+### Regression is parametric, Matching is non-parametric
+
+I would say this is the most important difference, because most of the other differences are consequences of this one. Whereas Regression requires us to set up a specification with parameters (the "betas") that affect the outcome (and each other) in a certain way, Matching provides more freedom by not imposing any assumptions about how the treatment and the covariates relate to the outcome (only the CIA).
+
+For example, if your regression model is $Y = D + X_1 + X_2$ (where $X_1$ and $X_2$ are covariates and confounders), you're imposing a specification that assumes:
+
+-   Independence between the treatment effect and the covariates values.
+-   Linear and independent/additive effects of the covariates on the outcome.
+
+These assumptions could be true or not, and if they are not true, then the our estimate may be biased due to misspecification.
+
+On the other hand, if we did Matching on $X_1$ and $X_2$ (and assuming that the CIA holds), then we wouldn't be relying on any of the previous assumptions. The estimated counterfactual for each unit is just the (average) outcome of the matched unit(s), so there is no need to assume a functional form between the covariates and the outcome. For example, if there was an interaction or compounded effect of $X_1$ and $X_2$ on $Y$, that will be captured by the observed outcomes of the matched units. 
+
+This flexibility sounds very good, but unfortunately it comes at a price:
+
+### Common support assumption vs extrapolation
+
+In order to 
+
+Regression doesn't requires common support to provide an estimate of the causal effect. When there isn't common support, it relies on the parametric specification that we'
+
+(weighting on frequency of covariates vs weighting on treatment variance)
+
+(non-parametric vs parametric)
+
+(common support assumption vs linear extrapolation - show it with code-ggplot example)
+
+And in some contexts, both methods will return the same estimate
+
+```{r}
+lm(y ~ d + region, data = customers) %>% 
+  summary()
+```
+
+## Propensity Scores
+
+Okey, so now we know the
+
+(What it is) + (credits to Rubin)
+
+(propensity score DAG and theorem / balancing property)
+
+(propensity score as dimensionality reduction, curse of dimensionality being avoided)
+
+(common support again)
+
+### Inverse Probability Weighting
+
+(criticism of matching with propensity score)
+
+(estimator for the ATE, and for the ATT)
+
+(visualisations showing the weighting of similar units)
+
+(Problem of sensitivity to extreme values: - trimming - normalised estimator)
+
+## Don't treat propensity scores as a machine learning prediction problem
+
+## How to estimate the variance of these estimators?
+
+### Matching: don't get creative, use proven formulas and software
+
+### IPW: bootstrap
+
+## Double Robust Estimator
+
+(what it is, and the logic behind it)
+
+(example in code)
+
+## Implementations as R packages
+
+(References and so on)
