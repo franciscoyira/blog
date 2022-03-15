@@ -26,40 +26,157 @@ The first part covered the conditional independence assumption, which is like a 
 
 ## Matching vs. Regression: What's the difference?
 
-If you're more familiar with DAGs, you may have realised that, DAG-wise, the contexts in which we can use Matching and Multiple Linear Regression for estimating causal effects are the same. Both require the Conditional Independence Assumption (CIA) to hold, which translates to being able to close all the backdoors by conditioning on a set X of observable variables.
+If you're more familiar with DAGs, you may have realised that, DAG-wise, the contexts in which we can use Matching and Multiple Linear Regression for estimating causal effects are the same. Both require the Conditional Independence Assumption (CIA) to hold, which translates to being able to close all the backdoors by conditioning on a set of observable variables (which we call X).
 
-Put another way, if you need to condition on the covariates X to isolate the causal effect, you could either do Matching based on X or add X as controls to a regression ($Y = D + X$).
+Put another way, if you need to condition on the covariates X to isolate the causal effect, you could either do Matching based on X or to add X as controls to a regression ($Y = D + X$).
 
-So, how to choose between these two techniques?
-
-To answer that we must know the differences between these methods, which is what we're going to talk about now.
+So, how to choose between these two techniques? Let's look into the differences between these two methods to answer that question.
 
 ### Regression is parametric, Matching is non-parametric
 
-I would say this is the most important difference, because most of the other differences are consequences of this one. Whereas Regression requires us to set up a specification with parameters (the "betas") that affect the outcome (and each other) in a certain way, Matching provides more freedom by not imposing any assumptions about how the treatment and the covariates relate to the outcome (only the CIA).
+Regression requires us to assume a functional form that links the the treatment (D) and the covariates (X) with the outcome (Y). We call this kind of model "parametric" because it has parameters that are going to be estimated, which are usually known as "the betas" in the regression context.
 
-For example, if your regression model is $Y = D + X_1 + X_2$ (where $X_1$ and $X_2$ are covariates and confounders), you're imposing a specification that assumes:
+On the other hand, Matching provides more freedom by not imposing any functional form on the variables. The only two assumptions it relies on are the CIA (which is required by regression too), and common support (which is necessary to obtain an estimate).
+
+For example, if your regression model is $Y = D + X_1 + X_2$ (where $X_1$ and $X_2$ are covariates and observable confounders), you're imposing a specification that assumes:
 
 -   Independence between the treatment effect and the covariates values.
--   Linear and independent/additive effects of the covariates on the outcome.
+-   Linear and additive effects of the covariates on the outcome (the "beta" of $X_1$ is the same regardless of the value of $X_2$, and vice-versa)..
 
-These assumptions could be true or not, and if they are not true, then the our estimate may be biased due to misspecification.
+These assumptions could be true or not, and if they are not true, then our estimate may be biased due to misspecification.
 
-On the other hand, if we did Matching on $X_1$ and $X_2$ (and assuming that the CIA holds), then we wouldn't be relying on any of the previous assumptions. The estimated counterfactual for each unit is just the (average) outcome of the matched unit(s), so there is no need to assume a functional form between the covariates and the outcome. For example, if there was an interaction or compounded effect of $X_1$ and $X_2$ on $Y$, that will be captured by the observed outcomes of the matched units. 
+Meanwhile, if we did Matching using $X_1$ and $X_2$, the estimated counterfactual for each unit would be just the (average) actual outcome of the matched unit(s), so there would be no need to make any functional form assumptions. The relationships between the covariates, the treatment and the outcome could be highly non-linear, and the Matching estimator would still work just fine, as long as common support and the CIA holds[^1].
 
-This flexibility sounds very good, but unfortunately it comes at a price:
+[^1]: It's worth mentioning that regression could also handle non-linear relationships, but we should have to "declare" such non-linearity in the model specification.
+
+Let's see an example with code:
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+df <- tibble(
+  x = runif(1000, -1, 4),
+  prob_d = ifelse(x > 0.5 & x < 2.5, 0.1, 0.9),
+  d = rbinom(1000, 1, prob_d),
+  noise = rnorm(1000, sd = 0.1),
+  treat_effect = 1,
+  y = sin(x) + d*treat_effect + noise
+) %>% 
+  mutate(d_factor = factor(d, levels=c(0,1), labels=c("Untreated", "Treated")))
+
+ggplot(df,
+       aes(x, y,
+           color = d_factor)) +
+  geom_point() + 
+  labs(color = "Treatment status")
+```
+
+```{r}
+linear_model1 <- lm(y ~ d + x, data = df)
+
+summary(linear_model1)
+```
+
+```{r}
+confint(linear_model1)
+```
+
+Here `x` is a confounder, because it affects both the outcome and the probability of receiving the treatment, and multiple linear regression can't help us because both relationships are non-linear, so the final estimate is heavily biased (despite including the only confounder as control in the regression). Sad!
+
+Now let's use Matching with the same data. Here we're going to use a Matching estimator implemented by a CRAN R package instead of coding it ourselves[^2]:
+
+[^2]: Which is what we should do most of the time. The R functions of the previous blog post had only pedagogical purposes, and in general is better to leverage implementations of statistical methods available in CRAN packages. Not only are they less likely to have errors, but also they have extra goodies such as standard errors calculation and nice `print` or `summary` methods.
+
+```{r}
+library(Matching)
+M <- Match(df$y, df$d, df$x, M = 5, Weight = 2, caliper = 0.05)
+summary(M)
+```
+
+As expected, the Matching estimate is much closer to the true treatment effect (and its confidence interval includes the true value) because it's not relying on false linearity assumptions[^3].
+
+[^3]: The linear regression fan club may object that a dataset like this is very unlikely to be found in the "real world", and that it was literally manufactured with the goal of fooling linear regression (which is true). What's more, linear regression is technically *capable* of handling datasets like this, given that we include the non-linear relationships in the specification (for example, `lm(y ~ d + sin(x), data = df)` returns a treatment effect estimate close to 1). But the point is that we should critically assess if we have good enough reasons to assume a specific functional form between the variables, and realise that if we don't, then a non-parametric approach such as Matching may be a better option.
+
+Here is a illustration that makes it clearer what each of the estimators are doing and why the linear regression estimate is so off[^4]:
+
+[^4]: Yes, KNN regression is not technically the same as matching, but for the effect of this visualisation the KNN algorithm illustrates well what matching is doing.
+
+```{r, message=FALSE, warning=FALSE, fig.height=2.5, out.asp=1}
+# Matching 
+library(FNN)
+knn1 <- knn.reg(
+  train = dplyr::select(df, x, d),
+  y = df$y,
+  test = dplyr::select(df, x, d),
+  k = 10,
+  algorithm = "brute"
+)
+
+df_knn <- df %>% 
+  mutate(pred_knn = knn1$pred)
+
+# Regression
+df_linear <- df %>% 
+  modelr::add_predictions(linear_model1, var = "pred_linear")
+
+
+# Plots
+plot_matching <- 
+  ggplot(df_knn) +
+  aes(x = x, color = d_factor) +
+  geom_point(aes(y = y), alpha = 0.3) +
+  geom_line(aes(y = pred_knn), size = 1.5) +
+  labs(color = "Treatment status",
+       title = "Matching") + theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.title.x = element_blank()
+  )
+
+plot_linear <- 
+  ggplot(df_linear) +
+  aes(x = x, color = d_factor) +
+  geom_point(aes(y = y), alpha = 0.3) +
+  geom_line(aes(y = pred_linear), size = 1.5) +
+  labs(color = "Treatment status",
+       title = "Linear regression")
+
+library(patchwork)
+
+(plot_matching / plot_linear) +
+  plot_layout(guides = "collect") + 
+  plot_annotation(subtitle = "In each subplot, the estimated ATE is the average distance between the two lines")
+    
+```
 
 ### Common support assumption vs extrapolation
 
-In order to 
+Up to this point, it seems that Matching is winning. Why would we want to assume a specific functional form when we can just... don't?
 
-Regression doesn't requires common support to provide an estimate of the causal effect. When there isn't common support, it relies on the parametric specification that we'
+Sadly, there is no free lunch, and the flexibility of Matching comes at a cost: the common support assumption. In order to get a counterfactual estimate without a parametric model we need to have observations with the same (or similar) covariate values and opposite treatment status in our data. If we don't, Matching will fail.
+
+However, Regression doesn't have such requisite. Instead, it leverages the parametric specification to get estimates by "extrapolation" in the feature space areas where there isn't common support. And if our parametric specification appropriately reflects the data generating process, then regression is the way to go in this case 💃🏽[^5].
+
+[^5]: Big If, though.
+
+Let's see a visual example to better understand this idea.
+
+```{r}
+# VO2 max example
+
+```
+
+Here we have a non-linear confounder, just like in the previous example, but without common support, so Matching can't help us. But the regression model is correctly specified and, therefore, it correctly estimates the true ATE.
+
+### Other differences
+
+These differences are mostly consequences of the parametric vs non-parametric dilemma
+
+-   Weighting when we have heterogeneous treatment effects
+
+-   Bias vs variance
 
 (weighting on frequency of covariates vs weighting on treatment variance)
-
-(non-parametric vs parametric)
-
-(common support assumption vs linear extrapolation - show it with code-ggplot example)
 
 And in some contexts, both methods will return the same estimate
 
