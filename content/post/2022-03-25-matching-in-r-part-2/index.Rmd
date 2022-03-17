@@ -24,6 +24,8 @@ Welcome to the second part of this article about Matching estimators. If you hav
 
 The first part covered the conditional independence assumption, which is like a "weak version" of the independence we find in fully randomised trials. It states that the treatment assignment is random inside subgroups of the data with the same values of some covariates X, despite not being random in the data as a whole. For example, you could have an experiment with kids in schools where the treatment is randomised, but different schools have different proportions of treatment assignment. There the school would be our X (a confounder and covariate), and there would be independence between the treatment and (TALK ABOUT potential outcomes).
 
+(TODO: finish introduction)
+
 ## Matching vs. Regression: What's the difference?
 
 If you're more familiar with DAGs, you may have realised that, DAG-wise, the contexts in which we can use Matching and Multiple Linear Regression for estimating causal effects are the same. Both require the Conditional Independence Assumption (CIA) to hold, which translates to being able to close all the backdoors by conditioning on a set of observable variables (which we call X).
@@ -87,7 +89,7 @@ Now let's use Matching with the same data. Here we're going to use a Matching es
 
 [^2]: Which is what we should do most of the time. The R functions of the previous blog post had only pedagogical purposes, and in general is better to leverage implementations of statistical methods available in CRAN packages. Not only are they less likely to have errors, but also they have extra goodies such as standard errors calculation and nice `print` or `summary` methods.
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(Matching)
 M <- Match(df$y, df$d, df$x, M = 5, Weight = 2, caliper = 0.05)
 summary(M)
@@ -155,20 +157,212 @@ Up to this point, it seems that Matching is winning. Why would we want to assume
 
 Sadly, there is no free lunch, and the flexibility of Matching comes at a cost: the common support assumption. In order to get a counterfactual estimate without a parametric model we need to have observations with the same (or similar) covariate values and opposite treatment status in our data. If we don't, Matching will fail.
 
-However, Regression doesn't have such requisite. Instead, it leverages the parametric specification to get estimates by "extrapolation" in the feature space areas where there isn't common support. And if our parametric specification appropriately reflects the data generating process, then regression is the way to go in this case 💃🏽[^5].
+However, Regression doesn't have such requisite. Instead, it leverages the parametric specification to get estimates by "extrapolation" in the areas without common support. And, if our parametric specification appropriately reflects the data generating process, such extrapolation is an appropriate way to handle these cases[^5].
 
 [^5]: Big If, though.
 
-Let's see a visual example to better understand this idea.
+Let's see an example with simulated data to better understand this idea. The code here will be very similar to the previous example, but with two key differences:
+
+-   Treatment assignment (`d`) is now a *deterministic* function of `x`: for some values of `x` all the units get the treatment, and for other values nobody is treated. This kills the common support assumption, and therefore any chance of using Matching ☠️.
+
+-   However, now we assume that we *know* the non-linear function that links `x` with `y`, and we leverage that knowledge in the regression specification, which now will be `y ~ d + sin(x)`.
+
+Here is the simulated data:
 
 ```{r}
-# VO2 max example
+df_wo_common_support <-
+  tibble(
+    x = runif(1000,-1, 4),
+    d = ifelse(x > 0.5 & x < 2.5, 0, 1),
+    noise = rnorm(1000, sd = 0.1),
+    treat_effect = 1,
+    y = sin(x) + d * treat_effect + noise
+  ) %>%
+  mutate(d_factor = factor(
+    d,
+    levels = c(0, 1),
+    labels = c("Untreated", "Treated")
+  ))
+
+ggplot(df_wo_common_support,
+       aes(x, y,
+           color = d_factor)) +
+  geom_point() + 
+  labs(color = "Treatment status",
+       subtitle = "Dataset without common support due to deterministic treatment assignement")
+```
+
+And here is the regression with the new, non-linear specification:
+
+```{r}
+reg_wo_common_support <- lm(y ~ d + sin(x), data = df_wo_common_support)
+
+summary(reg_wo_common_support)
+```
+
+You could argue that this dataset is more challenging than the previous one, but nevertheless regression is able to handle it because it can now extrapolate by using an appropriate specification.
+
+Here is a visualisation of what regression is doing under the hood:
+
+```{r}
+# Hacky data manipulation to avoid the plot looking weird
+df_wo_common_support <- df_wo_common_support %>%
+  mutate(group = case_when(
+           x < 0.5 ~ "segment1",
+           x > 2.5 ~ "segment3",
+           TRUE ~ "segment2"
+         ))
+
+# Function to label the treatment variable 
+creating_factor_d <- function(x) factor(x, levels = c(0, 1), labels = c("Untreated", "Treated"))
+
+df_wo_cs_treated <- df_wo_common_support %>% 
+  mutate(extrapolation = ifelse(d == 1, "No", "Yes"),
+         d = 1,
+         d_factor = creating_factor_d(d)) %>% 
+  modelr::add_predictions(reg_wo_common_support, var = "pred_treated")
+  
+df_wo_cs_untreated <- df_wo_common_support %>% 
+  mutate(extrapolation = ifelse(d == 0, "No", "Yes"),
+         d = 0,
+         d_factor = creating_factor_d(d)) %>% 
+  modelr::add_predictions(reg_wo_common_support, var = "pred_untreated")
+
+plot_wo_cs_reg <- 
+  ggplot() +
+  aes(x, y, color = d_factor) +
+  geom_point(data= df_wo_common_support, alpha = 0.3) +
+  geom_line(data = df_wo_cs_untreated,
+            aes(y = pred_untreated,
+                alpha = extrapolation,
+                linetype = extrapolation,
+                group = group), size = 1.5) +
+  geom_line(data = df_wo_cs_treated,
+            aes(y = pred_treated,
+                alpha = extrapolation,
+                linetype = extrapolation,
+                group = group), size = 1.5) +
+  scale_alpha_manual(values = c("Yes" = 0.5, "No" = 1)) +
+  scale_linetype_manual(values = c("Yes" = "dashed", "No" = "solid")) +
+  scale_color_discrete(name = "Treated or Not") +
+  theme(legend.key.width=unit(1.5,"cm")) +
+  labs(subtitle = str_wrap("Regression extrapolates when there isn't common support, and if the model specification is correct, that may be a good thing"))
+
+plot_wo_cs_reg
+```
+
+Nice.
+
+Keep in mind that in the real-world rarely do we have such a perfect knowledge about the correct specification. But if you have it, it's a good idea to leverage it through a parametric method like regression.
+
+Now, just for fun, let's see what matching would do in this dataset. We already know that **it will fail because there isn't common support**, so matches are likely to be *terrible* in the sense that they won't be similar to the original units. But if you want visual proof, here we go:
+
+```{r}
+x_values <- df_wo_common_support %>% dplyr::select(x)
+
+knn_wo_cs_treated <- knn.reg(
+  train = df_wo_common_support %>% 
+    filter(d == 1) %>% 
+    dplyr::select(x),
+  y = df_wo_common_support %>% 
+    filter(d == 1) %>% 
+    dplyr::pull(y),
+  test = x_values,
+  k = 15,
+  algorithm = "brute"
+)
+
+knn_wo_cs_untreated <- knn.reg(
+  train = df_wo_common_support %>% 
+    filter(d == 0) %>% 
+    dplyr::select(x),
+  y = df_wo_common_support %>% 
+    filter(d == 0) %>% 
+    dplyr::pull(y),
+  test = x_values,
+  k = 15,
+  algorithm = "brute"
+)
+
+df_untr_matching_wo_cs <-
+  tibble(
+    y_pred = knn_wo_cs_untreated$pred,
+    x = df_wo_common_support$x,
+    d = 0
+  ) %>%
+  mutate(d_factor = creating_factor_d(d))
+
+df_tr_matching_wo_cs <-
+  tibble(
+    y_pred = knn_wo_cs_treated$pred,
+    x = df_wo_common_support$x,
+    d = 1
+  ) %>%
+  mutate(d_factor = creating_factor_d(d),
+         group = case_when(
+           x < 0.5 ~ "segment1",
+           x > 2.5 ~ "segment3",
+           TRUE ~ "segment2"
+         ))
+
+plot_matching_wo_cs <- 
+  ggplot() +
+  aes(x, y, color = d_factor) +
+  geom_point(data= df_wo_common_support, alpha = 0.3) +
+  geom_line(data = df_untr_matching_wo_cs,
+            aes(y = y_pred), size = 1.5) +
+  geom_line(data = df_tr_matching_wo_cs,
+            aes(y = y_pred, group = group), size = 1.5) +
+  labs(color = "Treated or Not",
+       subtitle = "Matching just fails when there isn't common support") 
+
+plot_matching_wo_cs
+```
+
+The estimated ATE would be the average distance between the two lines (*clearly* a bad estimate).
+
+Ideally, in cases like this, you would like your matching estimation to just throw an error instead of returning a terrible estimate[^6]. I couldn't find a way to make `Matching::Match()` throw an error in this situation, but at least we can set the `caliper` to avoid matches that are too far away[^7].
+
+[^6]: This is a general principle that should be followed in many code-related situations: fail early (so you know ASAP that there is a problem) instead of returning garbage (which will mess up with stuff downstream).
+
+[^7]: This caliper is interpreted as standard deviations by the functions. If you're matching on several variables you could also specify different calipers for each one. For more details check the function documentation.
+
+```{r}
+M_wo_cs <- Match(df_wo_common_support$y,
+                 df_wo_common_support$d,
+                 df_wo_common_support$x,
+                 M = 5,
+                 # Weight = 2 means we use Mahalanobis distance, weirdly 
+                 Weight = 2,
+                 caliper = 0.05)
+summary(M_wo_cs)
+```
+
+Then, our alarms should ring after seeing the number of dropped observations (588 of 604) and the number of matched units (only 16). This should be enough to convince yourself that there is not common support here, even if you can't see it visually[^8].
+
+[^8]: We should still visualise the data whenever we can, but if we were doing matching in more dimensions, the lack of common support would be more difficult to see.
+
+### Other differences
+
+The previous ones were the most important differences between Matching and Regression, but there are a couple more worth mentioning.
+
+One of them is **how they average heterogeneous treatment effects**. In the previous examples there was always a homogeneous treatment effect over all the population (you can see it in the code `treat_effect = 1`), but it could be the case that different subgroups are affected differently by the treatment, or even that the treatment effect itself is a function of other variable(s).
+
+In principle, the existence of heterogeneous treatment effects is not an obstacle for estimating the ATE or the ATT (as their names say, they're averages, and you can average different numbers^*[citation\ needed]*^). However, treatment effects can be averaged in different ways. Matching does it by **weighting on the covariate frequency**, and Regression does it by **weighting on treatment variance**.
+
+**Covariate frequency** is how many observations there are in each subgroup defined by the covariates X (`df %>% count(X)`). The higher the frequency or number of observations in a subgroup, the higher the weight of its specific treatment effect in the global ATE or ATT.
+
+On the other hand, **treatment variance** is literally the variance of `d` inside a subgroup (`df %>% group_by(X) %>% summarise(var(d))`). This variance is maximised when there is a 50/50 split between treated and controls in a subgroup, and is minimised when all the units inside a subgroup have the same treatment status. This means, for example, that the treatment effect of a subgroup with a 50/50 split will have a higher weight on the ATE than the effect of a group with 10/90 split.
+
+None of this matters if the treatment effect are the same for all the units, but if they are different, regression and matching could return different estimates, even if there is common support and the regression model is correctly specified.
+
+Let's see a code example:
+
+```{r}
 
 ```
 
-Here we have a non-linear confounder, just like in the previous example, but without common support, so Matching can't help us. But the regression model is correctly specified and, therefore, it correctly estimates the true ATE.
-
-### Other differences
+And there is obviously the case when knowing the
 
 These differences are mostly consequences of the parametric vs non-parametric dilemma
 
