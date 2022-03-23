@@ -342,56 +342,182 @@ Then, our alarms should ring after seeing the number of dropped observations (58
 
 [^8]: We should still visualise the data whenever we can, but if we were doing matching in more dimensions, the lack of common support would be more difficult to see.
 
-### Other differences
+### They handle heterogeneous treatment effects differently
 
-The previous ones were the most important differences between Matching and Regression, but there are a couple more worth mentioning.
+For simplicity sake, all the previous examples have assumed a constant treatment effect over all the units. In real life, however, there are a lot of cases when units or subgroups respond differently to the treatment, which is known as having *heterogeneous treatment effects* (HTE). If you suspect this is the case in your data, you have two options:
 
-One of them is **how they average heterogeneous treatment effects**. In the previous examples there was always a homogeneous treatment effect over all the population (you can see it in the code `treat_effect = 1`), but it could be the case that different subgroups are affected differently by the treatment, or even that the treatment effect itself is a function of other variable(s).
+-   Option 1: sweep the heterogeneity under the rug, and **just estimate average effects** (ATE or/and ATT). This is OK if the variability of the treatment effects is low, but you are at risk of things like getting a positive estimate when the treatment is actually hurting a small subgroup.
 
-In principle, the existence of heterogeneous treatment effects is not an obstacle for estimating the ATE or the ATT (as their names say, they're averages, and you can average different numbers^*[citation\ needed]*^). However, treatment effects can be averaged in different ways. Matching does it by **weighting on the covariate frequency**, and Regression does it by **weighting on treatment variance**.
+-   Option 2: accept the challenge and try to **estimate treatment effects specific for each subgroup**, also known as CATE (Conditional Average Treatment Effect).
 
-**Covariate frequency** is how many observations there are in each subgroup defined by the covariates X (`df %>% count(X)`). The higher the frequency or number of observations in a subgroup, the higher the weight of its specific treatment effect in the global ATE or ATT.
+CATE estimation could be a blog post on itself, so we're going to leave it out for now and focus on option 1. Here, Matching and Regression differ in how each they weight the group-specific treatment effects to get the average: Matching does it by **weighting on the covariate frequency**, and Regression does it by **weighting on treatment variance**.
 
-On the other hand, **treatment variance** is literally the variance of `d` inside a subgroup (`df %>% group_by(X) %>% summarise(var(d))`). This variance is maximised when there is a 50/50 split between treated and controls in a subgroup, and is minimised when all the units inside a subgroup have the same treatment status. This means, for example, that the treatment effect of a subgroup with a 50/50 split will have a higher weight on the ATE than the effect of a group with 10/90 split.
+**Covariate frequency** is how many observations there are in each subgroup. The higher the frequency in the subgroup, the higher the weight of its specific treatment effect in the global ATE or ATT. For example, if there are different treatment effects for men and women, and 90% of the data are women, then their treatment effect will have a weight of 90% in the "global" ATE estimated through Matching.
 
-None of this matters if the treatment effect are the same for all the units, but if they are different, regression and matching could return different estimates, even if there is common support and the regression model is correctly specified.
+**Treatment variance** is literally the variance of `d`, the treatment assignment, inside each subgroup. This variance is maximised when there is a 50/50 split between treated and controls, and is minimised when all the units have the same treatment status. Thus, if you use regression, the treatment effect of a subgroup with a 50/50 split will have a higher weight on the ATE than the effect of a group with 10/90 split[^9].
 
-Let's see a code example:
+[^9]: Of course, none of this matters if the treatment effect are the same for all the units, but if they are different, regression and matching will likely return different estimates, even if there is common support and the regression model is correctly specified.
 
-```{r}
-
-```
-
-And there is obviously the case when knowing the
-
-These differences are mostly consequences of the parametric vs non-parametric dilemma
-
--   Weighting when we have heterogeneous treatment effects
-
--   Bias vs variance
-
-(weighting on frequency of covariates vs weighting on treatment variance)
-
-And in some contexts, both methods will return the same estimate
+This may sound unintuitive, but it's true, as we can see in the following code example. As in previous examples, here we have an observable confounder (`gender`) which affects both the outcome `y` and the chance to get the treatment `prob_d`. BUT we also have different treatment effects according to `gender`: people with `gender == "other"` have a treatment effect equal to 3 (when they get the treatment) while everyone else has a treatment effect equal to 1.
 
 ```{r}
-lm(y ~ d + region, data = customers) %>% 
-  summary()
+df_hte <- 
+  tibble(
+    gender = c(rep("men", 450), rep("women", 450), rep("other", 100)),
+    baseline_mean = case_when(
+      gender == "men" ~ 10,
+      gender == "women" ~ 12,
+      gender == "other" ~ 8),
+    y0 = rnorm(1000, mean = baseline_mean),
+    prob_d = ifelse(gender %in% c("men", "women"), 0.05, 0.5),
+    d = rbinom(1000, 1, prob_d),
+    treat_effect = ifelse(gender %in% c("men", "women"), 1, 3),
+    y = y0 + d*treat_effect
+  )
 ```
+
+```{r}
+lm(y ~ d + gender, data = df_hte)
+```
+
+```{r}
+df_hte_matching <- df_hte %>% 
+  fastDummies::dummy_cols("gender")
+
+matrix_gender <- df_hte_matching %>% 
+    dplyr::select(starts_with("gender_")) %>% 
+    as.matrix()
+
+Match(
+  Y = df_hte_matching$y,
+  Tr = df_hte_matching$d,
+  X = matrix_gender,
+  exact = TRUE,
+  estimand = "ATE"
+) %>% summary()
+  
+```
+
+Regression gives us an ATE estimate equal to 1.66 while Matching returns an estimate equal to 1.25.
+
+The reason for this is the explanation given above: Regression weights the group-specific ATEs by treatment variance. The subgroup with `gender=="other"` has the highest treatment variance AND ALSO a higher treatment effect (3 vs 1 of the other units), so the final estimate is "pushed upwards" by these observations. Matching, on the other hand, returns a lower estimate because it puts a higher weight on the treatment effects of units with `gender %in% c("men", "women")` which are more frequent in the data.
+
+### Regression has more bias, while Matching has more variance
+
+The last difference has to do with the bias-variance trade-off. We already saw how Matching could have more or less bias and variance depending on the way in which we perform it but, regardless of that, Matching tends to have more variance and less bias than Regression.
+
+The main reason for this is that Matching drops the observations in the "donor pool" that aren't similar enough to the original units, while Regression uses them to fit the model anyway. This reduces the sample variance (due to having higher N) and could increase our statistical power (the chance of rejecting the null of zero effect given that there is a real effect), but leads to bias if the model specification is not appropriate[^10].
+
+[^10]: <https://stats.stackexchange.com/a/50641/249455>
 
 ## Propensity Scores
 
-Okey, so now we know the
+Now we'll move into another relevant Matching topic: the use of **Propensity Scores**, which was introduced by Rubin in the 70s. As the name hints, these are *scores* that measure the *propensity* of receiving the treatment for a given unit, conditional on X, the observable confounders ($P(D=1|X)$).
 
-(What it is) + (credits to Rubin)
+Something cool about propensity scores is that they help us **avoid the curse of dimensionality**. Instead of dealing with the whole feature-space defined by the covariates X, we "collapse" it in a single variable that contains all the relevant information that explains the treatment assignment. In that sense, propensity scores constitute some sort of **dimensionality reduction**.
 
-(propensity score DAG and theorem / balancing property)
+The DAG of a propensity score would be something like this:
 
-(propensity score as dimensionality reduction, curse of dimensionality being avoided)
+![*DAG of the propensity score. Source: [Causal Inference - The Mixtape](https://mixtape.scunning.com/matching-and-subclassification.html#propensity-score-methods).*](images/dag_propensity_score.png){width="500"}
 
-(common support again)
+As in every DAG, assumptions are given by the existence of arrows and also by the absence of them. In particular, note that **there is no arrow going directly from X to D**. This means we're assuming that all the effect of confounders X on D is "mediated" by the propensity score or, put another way, X can't provide any extra information about D after conditioning on the propensity score.
+
+Therefore, **the propensity score is the only covariate we need to control for** to achieve conditional independence and isolate the causal effect of $D$:
+
+$$
+(Y^1, Y^0) \perp D  |  p(X)
+$$
+
+This leads to **the balancing property of propensity scores**: the distribution of the covariates X should be the same for units with the same propensity score, no matter their treatment status:
+
+$$
+P(X|D=1, p(X)) = P(X|D=0, p(X))
+$$
+
+And, good news: this property is testable. We can look at segments of our data with similar propensity score, check if there are significant differences in their covariates, and thus determine if our propensity scores are "good enough".
+
+### We still need common support
+
+The propensity score can free us from the curse of dimensionality but not from the need of common support. For each combination of values of X (the original confounders) there should be a positive probability of both being treated and untreated. This means that **the propensity scores should be strictly between 0 and 1**. What's more, the distributions of propensity scores for the treated and untreated units should overlap.
+
+There are several ways of checking this. The most basic and common (but still advisable) is to look at the histogram or density plot of $p(X)$ by treatment status. Here it's an example of a density plot where common support doesn't hold.
+
+![*Source: [https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext](https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext)*](images/density_plot_no_common_support.png){width="500"}
+
+Note that we don't need both distributions to look the same (if that was the case, there would be no need for adjustment) but, in order to estimate the ATT, we *do* need a positive density or weight of the untreated distribution along all the treated group distribution. In figure above, there is a big chunk on the upper section of the treated group distribution where we can't find any untreated units, so the existence of common support is questionable.
+
+Another way of checking for common support (suggested by Dehejia and Wahba, 1999) is to create bins based on the propensity score and check that there are observations of both groups in each bin (or at least in the bins where there are treated units, if we just want to estimate the ATT).
+
+### Estimating the propensity scores
+
+Many of the properties mentioned above (e.g. the balancing property) refer to a theoretical *true propensity score*. In real life we don't have access to those but we have to use *estimated propensity scores* instead.
+
+To estimate the propensity scores we have to fit a model using `d` (the treatment assignment) as the response variable and X (the covariates/confounders) as the predictors. A common model choice for this step is **logistic regression** but we could also use nonparametric machine learning methods such as **gradient boosting** or **random forest**[^11].
+
+[^11]: A question you may have here is what is the point of estimating propensity scores using a parametric method like logistic regression when we could just add the covariates as a controls to a one-step multiple linear regression instead. After all, one of the benefits of matching-based methods was allowing for non-linear relationships in a nonparametric fashion but we're loosing that by using regression for the propensity score estimation.
+
+    I looked for an answer to this and found two key advantages of propensity scores through regression versus the good ol' one-step regression ([source A](https://stats.stackexchange.com/questions/8604/how-are-propensity-scores-different-from-adding-covariates-in-a-regression-and), [source B](https://stats.stackexchange.com/a/3443/249455)).
+
+    The first one is that you get common support checks in the second stage. As we saw before, regression extrapolates when there isn't common support and, what's worse, it does it *quietly*. By estimating propensity scores (even with a parametric logistic regression) we gain the chance to look at the histograms/density plots of the scores and use them as a diagnosis tools for how severe is the covariate imbalance and check if we can go ahead and estimate the ATE or the ATT without extrapolation. In fact, you have the option of usining propensity scores JUST as diagnosis tool and then drop them and go ahead with multiple linear regression.
+
+    Another benefit is that, due to dimensionality reduction, we save degrees of freedom in the second stage (when the scores are used) by using just a single number (the score) instead of several covariates.
+
+ML methods [had been shown to perform better at removing covariate imbalance](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2807890/), especially, of course, in contexts of non-linearity and non-additive relationships, so it may be a good idea to go ahead with them if possible.
+
+There are, however, a couple things to keep in mind when using ML models. The first is to **avoid overfitting**, which is when our model learns from the noise or sampling variance instead of the true patterns in the data. Secondly, **we shouldn't optimise for accurately prediction of the treatment status** but for balancing confounders across treated and untreated groups (which is what the "true" propensity score is supposed to do).
+
+This last point also implies that we shouldn't include in the propensity score model any variables that are not confounders (i.e. that don't affect *both* the treatment status and the outcome) *even* if they improve the precision of the treatment status prediction[^12]. Including such variables is not only unhelpful but it can even be harmful to our causal inference endeavour as it adds noise to the propensity scores (you can see an example of this [here in the book *Causal Inference for the Brave and True*](https://matheusfacure.github.io/python-causality-handbook/11-Propensity-Score.html#common-issues-with-propensity-score)).
+
+[^12]: We're not trying to win a Kaggle competition, but to approximate $p(X)$, which, as it notation says, depends on X and nothing else.
+
+The good news is that there are several packages in R that optimise for covariate balance when estimating the scores. I took a quick look at them and liked a lot one named `twang`. This package is being actively developed by the RAND Corporation, has nice methods to measure covariate balance, and supports `gbm` and `xgboost` models to perform the PS estimation.
+
+Let's see a code example. Here we'll use the data from Lalonde ([1986](https://mixtape.scunning.com/references.html#ref-Lalonde1986)), which is included in the `twang` package and also appears in the book *Causal Inference: The Mixtape*. This dataset compares the covariates and outcomes of the participants in a randomised training program aimed at disadvantaged workers in the mid-70s with those of the general population in the same period.
+
+Of course, there is confounding in this data due to selection bias, which makes a naive difference of means inappropriate as causal effect estimate. But there is also a big control donor pool (the comparison group comes is 2.3 times the size of the treated group). This gives us hope for estimating the ATT by balancing the covariates through propensity scores.
+
+```{r}
+library(twang)
+data(lalonde)
+
+ps_lalonde_gbm = ps(
+  # This is D ~ X, a model with the treatment as responde and
+  # the confounders as predictors
+  treat ~ age + educ + black + hispan + nodegree +
+    married + re74 + re75,
+  data = lalonde,
+  n.trees = 10000,
+  interaction.depth = 2,
+  shrinkage = 0.01,
+  estimand = "ATT",
+  stop.method = "ks.max",
+  n.minobsinnode = 10,
+  n.keep = 1,
+  n.grid = 25,
+  ks.exact = NULL,
+  verbose = FALSE
+)
+```
+
+We use `twang::ps()` for estimating the propensity scores, which uses `gbm` by default. Most of the arguments are related to the `gbm` model. Two key argument are `n.trees`, the maximum number of iteration, and `stop.method`, which specifies the balance measure that will be used to choose the optimal number of iterations. Here we use `"ks.max"`, which is the maximum KS value (a measure of dissimilarity) among all the pairs of treated-untreated covariates distributions *after* adjusting for the estimated propensity scores. The lower the `ks.max`, the higher the balance.
+
+We can use `plot()` on the output of `ps()` to visualise the evolution of the balance measure across the iterations:
+
+```{r}
+plot(ps_lalonde_gbm)
+```
+
+We can clearly see that the balance is maximised somewhere below the 2000th iteration. This "optimal" iteration is the one used for the "final" propensity scores, which are stored under the name `ps` in the returned object.
+
+```{r}
+ps_lalonde_gbm$ps
+```
 
 ### Inverse Probability Weighting
+
+Great! We now have the propensity scores! But how do we use them? A common sense answer would be to do matching based on them and, in fact, this was what a lot papers did for a lot of time. However...
+
+OK, but how do we use this propensity scores? A common sense idea based on what we already know is to do Matching on the Propensity Scores, and in fact this is what a lot of papers do. But this approach has become
 
 (criticism of matching with propensity score)
 
@@ -401,7 +527,9 @@ Okey, so now we know the
 
 (Problem of sensitivity to extreme values: - trimming - normalised estimator)
 
-## Don't treat propensity scores as a machine learning prediction problem
+A code example!
+
+### Propensity scores as a diagnosis tool
 
 ## How to estimate the variance of these estimators?
 
