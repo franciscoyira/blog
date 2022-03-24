@@ -30,6 +30,8 @@ The first part covered the conditional independence assumption, which is like a 
 
 If you're more familiar with DAGs, you may have realised that, DAG-wise, the contexts in which we can use Matching and Multiple Linear Regression for estimating causal effects are the same. Both require the Conditional Independence Assumption (CIA) to hold, which translates to being able to close all the backdoors by conditioning on a set of observable variables (which we call X).
 
+(insert The Office meme "they're the same picture"))
+
 Put another way, if you need to condition on the covariates X to isolate the causal effect, you could either do Matching based on X or to add X as controls to a regression ($Y = D + X$).
 
 So, how to choose between these two techniques? Let's look into the differences between these two methods to answer that question.
@@ -442,7 +444,9 @@ The propensity score can free us from the curse of dimensionality but not from t
 
 There are several ways of checking this. The most basic and common (but still advisable) is to look at the histogram or density plot of $p(X)$ by treatment status. Here it's an example of a density plot where common support doesn't hold.
 
-![*Source: [https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext](https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext)*](images/density_plot_no_common_support.png){width="500"}
+(CHECK THIS PART, AFTER READING CIBT I'M NOT SO SURE ABOUT WHAT I'VE WRITTEN HERE)
+
+![*Source: [https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext](https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext)*](images/density_plot_no_common_support.jpg){width="550"}
 
 Note that we don't need both distributions to look the same (if that was the case, there would be no need for adjustment) but, in order to estimate the ATT, we *do* need a positive density or weight of the untreated distribution along all the treated group distribution. In figure above, there is a big chunk on the upper section of the treated group distribution where we can't find any untreated units, so the existence of common support is questionable.
 
@@ -473,6 +477,8 @@ This last point also implies that we shouldn't include in the propensity score m
 The good news is that there are several packages in R that optimise for covariate balance when estimating the scores. I took a quick look at them and liked a lot one named `twang`. This package is being actively developed by the RAND Corporation, has nice methods to measure covariate balance, and supports `gbm` and `xgboost` models to perform the PS estimation.
 
 Let's see a code example. Here we'll use the data from Lalonde ([1986](https://mixtape.scunning.com/references.html#ref-Lalonde1986)), which is included in the `twang` package and also appears in the book *Causal Inference: The Mixtape*. This dataset compares the covariates and outcomes of the participants in a randomised training program aimed at disadvantaged workers in the mid-70s with those of the general population in the same period.
+
+(maybe talk a bit more about Lalonde? even if it's in a footnote)
 
 Of course, there is confounding in this data due to selection bias, which makes a naive difference of means inappropriate as causal effect estimate. But there is also a big control donor pool (the comparison group comes is 2.3 times the size of the treated group). This gives us hope for estimating the ATT by balancing the covariates through propensity scores.
 
@@ -513,25 +519,96 @@ We can clearly see that the balance is maximised somewhere below the 2000th iter
 ps_lalonde_gbm$ps
 ```
 
-### Inverse Probability Weighting
+### Inverse Probability of Treatment Weighting
 
-Great! We now have the propensity scores! But how do we use them? A common sense answer would be to do matching based on them and, in fact, this was what a lot papers did for a lot of time. However...
+Great! We estimated the propensity scores! But how do we use them? A common sense and actually popular answer would be to do *matching* based on them: match each observation with the unit in the donor pool that has the closest propensity score.
 
-OK, but how do we use this propensity scores? A common sense idea based on what we already know is to do Matching on the Propensity Scores, and in fact this is what a lot of papers do. But this approach has become
+Surprisingly, it turns out that *matching on the propensity score* is a bad idea. A paper from 2018 by King and Nielsen showed several problems with this common approach that may even increase the imbalance between groups.
 
-(criticism of matching with propensity score)
+Okey, so matching is out, but then we go back to the first question: how do we use the propensity scores?! There are several valid strategies, but the more recommended in the reference books I checked was one called **inverse probability of treatment weighting** (IPTW).
 
-(estimator for the ATE, and for the ATT)
+The key idea of IPWT, as its name says, is to **weight the observations based on the probability of them having the *opposite* treatment status of what they actually have**. For example, if a unit has a low propensity score (indicating it was unlikely to be treated) but it was actually treated, then it will receive a high weight and vice-versa, a treated unit with high propensity score will have a low weight.
 
-(visualisations showing the weighting of similar units)
+Here the book *Causal Inference for the Brave and True* nicely sums up the reason for this:
 
-(Problem of sensitivity to extreme values: - trimming - normalised estimator)
+> If [a treated individual] has a low probability of treatment, that individual looks like the untreated. However, [it] was treated. This must be interesting. We have a treated that looks like the untreated, so we will give that entity a high weight.
 
-A code example!
+Cool, we have the intuition, now let's take a look at the estimator itself:
+
+```{r}
+iptw_ate <- function(data,
+                                     outcome,
+                                     treatment,
+                                     prop_score) {
+  
+  # Renaming the columns for convenience 
+  # (i.e. not using {{ }} afterwards)
+  data <- data %>% 
+    rename(outcome := {{outcome}},
+           treatment := {{treatment}},
+           prop_score := {{prop_score}})
+  
+  # Estimation itself
+  data %>% 
+    mutate(iptw = outcome * (treatment - prop_score) /
+             (prop_score * (1 - prop_score))) %>% 
+    pull(iptw) %>% 
+    mean()
+
+}
+```
+
+(some explanation of the math, what happens when `treatment==1` and when `treatment==0`)
+
+There is also an ATT version of the estimator:
+
+```{r}
+iptw_att <- function(data,
+                     outcome,
+                     treatment,
+                     prop_score) {
+  
+  # Renaming the columns for convenience 
+  # (i.e. not using {{ }} afterwards)
+  data <- data %>% 
+    rename(outcome := {{outcome}},
+           treatment := {{treatment}},
+           prop_score := {{prop_score}})
+  
+  # Estimation itself
+  n_treated <- data %>% filter(treatment == 1) %>% nrow()
+  
+  data %>% 
+    mutate(iptw = outcome * (treatment - prop_score) /
+             (1 - prop_score)) %>% 
+    pull(iptw) %>% 
+    sum() %>% 
+    magrittr::divide_by(n_treated)
+
+}
+```
+
+What's different here?
+
+Mathematically, here we use `(1 - prop_score)` in the denominator instead of `(prop_score * (1 - prop_score))` and then we sum and divide by the number of *original* *treated* units (instead of dividing by the number of *total* units).
+
+Intuitively, for the treated `treatment - prop_score` and `1 - prop_score` cancel out, and we end up just with `outcome`. In other words, in the ATT IPTW estimator the treated units are not being weighted, only the control units.
+
+(example with visualisation: using the Lalonde dataset?)
+
+problem of IPTW: sensitivity to extreme PS values (and it's actually impossible to estimate with propensity scores equal to
+
+Possible solutions to what we see above:
+
+-   trimming
+
+-   normalised estimator ✨
 
 ### Propensity scores as a diagnosis tool
 
-## How to estimate the variance of these estimators?
+(should I talk about this?)
+
+## Variance of the estimators
 
 ### Matching: don't get creative, use proven formulas and software
 
