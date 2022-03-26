@@ -482,11 +482,11 @@ Let's see a code example. Here we'll use the data from Lalonde ([1986](https://m
 
 Of course, there is confounding in this data due to selection bias, which makes a naive difference of means inappropriate as causal effect estimate. But there is also a big control donor pool (the comparison group comes is 2.3 times the size of the treated group). This gives us hope for estimating the ATT by balancing the covariates through propensity scores.
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 library(twang)
 data(lalonde)
 
-ps_lalonde_gbm = ps(
+ps_lalonde_gbm <-  ps(
   # This is D ~ X, a model with the treatment as responde and
   # the confounders as predictors
   treat ~ age + educ + black + hispan + nodegree +
@@ -527,19 +527,23 @@ Surprisingly, it turns out that *matching on the propensity score* is a bad idea
 
 Okey, so matching is out, but then we go back to the first question: how do we use the propensity scores?! There are several valid strategies, but the more recommended in the reference books I checked was one called **inverse probability of treatment weighting** (IPTW).
 
-The key idea of IPWT, as its name says, is to **weight the observations based on the probability of them having the *opposite* treatment status of what they actually have**. For example, if a unit has a low propensity score (indicating it was unlikely to be treated) but it was actually treated, then it will receive a high weight and vice-versa, a treated unit with high propensity score will have a low weight.
+The key idea of IPWT, as its name says, is to **weight the observations based on the probability of them having the *opposite* treatment status of what they actually have**. For example, if a unit has a low propensity score (indicating it was unlikely to be treated) but it was actually treated, then it will receive a high weight and vice-versa: a treated unit with high propensity score will have a low weight.
 
-Here the book *Causal Inference for the Brave and True* nicely sums up the reason for this:
+Here the book *Causal Inference for the Brave and True* nicely sums up why we do this:
 
 > If [a treated individual] has a low probability of treatment, that individual looks like the untreated. However, [it] was treated. This must be interesting. We have a treated that looks like the untreated, so we will give that entity a high weight.
 
-Cool, we have the intuition, now let's take a look at the estimator itself:
+After weighting all the units in a group (treated or untreated) we'll end up with a *weighted sample* that looks more like the other group. For estimating the ATE, we weight *both groups* so they both become more similar to each other simultaneously. On the other hand, if we just want the ATE, we weight only the control group in order to make it similar to the unweigthed treated group[^13].
+
+[^13]: Similarly, we could estimate the treatment effect on the *untreated* (ATU) by weighting only the treated group to make it similar to the unweighted control group.
+
+Cool, now that we got the intuition, let's take a look at the estimators themselves. First, the ATE estimator, where we weight both groups simultaneously:
 
 ```{r}
 iptw_ate <- function(data,
-                                     outcome,
-                                     treatment,
-                                     prop_score) {
+                     outcome,
+                     treatment,
+                     prop_score) {
   
   # Renaming the columns for convenience 
   # (i.e. not using {{ }} afterwards)
@@ -550,15 +554,24 @@ iptw_ate <- function(data,
   
   # Estimation itself
   data %>% 
-    mutate(iptw = outcome * (treatment - prop_score) /
-             (prop_score * (1 - prop_score))) %>% 
+    mutate(iptw = ifelse(treatment == 1,
+                         yes = outcome/prop_score,
+                         no = -outcome/(1-prop_score))) %>% 
     pull(iptw) %>% 
     mean()
 
 }
 ```
 
-(some explanation of the math, what happens when `treatment==1` and when `treatment==0`)
+Note how the weighting is different (opposite) depending on the unit's treatment status (makes sense). Also note that, as in the matching estimators from the previous blog post, we *subtract* the weighted outcome of the *untreated* because we want the difference between the two groups (treated outcome minus untreated outcome)[^14].
+
+[^14]: An alternative version of the `mutate(iptw = ...` line that you may see elsewhere is:
+
+    ``` r
+     iptw = outcome * (treatment - prop_score) / (prop_score * (1 - prop_score))
+    ```
+
+    This is actually the same that the `ifelse` logic shown before. When `treatment==1`, it collapses to `outcome/prop_score`, and when `treatment==0`, it simplifies to `-outcome/(1-prop_score)`. IMHO the `ifelse` version is clearer/more explicit, but just know that if you see this other expression in textbooks, they're referring to the same thing.
 
 There is also an ATT version of the estimator:
 
@@ -579,8 +592,9 @@ iptw_att <- function(data,
   n_treated <- data %>% filter(treatment == 1) %>% nrow()
   
   data %>% 
-    mutate(iptw = outcome * (treatment - prop_score) /
-             (1 - prop_score)) %>% 
+    mutate(iptw = ifelse(treatment==1,
+                         yes = outcome,
+                         no = -outcome*prop_score/(1 - prop_score))) %>% 
     pull(iptw) %>% 
     sum() %>% 
     magrittr::divide_by(n_treated)
@@ -588,27 +602,166 @@ iptw_att <- function(data,
 }
 ```
 
-What's different here?
+As we know, the treated units are left untouched for the ATT estimation. However, the weight given to the untreated is slightly different. Why is that? [*The Effect* by Nick H-K](https://theeffectbook.net/ch-Matching.html#:~:text=The%20treated%20group%20gets,is.) gives us a nice explanation:
 
-Mathematically, here we use `(1 - prop_score)` in the denominator instead of `(prop_score * (1 - prop_score))` and then we sum and divide by the number of *original* *treated* units (instead of dividing by the number of *total* units).
+> The 1/(1−p), which we did before, sort of brings the representation of the untreated group back to neutral, where everyone is counted equally. But we don't want equal. We want the untreated group to be *like the treated group*, which means weighting them *even more* based on how like the treated group they are. And thus p/(1−p), which is more heavily responsive to p than 1/(1−p) is.
 
-Intuitively, for the treated `treatment - prop_score` and `1 - prop_score` cancel out, and we end up just with `outcome`. In other words, in the ATT IPTW estimator the treated units are not being weighted, only the control units.
+To make all of this even clearer, let's create a `gganimate` visualisation that shows the weighting in action. For this I'll attach the propensity scores to the original `lalonde` dataset and then create two version of the data:
 
-(example with visualisation: using the Lalonde dataset?)
+-   A weighted dataset using the ATT inverse weighting formula (i.e. weighting the control units to look more like the treated, but leaving the treated units untouched).
 
-problem of IPTW: sensitivity to extreme PS values (and it's actually impossible to estimate with propensity scores equal to
+-   An unweighted dataset, where every unit has `weight == 1`.
 
-Possible solutions to what we see above:
+Then we'll compute the weighted difference in each dataset. In the first dataset this difference will be **the ATT estimate through IPTW**, and in the second one it will just be the **"simple difference in outcomes"** (the difference we would find in the raw, observational data).
 
--   trimming
+```{r}
+# Data manipulation stage
+lalonde_w_ps <- lalonde %>% 
+  dplyr::select(treat, outcome = re78) %>% 
+  mutate(prop_score = ps_lalonde_gbm$ps[[1]])
 
--   normalised estimator ✨
+lalonde_for_gganimate <-
+  bind_rows(
+    lalonde_w_ps %>%
+      mutate(
+        weighting = "ATT",
+        weights = ifelse(treat == 1,
+                         yes = 1,
+                         no = 1 * prop_score / (1 - prop_score))
+      ),
+    lalonde_w_ps %>%
+      mutate(weighting = "No weighting (observational)",
+             weights = 1)
+  ) %>% 
+  mutate(treat = factor(treat,
+                        levels = c(0,1),
+                        labels = c("Untreated", "Treated")),
+         weighting = factor(weighting,
+                            levels = c("No weighting (observational)",
+                                       "ATT")))
 
-### Propensity scores as a diagnosis tool
+# Second dataset: means
+lalonde_means_gganimate <- lalonde_for_gganimate %>% 
+  group_by(treat, weighting) %>% 
+  summarise(mean_outcome = weighted.mean(outcome, weights),
+            .groups = "drop")
 
-(should I talk about this?)
+
+# Third dataset with the estimated ATT
+sdo <- function(df) {
+  outcome_treat <- df %>% 
+    filter(treat == "Treated") %>% 
+    pull(mean_outcome)
+  
+  outcome_untreated <- df %>% 
+    filter(treat == "Untreated") %>% 
+    pull(mean_outcome)
+  
+  outcome_treat - outcome_untreated
+}
+
+lalonde_treat_effect <- lalonde_means_gganimate %>%
+  group_nest(weighting) %>%
+  mutate(sdo = map_dbl(data, sdo)) %>% 
+  dplyr::select(-data)
+```
+
+```{r, eval=FALSE, echo=TRUE}
+library(gganimate)
+# requires: install.packages("gifski")
+
+iptw_plot <- ggplot(lalonde_for_gganimate) +
+  geom_point(aes(prop_score, outcome, color = treat,
+                 size = weights, alpha = weights)) +
+  geom_hline(data = lalonde_means_gganimate,
+             aes(yintercept = mean_outcome, color = treat),
+             size = 1.3,
+             show.legend = FALSE) +
+  geom_text(data = lalonde_treat_effect,
+            aes(label = str_c("Difference Treated minus Control:", round(sdo, 2))),
+            x =0.5,
+            y =19500) +
+  scale_alpha_continuous(range = c(0.2, 0.9),
+                         guide = NULL) +
+  ylim(c(0, 20000)) +
+  labs(title = 'Weighting: {closest_state}',
+       subtitle = "Horizontal line is group average",
+       x = 'Propensity score',
+       y = 'Outcome',
+       color = 'Treatment status',
+       size = 'Weight') +
+  # gganimate code
+  transition_states(
+    weighting,
+    transition_length = 2,
+    state_length = 1
+  ) +
+  enter_fade() + 
+  exit_shrink() +
+  ease_aes('sine-in-out')
+
+# Exporting as GIF
+animation_obj <- animate(iptw_plot, nframes = 150, fps=35,
+        height = 400, width = 600, res=110,
+        renderer = gifski_renderer())
+
+anim_save("iptw.gif", animation_obj)
+```
+
+![](images/iptw.gif)
+
+I think this animation illustrates very well what IPTW is doing under the hood. Also, it hints one of the pitfalls of this method: a disproportionate sensibility to observations in the extremes of the propensity score distribution. Specifically, the weights will approach infinity when `ps_score` approaches 0 for treated units or 1 for untreated units, which, of course, makes the final estimate more vulnerable to sample variance (and what's more, the weight becomes undefined if the `ps_score` is exactly 0 for a treated unit or 1 for an untreated unit).
+
+What can we do to mitigate this problem?
+
+A solution commonly seen in papers is performing **trimming**. This means just dropping out the units with extreme propensity scores values, for example less than 0.05 and more than 0.95. This has the potential drawback of changing our estimand. As in matching, if you discard an important number of units you're no longer estimating the ATE or the ATT, but an average causal effect on the units that remain in your sample. Depending on the context, this effect may or may not be relevant to your audience and stakeholders, so keep that in mind[^15].
+
+[^15]: There is an alternative formulation of this technique which consist in capping out the weights at some value (e.g. 20). If a unit ends up with a weight higher than that, we just change its weight to the maximum value. This doesn't drop observations but introduces bias in the estimate.
+
+Another alternative is using the ✨**normalised IPTW estimator✨**, proposed by [Hirano and Imbens (2001)](https://oconnell.fas.harvard.edu/files/imbens/files/estimation_of_causal_effects_using_propensity_score_weighting_an_application_to_data_on_right_hear_catherization.pdf), which is aimed at better handling the extremes of the propensity score distribution. This estimator *normalises* the weights based on the sum of the propensity scores in the treated and control groups and thus makes the weights themselves sum to 1 in each group (so we avoid the awkward situation of weights approaching infinity).
+
+Here we have it implemented as code:
+
+```{r}
+iptw_att <- function(data,
+                     outcome,
+                     treatment,
+                     prop_score) {
+  
+  # Renaming the columns for convenience 
+  # (i.e. not using {{ }} afterwards)
+  data <- data %>% 
+    rename(outcome := {{outcome}},
+           treatment := {{treatment}},
+           prop_score := {{prop_score}})
+  
+  # Estimation itself
+  treated_section <- data %>% 
+    filter(treatment == 1) %>% 
+    summarise(numerator = sum(outcome/prop_score),
+              denominator = sum(1/prop_score))
+  
+  untreated_section <- data %>% 
+    filter(treatment == 0) %>% 
+    summarise(numerator = sum(outcome/(1-prop_score)),
+              denominator = sum(1/(1-prop_score)))
+  
+  (treated_section$numerator / treated_section$denominator) -
+    (untreated_section$numerator / untreated_section$denominator)
+}
+```
 
 ## Variance of the estimators
+
+As we approach the end of the post, an element that the more stats savvy readers may be missing is the **standard errors estimation**. After all, 99.99% of the time we'll get a difference between treated and control greater than zero but without standard errors we can't tell if that's due to a true causal effect or just because of chance/sample variance.
+
+So, let's get to the point: how de we compute standard errors for Matching and Inverse Probability Weighting?
+
+TODO:
+
+-   Read my notes about this
+
+-   Re-read sections in my reference books about this.
 
 ### Matching: don't get creative, use proven formulas and software
 
@@ -620,6 +773,4 @@ Possible solutions to what we see above:
 
 (example in code)
 
-## Implementations as R packages
-
-(References and so on)
+## References
