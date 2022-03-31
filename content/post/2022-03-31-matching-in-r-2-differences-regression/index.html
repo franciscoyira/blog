@@ -1,0 +1,428 @@
+---
+title: 'Matching in R (II): Differences between Matching and Regression'
+author: Francisco Yirá
+date: '2022-03-11'
+slug: matching-in-r-2-differences-regression
+cover: "images/clones_orphan_black.jpg"
+useRelativeCover: true
+isMath: "true"
+categories:
+  - causal-inference
+  - data-science
+  - R
+tags:
+  - causal-inference-the-mixtape
+  - books
+  - dags
+  - potential-outcomes
+  - the-effect
+  - matching
+  - english-only-ds
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>Welcome to the second and final part of this article about Matching estimators. This will build on top of the concepts explained in <a href="https://www.franciscoyira.com/post/matching-in-r-part-1/">the first part</a>, so if you haven’t read it yet, I recommend doing so before you continue reading. But if you don’t have time for that, don’t worry. Here it’s a quick summary of the key ideas from the first part that are required to understand this new post:</p>
+<ul>
+<li><p>First, we talked about the <strong>conditional independence assumption</strong> (CIA), which is like a “weak version” of <a href="https://www.franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/#:~:text=The%20independence%20assumption,ATE!%20(it%E2%80%99s%20unbiased)">the “full” independence (between treatment assignment and potential outcomes) we find in completely randomised trials</a>. It states that the treatment assignment is “as good as random” inside subgroups of the data with the same values of some covariates X, despite not being random in the data as a whole.</p></li>
+<li><p>How do we know if we have conditional independence? Technically, it’s an untestable assumption, but we can assess how reasonable or far fetched it’s to believe in it by <strong>drawing a causal diagram</strong> (DAG), which is a neat representation of all our current knowledge about the data generating process. By looking at our DAG, we can tell if it makes sense to assume conditional independence in our data.</p></li>
+</ul>
+<div class="figure">
+<img src="images/conditional_indepence_believe.jpg" alt="" />
+<p class="caption"><em>The Conditional Independence Assumption states that the potential outcomes are independent of the treatment assignment after adjust/controlling for X (a set of covariates).</em></p>
+</div>
+<ul>
+<li>After (honestly and rigorously) convincing ourselves that the CIA holds in our data, we can go ahead and use the methods we saw in Part 1: <strong>Subclassification, Exact Matching, and Approximate Matching</strong>, which adjust for the set X of confounders/covariates and thus estimate the true causal effect.</li>
+</ul>
+<div id="matching-versus-regression-whats-the-difference" class="section level2">
+<h2>Matching versus Regression: What’s the difference?</h2>
+<p>After that brief recap, let’s talk more about the contexts in which Matching should be used. Specifically, how can we decide when to use Matching and when Regression to control for confounders? After all, <strong>both methods rely on the same type of DAG</strong>: one where the conditional independence assumption is met.</p>
+<p><img src="images/same_dag_matching_regression.jpg" /></p>
+<p>To answer that question, let’s look into the differences between these two techniques.</p>
+<div id="regression-is-parametric-matching-is-non-parametric" class="section level3">
+<h3>Regression is parametric, Matching is non-parametric</h3>
+<p>Regression requires us to <strong>assume a functional form</strong> that links the treatment (<span class="math inline">\(D\)</span>) and the covariates (<span class="math inline">\(X\)</span>) with the outcome (<span class="math inline">\(Y\)</span>). We call this kind of model “parametric” because it has <em>parameters</em> to be estimated (which, in the context of regression, are usually known as “betas”).</p>
+<p>On the other hand, Matching provides more freedom by not imposing any functional form on the variables. The only two assumptions it relies on are the CIA (which is required by regression too) and common support (which is necessary to obtain an estimate).</p>
+<p>For example, if your regression model is <span class="math inline">\(Y = D + X_1 + X_2\)</span> (where <span class="math inline">\(X_1\)</span> and <span class="math inline">\(X_2\)</span> are covariates and observable confounders), you’re imposing a specification that assumes:</p>
+<ul>
+<li>Independence between the treatment effect and the covariates values.</li>
+<li>Linear and additive effects of the covariates on the outcome (the “beta” of <span class="math inline">\(X_1\)</span> is the same regardless of the value of <span class="math inline">\(X_2\)</span>, and vice-versa).</li>
+</ul>
+<p>These assumptions could be true or not, and if they are not true, then <strong>our estimate may be biased due to misspecification</strong>.</p>
+<p>Meanwhile, if we did Matching using <span class="math inline">\(X_1\)</span> and <span class="math inline">\(X_2\)</span>, the estimated counterfactual for each unit would be just the (average) <em>actual</em> outcome of the matched unit(s), so there would be no need to make any functional form assumptions. The relationships between the covariates, the treatment and the outcome could be highly non-linear, and the Matching estimator would still work just fine, as long as there is common support and the CIA holds<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+<p>Let’s see an example with code. Pay close attention to the lines that generate the data (those inside the <code>tibble</code> call).</p>
+<pre class="r language-r"><code>library(tidyverse)
+
+# Data-generating code
+df &lt;- tibble(
+  # x is our confounder
+  x = runif(1000, -1, 4),
+  # it affects the probabiity of receiving the treatment
+  # in a NON-LINEAR way (step function)
+  prob_d = ifelse(x &gt; 0.5 &amp; x &lt; 2.5, 0.1, 0.9),
+  d = rbinom(1000, 1, prob_d),
+  noise = rnorm(1000, sd = 0.1),
+  # for simplification, the treatment effect is homogeneous
+  treat_effect = 1,
+  # x also effects the outcome in a non-linear way
+  y = sin(x) + d*treat_effect + noise
+) %&gt;% 
+  mutate(d_factor = factor(d,
+                           levels=c(0,1), labels=c(&quot;Untreated&quot;,
+                                                   &quot;Treated&quot;)))
+
+ggplot(df,
+       aes(x, y,
+           color = d_factor)) +
+  geom_point() + 
+  labs(color = &quot;Treatment status&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<pre class="r language-r"><code>linear_model1 &lt;- lm(y ~ d + x, data = df)
+
+confint(linear_model1)</code></pre>
+<pre class="language-r"><code>##                  2.5 %     97.5 %
+## (Intercept) 0.58654348 0.69391148
+## d           0.11758689 0.23451997
+## x           0.02243191 0.06133303</code></pre>
+<p>Here <code>x</code> is a confounder because it affects both the outcome (<code>y</code>) and the probability of receiving the treatment (<code>d</code>). But simple linear regression can’t help us, even if we include the confounder as control, because both relationships (X-&gt;D and X-&gt;Y) are highly non-linear. Therefore, the final estimate is so biased that the true value is outside the confidence interval. Sad!</p>
+<p><img src="images/your-regression-is-bad-and-you-should-feel-bad.jpg" /></p>
+<p>Now let’s use Matching with the same data. Here we’re going to use a Matching estimator implemented by a CRAN R package instead of coding it ourselves<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>:</p>
+<pre class="r language-r"><code>library(Matching)
+M &lt;- Match(df$y, df$d, df$x, M = 5, Weight = 2, caliper = 0.05)
+summary(M)</code></pre>
+<pre class="language-r"><code>## 
+## Estimate...  0.98881 
+## AI SE......  0.035187 
+## T-stat.....  28.101 
+## p.val......  &lt; 2.22e-16 
+## 
+## Original number of observations..............  1000 
+## Original number of treated obs...............  599 
+## Matched number of observations...............  150 
+## Matched number of observations  (unweighted).  765 
+## 
+## Caliper (SDs)........................................   0.05 
+## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  449</code></pre>
+<p>As expected, the Matching estimate is much closer to the true treatment effect (and its confidence interval includes the true value) because it’s not relying on false linearity assumptions<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</p>
+<p>Here is an illustration that makes it clearer what each of the estimators is doing and why the linear regression estimate is so off<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>:</p>
+<pre class="r language-r"><code># Matching 
+library(FNN)
+knn1 &lt;- knn.reg(
+  train = dplyr::select(df, x, d),
+  y = df$y,
+  test = dplyr::select(df, x, d),
+  k = 10,
+  algorithm = &quot;brute&quot;
+)
+
+df_knn &lt;- df %&gt;% 
+  mutate(pred_knn = knn1$pred)
+
+# Regression
+df_linear &lt;- df %&gt;% 
+  modelr::add_predictions(linear_model1, var = &quot;pred_linear&quot;)
+
+
+# Plots
+plot_matching &lt;- 
+  ggplot(df_knn) +
+  aes(x = x, color = d_factor) +
+  geom_point(aes(y = y), alpha = 0.3) +
+  geom_line(aes(y = pred_knn), size = 1.5) +
+  labs(color = &quot;Treatment status&quot;,
+       title = &quot;Matching&quot;) + theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.title.x = element_blank()
+  )
+
+plot_linear &lt;- 
+  ggplot(df_linear) +
+  aes(x = x, color = d_factor) +
+  geom_point(aes(y = y), alpha = 0.3) +
+  geom_line(aes(y = pred_linear), size = 1.5) +
+  labs(color = &quot;Treatment status&quot;,
+       title = &quot;Linear regression&quot;)
+
+library(patchwork)
+
+(plot_matching / plot_linear) +
+  plot_layout(guides = &quot;collect&quot;) + 
+  plot_annotation(subtitle = &quot;In each subplot, the estimated ATE is the average distance between the two lines&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+</div>
+<div id="common-support-assumption-versus-extrapolation" class="section level3">
+<h3>Common support assumption versus extrapolation</h3>
+<p>Up to this point, it seems that Matching is winning. Why would we want to assume a specific functional form when we can just… not?</p>
+<p><img src="images/stop_linear_regression.jpg" /></p>
+<p>Sadly, there is no free lunch, and the flexibility of Matching comes at a price: <strong>the common support assumption</strong>. In order to get a counterfactual estimate without a parametric model, we need to have observations with the same (or similar) covariate values and opposite treatment status for each of the original units. If we don’t, Matching will fail.</p>
+<p>However, Regression doesn’t have such a requisite. Instead, it leverages the parametric specification to get estimates by “extrapolation” in the areas without common support. And, if our parametric specification appropriately reflects the data generating process, such extrapolation is a reasonable way to handle these cases<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>.</p>
+<blockquote>
+<p><strong>Regression leverages the parametric specification to get estimates by “extrapolation” in the areas without common support.</strong></p>
+</blockquote>
+<p>Let’s see an example with simulated data to understand better this idea. The code here will be very similar to the previous example, but with two key differences:</p>
+<ul>
+<li>Treatment assignment (<code>d</code>) is now a <em>deterministic</em> function of <code>x</code>: for some values of <code>x</code>, all the units get the treatment, and for others, nobody is treated. This kills the common support assumption and any hope of using Matching and getting a good estimate ☠️.</li>
+<li>However, now we assume that we <em>know</em> the non-linear function that links <code>x</code> with <code>y</code>. We put that knowledge in the regression specification (<code>y ~ d + sin(x)</code>) in order to get the extrapolation right.</li>
+</ul>
+<p>Here is the simulated data:</p>
+<pre class="r language-r"><code>df_wo_common_support &lt;-
+  tibble(
+    x = runif(1000,-1, 4),
+    # Note how `x` now affects `d` in a deterministic way
+    # There is no `prob_d` and no `rbinom`
+    d = ifelse(x &gt; 0.5 &amp; x &lt; 2.5, 0, 1),
+    noise = rnorm(1000, sd = 0.1),
+    treat_effect = 1,
+    # x-&gt;y and x-&gt;d, just like in the previous example
+    y = sin(x) + d * treat_effect + noise
+  ) %&gt;%
+  mutate(d_factor = factor(
+    d,
+    levels = c(0, 1),
+    labels = c(&quot;Untreated&quot;, &quot;Treated&quot;)
+  ))
+
+ggplot(df_wo_common_support,
+       aes(x, y,
+           color = d_factor)) +
+  geom_point() + 
+  labs(color = &quot;Treatment status&quot;,
+       subtitle = str_wrap(&quot;Dataset without common support due to deterministic treatment assignement based on a confounder&quot;))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>And here is the regression with the new, non-linear specification:</p>
+<pre class="r language-r"><code>reg_wo_common_support &lt;- lm(y ~ d + sin(x), data = df_wo_common_support)
+
+confint(reg_wo_common_support)</code></pre>
+<pre class="language-r"><code>##                   2.5 %     97.5 %
+## (Intercept) -0.01361121 0.02429504
+## d            0.97853284 1.02486196
+## sin(x)       0.98535294 1.02347457</code></pre>
+<p>You could argue that this dataset is more challenging than the previous one. Nevertheless, regression is able to handle it because it now extrapolates using an appropriate specification.</p>
+<p>Here is a visualisation of what regression is doing under the hood:</p>
+<pre class="r language-r"><code># Hacky data manipulation to avoid the plot looking weird
+df_wo_common_support &lt;- df_wo_common_support %&gt;%
+  mutate(group = case_when(
+           x &lt; 0.5 ~ &quot;segment1&quot;,
+           x &gt; 2.5 ~ &quot;segment3&quot;,
+           TRUE ~ &quot;segment2&quot;
+         ))
+
+# Function to label the treatment variable 
+creating_factor_d &lt;- function(x) factor(x,
+                                        levels = c(0, 1),
+                                        labels = c(&quot;Untreated&quot;,
+                                                   &quot;Treated&quot;))
+
+df_wo_cs_treated &lt;- df_wo_common_support %&gt;% 
+  mutate(extrapolation = ifelse(d == 1, &quot;No&quot;, &quot;Yes&quot;),
+         d = 1,
+         d_factor = creating_factor_d(d)) %&gt;% 
+  modelr::add_predictions(reg_wo_common_support, var = &quot;pred_treated&quot;)
+  
+df_wo_cs_untreated &lt;- df_wo_common_support %&gt;% 
+  mutate(extrapolation = ifelse(d == 0, &quot;No&quot;, &quot;Yes&quot;),
+         d = 0,
+         d_factor = creating_factor_d(d)) %&gt;% 
+  modelr::add_predictions(reg_wo_common_support, var = &quot;pred_untreated&quot;)
+
+plot_wo_cs_reg &lt;- 
+  ggplot() +
+  aes(x, y, color = d_factor) +
+  geom_point(data= df_wo_common_support, alpha = 0.3) +
+  geom_line(data = df_wo_cs_untreated,
+            aes(y = pred_untreated,
+                alpha = extrapolation,
+                linetype = extrapolation,
+                group = group), size = 1.5) +
+  geom_line(data = df_wo_cs_treated,
+            aes(y = pred_treated,
+                alpha = extrapolation,
+                linetype = extrapolation,
+                group = group), size = 1.5) +
+  scale_alpha_manual(values = c(&quot;Yes&quot; = 0.5, &quot;No&quot; = 1)) +
+  scale_linetype_manual(values = c(&quot;Yes&quot; = &quot;dashed&quot;, &quot;No&quot; = &quot;solid&quot;)) +
+  scale_color_discrete(name = &quot;Treated or Not&quot;) +
+  theme(legend.key.width=unit(1.5,&quot;cm&quot;)) +
+  labs(subtitle = str_wrap(&quot;Regression extrapolates when there isn&#39;t common support, and if the model specification is correct, that may be a good thing&quot;))
+
+plot_wo_cs_reg</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>Nice.</p>
+<p>Keep in mind that, in the real world, rarely do we have such perfect knowledge of the true functional form. But if you find yourself in this lucky situation, it’s a good idea to leverage this knowledge through a parametric method like regression.</p>
+<p>Now, just for fun, let’s see what Matching would do in this dataset. We already know that <strong>it will fail because there isn’t common support</strong>, so matches are likely to be <em>terrible</em> as in they won’t be similar to the original units. But if you <em>really</em> want visual proof, here we go:</p>
+<pre class="r language-r"><code>x_values &lt;- df_wo_common_support %&gt;% dplyr::select(x)
+
+knn_wo_cs_treated &lt;- knn.reg(
+  train = df_wo_common_support %&gt;% 
+    filter(d == 1) %&gt;% 
+    dplyr::select(x),
+  y = df_wo_common_support %&gt;% 
+    filter(d == 1) %&gt;% 
+    dplyr::pull(y),
+  test = x_values,
+  k = 15,
+  algorithm = &quot;brute&quot;
+)
+
+knn_wo_cs_untreated &lt;- knn.reg(
+  train = df_wo_common_support %&gt;% 
+    filter(d == 0) %&gt;% 
+    dplyr::select(x),
+  y = df_wo_common_support %&gt;% 
+    filter(d == 0) %&gt;% 
+    dplyr::pull(y),
+  test = x_values,
+  k = 15,
+  algorithm = &quot;brute&quot;
+)
+
+df_untr_matching_wo_cs &lt;-
+  tibble(
+    y_pred = knn_wo_cs_untreated$pred,
+    x = df_wo_common_support$x,
+    d = 0
+  ) %&gt;%
+  mutate(d_factor = creating_factor_d(d))
+
+df_tr_matching_wo_cs &lt;-
+  tibble(
+    y_pred = knn_wo_cs_treated$pred,
+    x = df_wo_common_support$x,
+    d = 1
+  ) %&gt;%
+  mutate(d_factor = creating_factor_d(d),
+         group = case_when(
+           x &lt; 0.5 ~ &quot;segment1&quot;,
+           x &gt; 2.5 ~ &quot;segment3&quot;,
+           TRUE ~ &quot;segment2&quot;
+         ))
+
+plot_matching_wo_cs &lt;- 
+  ggplot() +
+  aes(x, y, color = d_factor) +
+  geom_point(data= df_wo_common_support, alpha = 0.3) +
+  geom_line(data = df_untr_matching_wo_cs,
+            aes(y = y_pred), size = 1.5) +
+  geom_line(data = df_tr_matching_wo_cs,
+            aes(y = y_pred, group = group), size = 1.5) +
+  labs(color = &quot;Treated or Not&quot;,
+       subtitle = &quot;Matching just fails when there isn&#39;t common support&quot;) 
+
+plot_matching_wo_cs</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>The estimated ATE would be the average distance between the two lines (<em>clearly</em> a bad estimate).</p>
+<p>In cases like this, you would like your matching estimation to throw an error instead of returning a terrible estimate.<a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a>. I couldn’t find a way to make <code>Matching::Match()</code> throw an error in this situation, but at least we can set the <code>caliper</code> parameter to avoid matches that are too far away<a href="#fn7" class="footnote-ref" id="fnref7"><sup>7</sup></a>.</p>
+<pre class="r language-r"><code>M_wo_cs &lt;- Match(df_wo_common_support$y,
+                 df_wo_common_support$d,
+                 df_wo_common_support$x,
+                 M = 5,
+                 # Weight = 2 means we use Mahalanobis distance, weirdly 
+                 Weight = 2,
+                 caliper = 0.05)
+summary(M_wo_cs)</code></pre>
+<pre class="language-r"><code>## 
+## Estimate...  0.91093 
+## AI SE......  0.037043 
+## T-stat.....  24.591 
+## p.val......  &lt; 2.22e-16 
+## 
+## Original number of observations..............  1000 
+## Original number of treated obs...............  588 
+## Matched number of observations...............  17 
+## Matched number of observations  (unweighted).  85 
+## 
+## Caliper (SDs)........................................   0.05 
+## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  571</code></pre>
+<p>Here our alarms should ring after seeing the number of dropped observations (588 of 604) and the number of matched units (only 16). This should be enough to convince yourself that there is no common support, even if you can’t see it visually<a href="#fn8" class="footnote-ref" id="fnref8"><sup>8</sup></a>.</p>
+</div>
+<div id="regression-and-matching-handle-heterogeneous-treatment-effects-differently" class="section level3">
+<h3>Regression and Matching handle heterogeneous treatment effects differently</h3>
+<p>For simplicity’s sake, all previous examples have assumed constant treatment effects over all the units. In real life, however, there are a lot of cases when units or subgroups respond differently to the treatment. This is known as having <em>heterogeneous treatment effects</em> (HTE). If you suspect this is the case in your data, you have two options:</p>
+<ul>
+<li><p>Option 1: “sweep the heterogeneity under the rug” and <strong>just estimate average effects</strong> (ATE or/and ATT). This is OK if the variability of the treatment effects is low, but you are at risk of things like getting a positive estimate when the treatment is actually hurting a small subgroup.</p></li>
+<li><p>Option 2: accept the challenge and try to <strong>estimate treatment effects specific for each subgroup</strong>, also known as CATEs (Conditional Average Treatment Effects).</p></li>
+</ul>
+<p>CATE estimation could be a blog post alone, so we’re going to leave it out for now and focus on option 1. Here Matching and Regression differ in how each they weight the group-specific treatment effects to get the average: Matching does it by <strong>weighting on the covariate frequency</strong>, and Regression does it by <strong>weighting on treatment variance</strong>.</p>
+<blockquote>
+<p><strong>If there are heterogeneous treatment effects, Regression and Matching will likely return different ATE and ATT estimates, even if there is common support and the regression model is correctly specified.</strong></p>
+</blockquote>
+<p><strong>Covariate frequency</strong> is how many observations there are in each subgroup. The higher the frequency in a subgroup, the higher the weight of its specific treatment effect in the global ATE or ATT. For example, if there are different treatment effects for men and women, and 90% of the data are women, then their treatment effect will have a weight of 90% in the “global” ATE estimated through Matching.</p>
+<p><strong>Treatment variance</strong> is literally the variance of <code>d</code>, the treatment assignment, inside each subgroup. This variance is maximised when there is a 50/50 split between treated and controls and is minimised when all the units have the same treatment status. Thus, if you use regression, the treatment effect of a subgroup with a 50/50 split will have a higher weight on the ATE than the effect of a group with a 10/90 split.</p>
+<p>Of course, none of this matters if the treatment effects are the same for all the units. But the point is that, if they are different, regression and matching will likely return different estimates, even if there is common support and the regression model is correctly specified.</p>
+<p>Let’s see this idea in action with a code example. As in previous examples, we have an observable confounder (<code>gender</code>) that affects both the outcome <code>y</code> and the chance to get the treatment <code>prob_d</code>. BUT we also have different treatment effects according to <code>gender</code>: people with <code>gender == "other"</code> have a treatment effect equal to 3 (when they get the treatment) while everyone else has a treatment effect equal to 1.</p>
+<pre class="r language-r"><code>set.seed(1989)
+
+# Code that generates the data
+df_hte &lt;- 
+  tibble(
+    gender = c(rep(&quot;men&quot;, 450), rep(&quot;women&quot;, 450), rep(&quot;other&quot;, 100)),
+    baseline_mean = case_when(
+      gender == &quot;men&quot; ~ 10,
+      gender == &quot;women&quot; ~ 12,
+      gender == &quot;other&quot; ~ 8),
+    y0 = rnorm(1000, mean = baseline_mean),
+    prob_d = ifelse(gender %in% c(&quot;men&quot;, &quot;women&quot;), 0.05, 0.5),
+    d = rbinom(1000, 1, prob_d),
+    treat_effect = ifelse(gender %in% c(&quot;men&quot;, &quot;women&quot;), 1, 3),
+    y = y0 + d*treat_effect
+  )</code></pre>
+<pre class="r language-r"><code>lm(y ~ d + gender, data = df_hte)</code></pre>
+<pre class="language-r"><code>## 
+## Call:
+## lm(formula = y ~ d + gender, data = df_hte)
+## 
+## Coefficients:
+## (Intercept)            d  genderother  genderwomen  
+##       9.934        1.716       -1.463        2.072</code></pre>
+<pre class="r language-r"><code>df_hte_matching &lt;- df_hte %&gt;% 
+  fastDummies::dummy_cols(&quot;gender&quot;)
+
+matrix_gender &lt;- df_hte_matching %&gt;% 
+    dplyr::select(starts_with(&quot;gender_&quot;)) %&gt;% 
+    as.matrix()
+
+Match(
+  Y = df_hte_matching$y,
+  Tr = df_hte_matching$d,
+  X = matrix_gender,
+  exact = TRUE,
+  estimand = &quot;ATE&quot;
+) %&gt;% summary()</code></pre>
+<pre class="language-r"><code>## 
+## Estimate...  0.9856 
+## AI SE......  0.18214 
+## T-stat.....  5.4111 
+## p.val......  6.2633e-08 
+## 
+## Original number of observations..............  1000 
+## Original number of treated obs...............  81 
+## Matched number of observations...............  1000 
+## Matched number of observations  (unweighted).  36570 
+## 
+## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  0</code></pre>
+<p>Regression gives us an ATE estimate equal to 1.716 while Matching returns an estimate equal to 0.986.</p>
+<p>The explanation for this is the one given above: Regression weights the group-specific ATEs by treatment variance. The subgroup with <code>gender=="other"</code> has the highest treatment variance AND ALSO a higher treatment effect (3 vs 1 of the other units), so the final estimate is “pushed upwards” by these observations.</p>
+<p>Matching, on the other hand, returns a lower estimate because it puts a higher weight on the treatment effects of groups with higher frequency (men and women), which in turn have a lower treatment effect (the final estimate is “pushed downwards”).</p>
+</div>
+<div id="regression-has-more-bias-while-matching-has-more-variance" class="section level3">
+<h3>Regression has more bias, while Matching has more variance</h3>
+<p>The last difference has to do with the bias-variance trade-off. We already saw how Matching could have more or less bias and variance depending on the way in which we perform it but, regardless of that, Matching tends to have more variance and less bias than Regression.</p>
+<p>The main reason for this is that Matching drops the observations in the “donor pool” that aren’t similar enough to the original units, while Regression uses them to fit the model anyway. This reduces the sample variance (due to having higher N) and could increase our statistical power (the chance of rejecting the null of zero effect given that there is a real effect), but leads to bias if the model specification is not appropriate<a href="#fn9" class="footnote-ref" id="fnref9"><sup>9</sup></a>.</p>
+</div>
+</div>
+<div class="footnotes footnotes-end-of-document">
+<hr />
+<ol>
+<li id="fn1"><p>It’s worth mentioning that regression could also handle non-linear relationships, but we have to “declare” such non-linearity in the model specification.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>Which is what we should do most of the time. The “estimators as R functions” of the previous blog post had only pedagogical purposes, and, in general, it’s better to leverage implementations of statistical methods available in CRAN packages. Not only are they less likely to have errors, but they also have extra goodies such as standard errors calculation and nice <code>print</code> or <code>summary</code> methods.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>Regression fans may object that regression is technically <em>capable</em> of handling datasets like this, given that we include the non-linear relationships in the specification (for example, <code>lm(y ~ d + sin(x), data = df)</code> returns a treatment effect estimate close to 1). But the point is that we should critically assess if we have enough information to assume a specific functional form between the variables. If we don’t, then a non-parametric approach such as Matching may be a better option.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>Yes, KNN regression is <em>technically not the same</em> as matching, but, for the effect of this visualisation, the KNN algorithm illustrates well what matching is doing.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="fn5"><p>Big If, though.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn6"><p>This is a general principle that should be followed in many code-related situations: fail early (so you know ASAP that there is a problem) instead of returning garbage (which will mess up with stuff downstream).<a href="#fnref6" class="footnote-back">↩︎</a></p></li>
+<li id="fn7"><p>This <code>caliper</code> is interpreted as standard deviations by the functions. If you’re matching on several variables, you could also specify different callipers for each one. For more details, check the documentation of <code>MatchIt::Match()</code>.<a href="#fnref7" class="footnote-back">↩︎</a></p></li>
+<li id="fn8"><p>We should still visualise the data whenever we can, but if we were doing matching in more dimensions, the lack of common support would be more difficult to see.<a href="#fnref8" class="footnote-back">↩︎</a></p></li>
+<li id="fn9"><p><a href="https://stats.stackexchange.com/a/50641/249455" class="uri">https://stats.stackexchange.com/a/50641/249455</a><a href="#fnref9" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
