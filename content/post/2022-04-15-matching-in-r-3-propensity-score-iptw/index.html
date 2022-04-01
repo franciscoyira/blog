@@ -1,0 +1,488 @@
+---
+title: 'Matching in R (III): Propensity score, Weighting and Double Robust Estimator'
+author: Francisco Yirá
+date: '2022-04-15'
+slug: matching-in-r-3-propensity-score-iptw
+useRelativeCover: true
+cover: "images/cover.jpg"
+coverCaption: "[Woman Holding a Balance, c. 1664](https://www.nga.gov/collection/art-object-page.1236.html)"
+isMath: "true"
+categories:
+  - causal-inference
+  - data-science
+  - R
+tags:
+  - causal-inference-the-mixtape
+  - books
+  - dags
+  - propensity-score
+  - double-robust-estimator
+  - iptw
+  - potential-outcomes
+  - the-effect
+  - matching
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<p>Welcome to the final post of this three-part article about <strong>Matching estimators in R</strong>. First, let’s quickly recap what we’ve seen until now. In <a href="https://www.franciscoyira.com/post/matching-in-r-part-1">the first part</a> we took a look at <em>when</em> we can use these kind of estimators (it’s when the <em>conditional independence assumption</em> holds) and then we dived into some of them, like the <strong>Subclassification estimator</strong>, the <strong>Exact Matching Estimator</strong>, and the <strong>Approximate Matching Estimator</strong>.</p>
+<p>Then, in <a href="https://www.franciscoyira.com/post/matching-in-r-2-differences-regression">the second part</a>, we looked at the <strong>differences between matching and regression</strong>. These mainly boil down to Matching being a <em>non-parametric</em> method (i.e. it doesn’t assume a specific kind of relationship between the variables) that requires <em>common support</em> (that is, having both treated and control units for each set of values of the covariates/confounders). Meanwhile, regression requires us to impose a functional form, but, in return, it can estimate a causal effect even in areas without common support by extrapolating based on the functional form we give to it. This can be good or bad, depending on how accurate is the model specification we’re imposing.</p>
+<p>And now, for the last part, we’ll examine another set of relevant Matching topics:</p>
+<ul>
+<li><p>The estimation of <strong>propensity scores</strong>, a cool way to “collapse” all the confounders in a single scalar number (thus avoiding the curse of dimensionality).</p></li>
+<li><p>The <strong>inverse probability weighting estimator</strong>, an estimator that leverages the propensity score to achieve covariate balance by weighting the units according to their probability of being treated.</p></li>
+<li><p>The <strong>double robust estimator</strong>, a superb estimator that combines a regression specification with a matching-based model in order to obtain a good estimate <em>even when there is something wrong with one of the two underlying models</em>.</p></li>
+</ul>
+<p>So, let’s look into them!</p>
+<div id="propensity-scores" class="section level2">
+<h2>Propensity Scores</h2>
+<p>The use of <strong>Propensity Scores</strong> <a href="https://www.jstor.org/stable/1164933">was introduced by the famous economist Donald Rubin in the 70s</a>. As the name hints, these are <em>scores</em> that measure the <em>propensity</em> of receiving the treatment for a given unit, conditional on X (the observable confounders): <span class="math inline">\(P(D=1|X)\)</span>.</p>
+<p>Something cool about propensity scores is that they help us <strong>avoid the curse of dimensionality</strong>. Instead of dealing with the whole feature-space defined by the covariates X, we “collapse” it into a single variable that contains all the relevant information that explains the treatment assignment. In that sense, propensity scores constitute some sort of <strong>dimensionality reduction</strong>.</p>
+<p>The DAG of a propensity score would be something like this:</p>
+<div class="figure">
+<img src="images/dag_propensity_score.png" width="500" alt="" />
+<p class="caption"><em>DAG of the propensity score. Source: <a href="https://mixtape.scunning.com/matching-and-subclassification.html#propensity-score-methods">Causal Inference - The Mixtape</a>.</em></p>
+</div>
+<p>As in every <a href="https://franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">DAG</a>, assumptions are expressed by the <em>existence</em> of arrows and also by the <em>absence</em> of them. In particular, note that <strong>there is no arrow going directly from X to D</strong>. This means we’re assuming that all the effect of confounders X on D is “mediated” by the propensity score. Put another way, we’re saying X can’t provide any extra information about D after conditioning on the propensity score.</p>
+<p>Therefore, <strong>the propensity score is the only covariate we need to control for</strong> to achieve conditional independence and isolate the causal effect of <span class="math inline">\(D\)</span>:</p>
+<p><span class="math display">\[
+(Y^1, Y^0) \perp D  |  p(X)
+\]</span></p>
+<p>This leads to <strong>the balancing property of propensity scores</strong>: the distribution of the covariates X should be the same for units with the same propensity score, no matter their treatment status:</p>
+<p><span class="math display">\[
+P(X|D=1, p(X)) = P(X|D=0, p(X))
+\]</span></p>
+<p>And, good news: this property is testable. We can look at segments of our data with similar propensity scores, check if there are significant differences in their covariates, and thus determine if our propensity scores are “good enough”.</p>
+<div id="we-still-need-common-support" class="section level3">
+<h3>We still need common support</h3>
+<p>The propensity score can free us from the curse of dimensionality but not from the need of common support. For each combination of values of X (the original confounders) there should be a positive probability of both being treated and untreated. This means that <strong>the propensity scores should be strictly between 0 and 1</strong>. What’s more, the distributions of propensity scores for the treated and untreated units should overlap.</p>
+<p>There are several ways of checking this. The most basic and common (but still advisable) is to look at the histogram or density plot of <span class="math inline">\(p(X)\)</span> by treatment status. Here it’s an example of a density plot where common support doesn’t hold.</p>
+<p>(CHECK THIS PART, AFTER READING CIBT I’M NOT SO SURE ABOUT WHAT I’VE WRITTEN HERE)</p>
+<div class="figure">
+<img src="images/density_plot_no_common_support.jpg" width="550" alt="" />
+<p class="caption"><em>Source: <a href="https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext">https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext</a></em></p>
+</div>
+<p>Note that we don’t need both distributions to look the same (if that was the case, there would be no need for adjustment) but, in order to estimate the ATT, we <em>do</em> need a positive density or weight of the untreated distribution along all the treated group distribution. In figure above, there is a big chunk on the upper section of the treated group distribution where we can’t find any untreated units, so the existence of common support is questionable.</p>
+<p>Another way of checking for common support (suggested by Dehejia and Wahba, 1999) is to create bins based on the propensity score and check that there are observations of both groups in each bin (or at least in the bins where there are treated units, if we just want to estimate the ATT).</p>
+<p>(Propensity Score as diagnosis tool: how extreme is covariates imbalance?</p>
+<p>if distributions are bunched at the ends, then it’s pretty extreme, and matching can’t salvage it)</p>
+</div>
+<div id="estimating-the-propensity-scores" class="section level3">
+<h3>Estimating the propensity scores</h3>
+<p>Many of the properties mentioned above (e.g. the balancing property) refer to a theoretical <em>true propensity score</em>. In real life we don’t have access to those but we have to use <em>estimated propensity scores</em> instead.</p>
+<p>To estimate the propensity scores we have to fit a model using <code>d</code> (the treatment assignment) as the response variable and X (the covariates/confounders) as the predictors. A common model choice for this step is <strong>logistic regression</strong> but we could also use nonparametric machine learning methods such as <strong>gradient boosting</strong> or <strong>random forest</strong><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
+<p>ML methods <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2807890/">had been shown to perform better at removing covariate imbalance</a>, especially, of course, in contexts of non-linearity and non-additive relationships, so it may be a good idea to go ahead with them if possible.</p>
+<p>There are, however, a couple things to keep in mind when using ML models. The first is to <strong>avoid overfitting</strong>, which is when our model learns from the noise or sampling variance instead of the true patterns in the data. Secondly, <strong>we shouldn’t optimise for accurately prediction of the treatment status</strong> but for balancing confounders across treated and untreated groups (which is what the “true” propensity score is supposed to do).</p>
+<p>This last point also implies that we shouldn’t include in the propensity score model any variables that are not confounders (i.e. that don’t affect <em>both</em> the treatment status and the outcome) <em>even</em> if they improve the precision of the treatment status prediction<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>. Including such variables is not only unhelpful but it can even be harmful to our causal inference endeavour as it adds noise to the propensity scores (you can see an example of this <a href="https://matheusfacure.github.io/python-causality-handbook/11-Propensity-Score.html#common-issues-with-propensity-score">here in the book <em>Causal Inference for the Brave and True</em></a>).</p>
+<p>The good news is that there are several packages in R that optimise for covariate balance when estimating the scores. I took a quick look at them and liked a lot one named <code>twang</code>. This package is being actively developed by the RAND Corporation, has nice methods to measure covariate balance, and supports <code>gbm</code> and <code>xgboost</code> models to perform the PS estimation.</p>
+<p>Let’s see a code example. Here we’ll use the data from Lalonde (<a href="https://mixtape.scunning.com/references.html#ref-Lalonde1986">1986</a>), which is included in the <code>twang</code> package and also appears in the book <em>Causal Inference: The Mixtape</em>. This dataset compares the covariates and outcomes of the participants in a randomised training program aimed at disadvantaged workers in the mid-70s with those of the general population in the same period.</p>
+<p>(maybe talk a bit more about Lalonde? even if it’s in a footnote)</p>
+<p>Of course, there is confounding in this data due to selection bias, which makes a naive difference of means inappropriate as causal effect estimate. But there is also a big control donor pool (the comparison group comes is 2.3 times the size of the treated group). This gives us hope for estimating the ATT by balancing the covariates through propensity scores.</p>
+<pre class="r language-r"><code>library(twang)
+data(lalonde)
+
+ps_lalonde_gbm &lt;-  ps(
+  # This is D ~ X, a model with the treatment as responde and
+  # the confounders as predictors
+  treat ~ age + educ + black + hispan + nodegree +
+    married + re74 + re75,
+  data = lalonde,
+  n.trees = 10000,
+  interaction.depth = 2,
+  shrinkage = 0.01,
+  estimand = &quot;ATT&quot;,
+  stop.method = &quot;ks.max&quot;,
+  n.minobsinnode = 10,
+  n.keep = 1,
+  n.grid = 25,
+  ks.exact = NULL,
+  verbose = FALSE
+)</code></pre>
+<p>We use <code>twang::ps()</code> for estimating the propensity scores, which uses <code>gbm</code> by default. Most of the arguments are related to the <code>gbm</code> model. Two key argument are <code>n.trees</code>, the maximum number of iteration, and <code>stop.method</code>, which specifies the balance measure that will be used to choose the optimal number of iterations. Here we use <code>"ks.max"</code>, which is the maximum KS value (a measure of dissimilarity) among all the pairs of treated-untreated covariates distributions <em>after</em> adjusting for the estimated propensity scores. The lower the <code>ks.max</code>, the higher the balance.</p>
+<p>We can use <code>plot()</code> on the output of <code>ps()</code> to visualise the evolution of the balance measure across the iterations:</p>
+<pre class="r language-r"><code>plot(ps_lalonde_gbm)</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>We can clearly see that the balance is maximised somewhere below the 2000th iteration. This “optimal” iteration is the one used for the “final” propensity scores, which are stored under the name <code>ps</code> in the returned object.</p>
+<pre class="r language-r"><code>head(ps_lalonde_gbm$ps)</code></pre>
+<pre class="language-r"><code>##   ks.max.ATT
+## 1  0.6148900
+## 2  0.6909022
+## 3  0.9234996
+## 4  0.9527646
+## 5  0.9483888
+## 6  0.9527646</code></pre>
+</div>
+<div id="inverse-probability-of-treatment-weighting-iptw" class="section level3">
+<h3>Inverse Probability of Treatment Weighting (IPTW)</h3>
+<p>Great! We estimated the propensity scores! But how do we use them? A common sense and actually popular answer would be to do <em>matching</em> based on them: match each observation with the unit in the donor pool that has the closest propensity score.</p>
+<p>Surprisingly, it turns out that <em>matching on the propensity score</em> is a bad idea. A paper from 2018 by King and Nielsen showed several problems with this common approach that may even increase the imbalance between groups.</p>
+<p>Okey, so matching is out, but then we go back to the first question: how do we use the propensity scores?! There are several valid strategies, but the more recommended in the reference books I checked was one called <strong>inverse probability of treatment weighting</strong> (IPTW).</p>
+<p>The key idea of IPWT, as its name says, is to <strong>weight the observations based on the probability of them having the <em>opposite</em> treatment status of what they actually have</strong>. For example, if a unit has a low propensity score (indicating it was unlikely to be treated) but it was actually treated, then it will receive a high weight and vice-versa: a treated unit with high propensity score will have a low weight.</p>
+<p>Here the book <em>Causal Inference for the Brave and True</em> nicely sums up why we do this:</p>
+<blockquote>
+<p>If [a treated individual] has a low probability of treatment, that individual looks like the untreated. However, [it] was treated. This must be interesting. We have a treated that looks like the untreated, so we will give that entity a high weight.</p>
+</blockquote>
+<p>After weighting all the units in a group (treated or untreated) we’ll end up with a <em>weighted sample</em> that looks more like the other group. For estimating the ATE, we weight <em>both groups</em> so they both become more similar to each other simultaneously. On the other hand, if we just want the ATE, we weight only the control group in order to make it similar to the unweigthed treated group<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</p>
+<p>Cool, now that we got the intuition, let’s take a look at the estimators themselves. First, the ATE estimator, where we weight both groups simultaneously:</p>
+<pre class="r language-r"><code>iptw_ate &lt;- function(data,
+                     outcome,
+                     treatment,
+                     prop_score) {
+  
+  # Renaming the columns for convenience 
+  # (i.e. not using {{ }} afterwards)
+  data &lt;- data %&gt;% 
+    rename(outcome := {{outcome}},
+           treatment := {{treatment}},
+           prop_score := {{prop_score}})
+  
+  # Estimation itself
+  data %&gt;% 
+    mutate(iptw = ifelse(treatment == 1,
+                         yes = outcome/prop_score,
+                         no = -outcome/(1-prop_score))) %&gt;% 
+    pull(iptw) %&gt;% 
+    mean()
+
+}</code></pre>
+<p>Note how the weighting is different (opposite) depending on the unit’s treatment status (makes sense). Also note that, as in the matching estimators from the previous blog post, we <em>subtract</em> the weighted outcome of the <em>untreated</em> because we want the difference between the two groups (treated outcome minus untreated outcome)<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>.</p>
+<p>There is also an ATT version of the estimator:</p>
+<pre class="r language-r"><code>iptw_att &lt;- function(data,
+                     outcome,
+                     treatment,
+                     prop_score) {
+  
+  # Renaming the columns for convenience 
+  # (i.e. not using {{ }} afterwards)
+  data &lt;- data %&gt;% 
+    rename(outcome := {{outcome}},
+           treatment := {{treatment}},
+           prop_score := {{prop_score}})
+  
+  # Estimation itself
+  n_treated &lt;- data %&gt;% filter(treatment == 1) %&gt;% nrow()
+  
+  data %&gt;% 
+    mutate(iptw = ifelse(treatment==1,
+                         yes = outcome,
+                         no = -outcome*prop_score/(1 - prop_score))) %&gt;% 
+    pull(iptw) %&gt;% 
+    sum() %&gt;% 
+    magrittr::divide_by(n_treated)
+
+}</code></pre>
+<p>As we know, the treated units are left untouched for the ATT estimation. However, the weight given to the untreated is slightly different. Why is that? <a href="https://theeffectbook.net/ch-Matching.html#:~:text=The%20treated%20group%20gets,is."><em>The Effect</em> by Nick H-K</a> gives us a nice explanation:</p>
+<blockquote>
+<p>The 1/(1−p), which we did before, sort of brings the representation of the untreated group back to neutral, where everyone is counted equally. But we don’t want equal. We want the untreated group to be <em>like the treated group</em>, which means weighting them <em>even more</em> based on how like the treated group they are. And thus p/(1−p), which is more heavily responsive to p than 1/(1−p) is.</p>
+</blockquote>
+<p>To make all of this even clearer, let’s create a <code>gganimate</code> visualisation that shows the weighting in action. For this I’ll attach the propensity scores to the original <code>lalonde</code> dataset and then create two version of the data:</p>
+<ul>
+<li><p>A weighted dataset using the ATT inverse weighting formula (i.e. weighting the control units to look more like the treated, but leaving the treated units untouched).</p></li>
+<li><p>An unweighted dataset, where every unit has <code>weight == 1</code>.</p></li>
+</ul>
+<p>Then we’ll compute the weighted difference in each dataset. In the first dataset this difference will be <strong>the ATT estimate through IPTW</strong>, and in the second one it will just be the <strong>“simple difference in outcomes”</strong> (the difference we would find in the raw, observational data).</p>
+<pre class="r language-r"><code># Data manipulation stage
+lalonde_w_ps &lt;- lalonde %&gt;% 
+  dplyr::select(treat, outcome = re78) %&gt;% 
+  mutate(prop_score = ps_lalonde_gbm$ps[[1]])
+
+lalonde_for_gganimate &lt;-
+  bind_rows(
+    lalonde_w_ps %&gt;%
+      mutate(
+        weighting = &quot;ATT&quot;,
+        weights = ifelse(treat == 1,
+                         yes = 1,
+                         no = 1 * prop_score / (1 - prop_score))
+      ),
+    lalonde_w_ps %&gt;%
+      mutate(weighting = &quot;No weighting (observational)&quot;,
+             weights = 1)
+  ) %&gt;% 
+  mutate(treat = factor(treat,
+                        levels = c(0,1),
+                        labels = c(&quot;Untreated&quot;, &quot;Treated&quot;)),
+         weighting = factor(weighting,
+                            levels = c(&quot;No weighting (observational)&quot;,
+                                       &quot;ATT&quot;)))
+
+# Second dataset: means
+lalonde_means_gganimate &lt;- lalonde_for_gganimate %&gt;% 
+  group_by(treat, weighting) %&gt;% 
+  summarise(mean_outcome = weighted.mean(outcome, weights),
+            .groups = &quot;drop&quot;)
+
+
+# Third dataset with the estimated ATT
+sdo &lt;- function(df) {
+  outcome_treat &lt;- df %&gt;% 
+    filter(treat == &quot;Treated&quot;) %&gt;% 
+    pull(mean_outcome)
+  
+  outcome_untreated &lt;- df %&gt;% 
+    filter(treat == &quot;Untreated&quot;) %&gt;% 
+    pull(mean_outcome)
+  
+  outcome_treat - outcome_untreated
+}
+
+lalonde_treat_effect &lt;- lalonde_means_gganimate %&gt;%
+  group_nest(weighting) %&gt;%
+  mutate(sdo = map_dbl(data, sdo)) %&gt;% 
+  dplyr::select(-data)</code></pre>
+<pre class="r language-r"><code>library(gganimate)
+# requires: install.packages(&quot;gifski&quot;)
+
+iptw_plot &lt;- ggplot(lalonde_for_gganimate) +
+  geom_point(aes(prop_score, outcome, color = treat,
+                 size = weights, alpha = weights)) +
+  geom_hline(data = lalonde_means_gganimate,
+             aes(yintercept = mean_outcome, color = treat),
+             size = 1.3,
+             show.legend = FALSE) +
+  geom_text(data = lalonde_treat_effect,
+            aes(label = str_c(&quot;Difference Treated minus Control:&quot;, round(sdo, 2))),
+            x =0.5,
+            y =19500) +
+  scale_alpha_continuous(range = c(0.2, 0.9),
+                         guide = NULL) +
+  ylim(c(0, 20000)) +
+  labs(title = &#39;Weighting: {closest_state}&#39;,
+       subtitle = &quot;Horizontal line is group average&quot;,
+       x = &#39;Propensity score&#39;,
+       y = &#39;Outcome&#39;,
+       color = &#39;Treatment status&#39;,
+       size = &#39;Weight&#39;) +
+  # gganimate code
+  transition_states(
+    weighting,
+    transition_length = 2,
+    state_length = 1
+  ) +
+  enter_fade() + 
+  exit_shrink() +
+  ease_aes(&#39;sine-in-out&#39;)
+
+# Exporting as GIF
+animation_obj &lt;- animate(iptw_plot, nframes = 150, fps=35,
+        height = 400, width = 600, res=110,
+        renderer = gifski_renderer())
+
+anim_save(&quot;iptw.gif&quot;, animation_obj)</code></pre>
+<p><img src="images/iptw.gif" /></p>
+<p>I think this animation illustrates very well what IPTW is doing under the hood. Also, it hints one of the pitfalls of this method: a disproportionate sensibility to observations in the extremes of the propensity score distribution. Specifically, the weights will approach infinity when <code>ps_score</code> approaches 0 for treated units or 1 for untreated units, which, of course, makes the final estimate more vulnerable to sample variance (and what’s more, the weight becomes undefined if the <code>ps_score</code> is exactly 0 for a treated unit or 1 for an untreated unit).</p>
+<p>What can we do to mitigate this problem?</p>
+<p>A solution commonly seen in papers is performing <strong>trimming</strong>. This means just dropping out the units with extreme propensity scores values, for example less than 0.05 and more than 0.95. This has the potential drawback of changing our estimand. As in matching, if you discard an important number of units you’re no longer estimating the ATE or the ATT, but an average causal effect on the units that remain in your sample. Depending on the context, this effect may or may not be relevant to your audience and stakeholders, so keep that in mind<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>.</p>
+<p>Another alternative is using the ✨<strong>normalised IPTW estimator✨</strong>, proposed by <a href="https://oconnell.fas.harvard.edu/files/imbens/files/estimation_of_causal_effects_using_propensity_score_weighting_an_application_to_data_on_right_hear_catherization.pdf">Hirano and Imbens (2001)</a>, which is aimed at better handling the extremes of the propensity score distribution. This estimator <em>normalises</em> the weights based on the sum of the propensity scores in the treated and control groups and thus makes the weights themselves sum to 1 in each group (so we avoid the awkward situation of weights approaching infinity).</p>
+<p>Here we have it implemented as code:</p>
+<pre class="r language-r"><code>iptw_norm_att &lt;- function(data,
+                     outcome,
+                     treatment,
+                     prop_score) {
+  
+  # Renaming the columns for convenience 
+  # (i.e. not using {{ }} afterwards)
+  data &lt;- data %&gt;% 
+    rename(outcome := {{outcome}},
+           treatment := {{treatment}},
+           prop_score := {{prop_score}})
+  
+  # Estimation itself
+  treated_section &lt;- data %&gt;% 
+    filter(treatment == 1) %&gt;% 
+    summarise(numerator = sum(outcome/prop_score),
+              denominator = sum(1/prop_score))
+  
+  untreated_section &lt;- data %&gt;% 
+    filter(treatment == 0) %&gt;% 
+    summarise(numerator = sum(outcome/(1-prop_score)),
+              denominator = sum(1/(1-prop_score)))
+  
+  (treated_section$numerator / treated_section$denominator) -
+    (untreated_section$numerator / untreated_section$denominator)
+}</code></pre>
+<p>As a side note, there are ways to use the propensity scores in a more regression-like fashion. One of them is to just include the propensity score as a control variable in a regression model. Another is to pass the inverse probability weights to the <code>weights</code> argument in a <code>lm()</code> call.</p>
+<p>In fact, the IPTW estimators we’ve seen until now are equivalent to a simple regression model <code>y ~ d</code> weighted by the corresponding inverse probability weights. It’s easy to conceive extensions to that basic model to account for more complex relationships between the treatment and the outcome.</p>
+</div>
+</div>
+<div id="variance-of-the-estimators-bootstrap-or-analytical-formulas" class="section level2">
+<h2>Variance of the estimators: bootstrap or analytical formulas?</h2>
+<p>As we come closer the end of the post, an element that the more “stats savvy” readers may be missing is <strong>standard errors estimation</strong>. After all, 99.99% of the time we’ll get a difference greater than zero between treated and untreated but without standard errors we can’t tell if that’s due to a true causal effect or just because of chance (sample variance).</p>
+<p>So, let’s get to the point: how do we compute standard errors for Matching and Inverse Probability Weighting?</p>
+<p>An option that may look handy for this is <strong>bootstrapping</strong>. This is a common procedure that involves obtaining a lot of samples <em>with replacement</em> from the original dataset and then computing the estimate on each of this samples. The result is a sample distribution of estimates, which can be used to estimate the standard deviation of the estimate itself.</p>
+<p>And, in fact, <strong>Bootstrapping is an appropriate way of obtaining standard errors for the IPTW estimator</strong>. It also has the advantage of taking into consideration the uncertainty of the <em>whole</em> process (both the propensity score estimation AND the construction of the weighted samples).</p>
+<p>Bootstrap standard errors are often included in packages that perform IPTW, but we can also code them ourselves by passing the data and a bootstrap-compatible function to <code>boot::boot()</code><a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a>. Here is a code example:</p>
+<pre class="r language-r"><code>library(boot)</code></pre>
+<pre class="r language-r"><code># This example is an adaptation of this code script shown in The Effect: https://theeffectbook.net/ch-Matching.html?panelset6=r-code7#panelset6_r-code7 
+iptw_boot &lt;- function(data, index = 1:nrow(data)) {
+  
+  # Slicing through the bootstrap index
+  # (this enables the &quot;sampling with replacement&quot;)
+  data &lt;- data %&gt;% slice(index)
+  
+  # Propensity score estimation
+  ps_gbm &lt;-  ps(
+    treat ~ age + educ + black + hispan + nodegree +
+      married + re74 + re75,
+    data = data,
+    n.trees = 10000,
+    interaction.depth = 2,
+    shrinkage = 0.01,
+    estimand = &quot;ATT&quot;,
+    stop.method = &quot;ks.max&quot;,
+    n.minobsinnode = 10,
+    n.keep = 1,
+    n.grid = 25,
+    ks.exact = NULL,
+    verbose = FALSE
+  )
+  
+  # Adding the propensity scores to the data
+  data &lt;- data %&gt;% 
+    mutate(prop_score = ps_lalonde_gbm$ps[[1]]) %&gt;% 
+    rename(outcome = re78)
+  
+  # IPTW weighting and estimation
+  treated_section &lt;- data %&gt;% 
+    filter(treat == 1) %&gt;% 
+    summarise(numerator = sum(outcome/prop_score),
+              denominator = sum(1/prop_score))
+  
+  untreated_section &lt;- data %&gt;% 
+    filter(treat == 0) %&gt;% 
+    summarise(numerator = sum(outcome/(1-prop_score)),
+              denominator = sum(1/(1-prop_score)))
+  
+  (treated_section$numerator / treated_section$denominator) -
+    (untreated_section$numerator / untreated_section$denominator)
+  
+}
+
+b &lt;- boot(lalonde, iptw_boot, R = 100)
+
+b</code></pre>
+<pre class="language-r"><code>## 
+## ORDINARY NONPARAMETRIC BOOTSTRAP
+## 
+## 
+## Call:
+## boot(data = lalonde, statistic = iptw_boot, R = 100)
+## 
+## 
+## Bootstrap Statistics :
+##     original   bias    std. error
+## t1* -632.156 69.79532    1487.648</code></pre>
+<p>Sadly, bootstrapping can’t be used with the Matching estimators, only with IPTW. The reason is that Matching makes a sharp in/out decision when constructing the matched samples (in contrast to the more gradual weighting done by the IPTW estimator), and this kind of sharp process just doesn’t allow the bootstrap to produce an appropriate sampling distribution<a href="#fn7" class="footnote-ref" id="fnref7"><sup>7</sup></a>.</p>
+<p>Because of that, <strong>when doing Matching we have to use analytical formulas to compute the standard errors of our estimates</strong>. These expressions can be quite complex and, what’s more, they have different formulations depending on the choices we made when doing the Matching itself. Fortunately, most of the R packages designed for Matching (such as <code>MatchIt</code>) already implement appropriate standard error formulas and report the corresponding SEs in their output. So, if you’re a practitioner (like me), it’s better to just stick to these “package-generated” standard errors instead of attempting to compute them manually.</p>
+</div>
+<div id="double-robust-estimator" class="section level2">
+<h2>Double Robust Estimator</h2>
+<p>At the beginning of this post we saw the strengths and weaknesses of Matching and Regression when adjusting for confounders, along with examples of one of them succeeding in estimating the true causal effect while the other method failed.</p>
+<p>But what if we could have <a href="https://www.youtube.com/watch?v=uVjRe8QXFHY">the best of both worlds</a> and use an estimator that leverages both Regression <em>and</em> Matching to get the causal effect right most of the time? Sounds pretty cool, right?</p>
+<p><img src="images/double_robust_hannah_montana.jpg" /></p>
+<p>Well, that’s exactly what the <strong>Double Robust Estimator</strong> does. It combines the Regression and the Matching estimations in a way that requires just one of these methods to be right in order to appropriately estimate the true causal effect. Matching right and Regression wrong = we’re fine. Matching wrong and Regression right = we’re also fine.</p>
+<p>However, that if <em>both</em> methods have problems, then not even this super cool estimator can salvage our analysis. We need one of them to be appropriately specified. Still, a big improvement over using Regression or Matching on their own.</p>
+<p>Before showing you a code definition/implementation, note that <em>double-robustness</em> is actually a property that many estimators have, so if you look at the literature you can find a lot of “double robust estimators”. But let’s just look at the one that is shown in <em>Causal Inference for the Brave and True</em>:</p>
+<pre class="r language-r"><code># Here I REALLY wanted to parametrise the outcome, treatment and covariates variable names, but doing so requiered to add a lot of rlang &quot;black magic&quot; code that made the script harder to understand, so what you&#39;re seeing here is an implementation with the `lalonde` variable names hardcoded.
+
+# TL:DR, change the variable names if you want to re-use this function with your own data
+
+double_robust_estimator &lt;- function(data,
+                        # `index` makes the estimator bootstrap-able
+                        index = 1:nrow(data)) {
+  
+  
+    data &lt;- data %&gt;% slice(index)
+    
+  # Getting the &quot;ingredients&quot; to compute the estimator
+  # 1. Propensity scores
+  ps_gbm &lt;-  ps(
+    # D ~ X
+    treat ~ age + educ + black + hispan + nodegree +
+      married + re74 + re75,
+    data = data,
+    n.trees = 10000,
+    interaction.depth = 2,
+    shrinkage = 0.01,
+    estimand = &quot;ATT&quot;,
+    stop.method = &quot;ks.max&quot;,
+    n.minobsinnode = 10,
+    n.keep = 1,
+    n.grid = 25,
+    ks.exact = NULL,
+    verbose = FALSE
+  )
+  
+  ps_val &lt;- ps_gbm$ps[[1]]
+  
+  # 2. Regression model for treated
+  lm_treated &lt;- 
+    lm(re78 ~ age + educ + black + hispan + nodegree +
+      married + re74 + re75,
+      data = data %&gt;% 
+        filter(treat == 1))
+  
+  mu1 &lt;- lm_treated$fitted.values
+
+# 3. Regression model for untreated
+  lm_untreated &lt;-
+    lm(re78 ~ age + educ + black + hispan + nodegree +
+         married + re74 + re75,
+       data = data %&gt;%
+         filter(treat == 0))
+  
+  mu0 &lt;- lm_untreated$fitted.vales
+  
+  # 4. Outcomes and Treatment status
+  outcome &lt;- data$re78
+  treatment &lt;- data$treat
+  
+  # ✨THE DOUBLE ROBUST ESTIMATOR ✨
+  estimator &lt;- 
+    mean(treatment * (outcome - mu1)/ps_val + mu1) -
+      mean((1-treatment)*(outcome - mu0)/(1-ps_val) + mu0)
+  
+  estimator
+}</code></pre>
+<pre class="r language-r"><code># Estimation through bootstrap to get standard errors
+# &#39;dre&#39; stands for Double Robust Estimator
+#b_dre &lt;- boot(lalonde, double_robust_estimator, R = 100)
+
+#b_dre</code></pre>
+</div>
+<div id="final-remarks-the-most-important-question" class="section level2">
+<h2>Final remarks: the most important question</h2>
+<p>We’ve seen a lot of methods and estimators on this two-part blog post. Sometimes the differences between them are pretty clear, but a lot of times they are much more nuanced. However, if you have to bring one idea home, I think it should be the <strong>Conditional Independence</strong> concept we reviewed on the first part (also known as “selection on observables”) and how <em>none</em> of these methods can help you if your data doesn’t meet that assumption.</p>
+<p>So, <u><strong><em>are the confounders directly available in your data as variables you can condition on?</em></strong></u> THIS is the first-order question you should ask yourself before doing anything else. Only if you have reasons to answer “yes!” to this question you can start weighing if you should perform Regression, Subclassification, Exact Matching, Approximate Matching, Inverse Probability Weighting, or use the Double Robust Estimator.</p>
+<p>To check if the “selection on observables” is a credible assumption you should always summarise your current knowledge about the data generating process in a DAG, and then see if this DAG shows a way to close all the backdoors by conditioning on observables<a href="#fn8" class="footnote-ref" id="fnref8"><sup>8</sup></a>. The package <code>ggdag</code> and its function <code>ggdag_adjustment_set</code> come in handy for this.</p>
+<p><img src="images/use_the_dag.png" width="550" /></p>
+<p>If, after doing this, you find that some of your confounders are <em>un</em>observable, then, as I said before, none of the estimators we’ve just reviewed are appropriate for estimating the causal effect and you’ll have to look for other causal inference methodologies. The good news is that, starting with the next blog post, I’ll now move on to reviewing techniques that deal with unobservable confounders, such as Instrumental Variables, Differences in Differences, and Regression discontinuity design, so stay tuned!</p>
+</div>
+<div id="references" class="section level2">
+<h2>References 📚</h2>
+<ul>
+<li><p><a href="https://mixtape.scunning.com/matching-and-subclassification.html">Causal Inference: The Mixtape - Scott Cunningham. Chapter 5</a>.</p></li>
+<li><p><a href="https://theeffectbook.net/ch-Matching.html">The Effect - Nick Huntington-Klein. Chapter 14</a>.</p></li>
+<li><p>Causal Inference for the Brave and True - Matheus Facure Alves. <a href="https://matheusfacure.github.io/python-causality-handbook/11-Propensity-Score.html">Chapters 11</a> <a href="https://matheusfacure.github.io/python-causality-handbook/12-Doubly-Robust-Estimation.html">and 12</a>.</p></li>
+</ul>
+<p><em>Your feedback is welcome! You can send me comments about this article to my <a href="mailto:francisco.yira@outlook.com">email</a>.</em></p>
+</div>
+<div class="footnotes footnotes-end-of-document">
+<hr />
+<ol>
+<li id="fn1"><p>A question you may have here is what is the point of estimating propensity scores using a parametric method like logistic regression when we could just add the covariates as a controls to a one-step multiple linear regression instead. After all, one of the benefits of matching-based methods was allowing for non-linear relationships in a nonparametric fashion but we’re loosing that by using regression for the propensity score estimation.</p>
+<p>I looked for an answer to this and found two key advantages of propensity scores through regression versus the good ol’ one-step regression (<a href="https://stats.stackexchange.com/questions/8604/how-are-propensity-scores-different-from-adding-covariates-in-a-regression-and">source A</a>, <a href="https://stats.stackexchange.com/a/3443/249455">source B</a>).</p>
+<p>The first one is that you get common support checks in the second stage. As we saw before, regression extrapolates when there isn’t common support and, what’s worse, it does it <em>quietly</em>. By estimating propensity scores (even with a parametric logistic regression) we gain the chance to look at the histograms/density plots of the scores and use them as a diagnosis tools for how severe is the covariate imbalance and check if we can go ahead and estimate the ATE or the ATT without extrapolation. In fact, you have the option of usining propensity scores JUST as diagnosis tool and then drop them and go ahead with multiple linear regression.</p>
+<p>Another benefit is that, due to dimensionality reduction, we save degrees of freedom in the second stage (when the scores are used) by using just a single number (the score) instead of several covariates.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>We’re not trying to win a Kaggle competition, but to approximate <span class="math inline">\(p(X)\)</span>, which, as it notation says, depends on X and nothing else.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>Similarly, we could estimate the treatment effect on the <em>untreated</em> (ATU) by weighting only the treated group to make it similar to the unweighted control group.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>An alternative version of the <code>mutate(iptw = ...</code> line that you may see elsewhere is:</p>
+<pre class="r"><code> iptw = outcome * (treatment - prop_score) / (prop_score * (1 - prop_score))</code></pre>
+<p>This is actually the same that the <code>ifelse</code> logic shown before. When <code>treatment==1</code>, it collapses to <code>outcome/prop_score</code>, and when <code>treatment==0</code>, it simplifies to <code>-outcome/(1-prop_score)</code>. IMHO the <code>ifelse</code> version is clearer/more explicit, but just know that if you see this other expression in textbooks, they’re referring to the same thing.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="fn5"><p>There is an alternative formulation of this technique which consist in capping out the weights at some value (e.g. 20). If a unit ends up with a weight higher than that, we just change its weight to the maximum value. This doesn’t drop observations but introduces bias in the estimate.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn6"><p>They key thing to remember is that you have to bootstrap <em>all the steps</em>, not just the last part.<a href="#fnref6" class="footnote-back">↩︎</a></p></li>
+<li id="fn7"><p>For a more detailed explanation of this, see <em>“On The Failure Of The Bootstrap for Matching Estimators”</em> by <a href="https://economics.mit.edu/files/11862">Abadie and Imbens (2008)</a>.<a href="#fnref7" class="footnote-back">↩︎</a></p></li>
+<li id="fn8"><p>If you don’t understand what these sentences mean, check the <a href="https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">Introduction to DAGs</a> blog post.<a href="#fnref8" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
