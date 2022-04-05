@@ -122,9 +122,9 @@ The good news is that there are several packages in R that optimise for covariat
 
 Here we'll use the data from Lalonde ([1986](https://mixtape.scunning.com/references.html#ref-Lalonde1986)), which is included in the `twang` package and also appears in the book *Causal Inference: The Mixtape*. This dataset is very interesting because it combines observations coming from a randomised trial in the mid-70s (experimental data) with observations coming from the general population in the same period (observational data)[^3].
 
-[^3]: Lalonde used this data to perform a benchmark between several causal inference techniques from that time and the randomised trial (the "gold standard"). Sadly, most methods did just terrible in the paper, but that doesn't mean they're useless or bad on their own, it could just be that the assumptions on which they're based didn't hold on this data. That's why, in all the posts about Matching, there has been such a strong emphasis on Conditional Independence, which is the key assumption required for Matching to return a credible estimate.
+[^3]: Lalonde used this data to perform a benchmark between several causal inference techniques from that time and the randomised trial (the "gold standard"). Sadly, most methods did just terrible in the paper, but that doesn't mean they're useless on their own: it could just be that the assumptions on which they're based didn't hold on this data. That's why, in all the posts about Matching, there has been such a strong emphasis on Conditional Independence, which is the key assumption required for Matching to return a credible estimate.
 
-The treatment in this dataset is a temporary employment program aimed at improving the income and skills of disadvantaged workers. Therefore, if we compare the treated workers against the general population, there will be confounding due to selection bias (the treatment is correlated with having low potential outcomes), so the simple difference of means is unsuitable as a treatment effect estimator.
+The treatment in this dataset is a temporary employment program aimed at improving the income and skills of disadvantaged workers. Therefore, if we compare the treated workers against the general population, there will be confounding due to selection bias (the treatment correlates with having low potential outcomes), so the simple difference of means is unsuitable as a treatment effect estimator.
 
 On the other hand, there is a large control donor pool (the comparison group is 2.3 times the size of the treated group). This means that, if the conditional independence assumption holds, we'll likely be able to estimate the ATT by balancing the covariates through propensity scores.
 
@@ -264,23 +264,25 @@ As we know, the treated units are left untouched for the ATT estimation. However
 
 ### Visualising the IPTW estimator in action with `gganimate`
 
-To make all of this even clearer, let's create a `gganimate` plot that shows how the data is being weighted. For this, we'll attach the propensity scores to the original `lalonde` dataset and then create two versions of the data:
+To make all of this even clearer, let's create a `gganimate` plot that shows how the data is being weighted under the ATT estimator. For this, we'll attach the propensity scores to the original `lalonde` dataset and then create two versions of the data:
 
 -   A weighted dataset using the ATT inverse weighting formula (i.e. weighting the control units to look more like the treated ones but leaving the treated units untouched).
 
 -   An unweighted dataset, where every unit has `weight == 1`.
 
-Then we'll compute the weighted outcome difference (between treated and untreated) in each dataset. In the first dataset. this difference will be **the ATT IPTW estimate**, and in the second one, it will just be the **"simple difference in outcomes"** (the difference we would find in the raw, observational data).
+Then we'll compute the weighted outcome difference (between treated and untreated) in each dataset. In the first dataset, this difference will be **the ATT IPTW estimate**, and in the second one, it will just be the **"simple difference in outcomes"** (the difference we would find in the raw, observational data).
 
 ```{r}
-# Data manipulation stage
+# Attaching the propensity scores to the original dataset
 lalonde_w_ps <- lalonde %>% 
   dplyr::select(treat, outcome = re78) %>% 
   mutate(prop_score = ps_lalonde_gbm$ps[[1]])
 
+
 lalonde_for_gganimate <-
+  # To combine the two datasets we're going to create
   bind_rows(
-    # Dataset with ATT weights
+    # Creating the Dataset with ATT weights
     lalonde_w_ps %>%
       mutate(
         weighting = "ATT",
@@ -371,11 +373,13 @@ anim_save("iptw.gif", animation_obj)
 
 ![](images/iptw.gif)
 
-I think this animation illustrates very well what IPTW is doing under the hood. Also, it hints one of the pitfalls of this method: a disproportionate sensibility to observations in the extremes of the propensity score distribution. Specifically, the weights will approach infinity when `ps_score` approaches 0 for treated units or 1 for untreated units, which, of course, makes the final estimate more vulnerable to sample variance (and what's more, the weight becomes undefined if the `ps_score` is exactly 0 for a treated unit or 1 for an untreated unit).
+### Handling extreme weights
+
+The previous animation hints at one of the pitfalls of the IPTW method: a disproportionate sensibility to observations in the extremes of the propensity score distribution. Specifically, the weights will approach infinity when treated units have a `ps_score` approaching 0 or when untreated units have a score approaching 1. This makes the final estimate more vulnerable to sample variance (and what's more, the weight becomes undefined if the `ps_score` is exactly 0 for a treated unit or 1 for an untreated unit).
 
 What can we do to mitigate this problem?
 
-A solution commonly seen in papers is performing **trimming**. This means just dropping out the units with extreme propensity scores values, for example less than 0.05 and more than 0.95. This has the potential drawback of changing our estimand. As in matching, if you discard an important number of units you're no longer estimating the ATE or the ATT, but an average causal effect on the units that remain in your sample. Depending on the context, this effect may or may not be relevant to your audience and stakeholders, so keep that in mind[^6].
+A solution commonly seen in papers is performing **trimming**. This just means dropping out the units with extreme propensity scores values, for example less than 0.05 and more than 0.95. This has the potential drawback of **changing our estimand**. As in matching, if you discard an important number of units you're no longer estimating the ATE or the ATT, but an average causal effect on the units that remain in your sample. Depending on the context, this new estimand may or may not be relevant to your audience and stakeholders, so keep that in mind[^6].
 
 [^6]: There is an alternative formulation of this technique which consist in capping out the weights at some value (e.g. 20). If a unit ends up with a weight higher than that, we just change its weight to the maximum value. This doesn't drop observations but introduces bias in the estimate.
 
@@ -412,19 +416,21 @@ iptw_norm_att <- function(data,
 }
 ```
 
-As a side note, there are ways to use the propensity scores in a more regression-like fashion. One of them is to just include the propensity score as a control variable in a regression model. Another is to pass the inverse probability weights to the `weights` argument in a `lm()` call.
+### Alternative IPTW usage: weighted linear regression
+
+As a side note, there are ways to use the propensity scores in a more regression-like fashion. One of them is to just include the propensity score as a control variable in a regression model (`y ~ d + ps_score`). Another is to pass the inverse probability weights to the `weights` argument in an `lm()` call.
 
 In fact, the IPTW estimators we've seen until now are equivalent to a simple regression model `y ~ d` weighted by the corresponding inverse probability weights. It's easy to conceive extensions to that basic model to account for more complex relationships between the treatment and the outcome.
 
 ## Variance of the estimators: bootstrap or analytical formulas?
 
-As we come closer the end of the post, an element that the more "stats savvy" readers may be missing is **standard errors estimation**. After all, 99.99% of the time we'll get a difference greater than zero between treated and untreated but without standard errors we can't tell if that's due to a true causal effect or just because of chance (sample variance).
+As we come closer to the end of this series, an element the more stats savvy readers may be missing is **standard errors estimation**. After all, 99.99% of the time, we'll get a difference greater than zero between treated and untreated but, without standard errors, we can't tell if that's due to a true causal effect or just because of chance (sample variance).
 
-So, let's get to the point: how do we compute standard errors for Matching and Inverse Probability Weighting?
+So, how do we compute standard errors for Matching and Inverse Probability Weighting?
 
-An option that may look handy for this is **bootstrapping**. This is a common procedure that involves obtaining a lot of samples *with replacement* from the original dataset and then computing the estimate on each of this samples. The result is a sample distribution of estimates, which can be used to estimate the standard deviation of the estimate itself.
+An option that may look handy for this is **bootstrapping**. This procedure consists of obtaining a lot of samples *with replacement* from the original dataset and then computing the estimate on each of this samples. The result is a sample distribution of estimates, which can be used to estimate the standard deviation of the estimate itself.
 
-And, in fact, **Bootstrapping is an appropriate way of obtaining standard errors for the IPTW estimator**. It also has the advantage of taking into consideration the uncertainty of the *whole* process (both the propensity score estimation AND the construction of the weighted samples).
+And in fact, **Bootstrapping is an appropriate way of obtaining standard errors for the IPTW estimator**. It also has the advantage of taking into account the uncertainty of the *whole* process (both the propensity score estimation AND the construction of the weighted samples).
 
 Bootstrap standard errors are often included in packages that perform IPTW, but we can also code them ourselves by passing the data and a bootstrap-compatible function to `boot::boot()`[^7]. Here is a code example:
 
@@ -438,7 +444,7 @@ library(boot)
 # This example is an adaptation of this code script shown in The Effect: https://theeffectbook.net/ch-Matching.html?panelset6=r-code7#panelset6_r-code7 
 iptw_boot <- function(data, index = 1:nrow(data)) {
   
-  # Slicing through the bootstrap index
+  # Slicing with the bootstrap index
   # (this enables the "sampling with replacement")
   data <- data %>% slice(index)
   
@@ -479,9 +485,10 @@ iptw_boot <- function(data, index = 1:nrow(data)) {
     (untreated_section$numerator / untreated_section$denominator)
   
 }
+```
 
+```{r, cache=TRUE}
 b <- boot(lalonde, iptw_boot, R = 100)
-
 b
 ```
 
@@ -489,31 +496,35 @@ Sadly, bootstrapping can't be used with the Matching estimators, only with IPTW.
 
 [^8]: For a more detailed explanation of this, see *"On The Failure Of The Bootstrap for Matching Estimators"* by [Abadie and Imbens (2008)](https://economics.mit.edu/files/11862).
 
-Because of that, **when doing Matching we have to use analytical formulas to compute the standard errors of our estimates**. These expressions can be quite complex and, what's more, they have different formulations depending on the choices we made when doing the Matching itself. Fortunately, most of the R packages designed for Matching (such as `MatchIt`) already implement appropriate standard error formulas and report the corresponding SEs in their output. So, if you're a practitioner (like me), it's better to just stick to these "package-generated" standard errors instead of attempting to compute them manually.
+Because of that, **we have to use analytical formulas to compute the standard errors of our estimates when doing Matching**. These expressions can be quite complex and, what's more, they have different formulations depending on the choices we made regarding the estimation process. Fortunately, most R packages designed for Matching (such as `MatchIt`) already implement appropriate standard error formulas and report the corresponding SEs in their output. So, if you're a practitioner like me, it's better to just stick to these "package-generated" standard errors instead of attempting to compute them manually.
 
 ## Double Robust Estimator
 
-At the beginning of this post we saw the strengths and weaknesses of Matching and Regression when adjusting for confounders, along with examples of one of them succeeding in estimating the true causal effect while the other method failed.
+In [Part 2](https://www.franciscoyira.com/post/matching-in-r-2-differences-regression), we saw the strengths and weaknesses of Matching and Regression when adjusting for confounders, along with examples of one of them succeeding in estimating the true causal effect while the other method failed.
 
 But what if we could have [the best of both worlds](https://www.youtube.com/watch?v=uVjRe8QXFHY) and use an estimator that leverages both Regression *and* Matching to get the causal effect right most of the time? Sounds pretty cool, right?
 
 ![](images/double_robust_hannah_montana.jpg)
 
-Well, that's exactly what the **Double Robust Estimator** does. It combines the Regression and the Matching estimations in a way that requires just one of these methods to be right in order to appropriately estimate the true causal effect. Matching right and Regression wrong = we're fine. Matching wrong and Regression right = we're also fine.
+Well, that's precisely what the **Double Robust Estimator** does. It combines the Regression and the Matching estimations in such a way that we require *just* one of these methods to be right in order to correctly estimate the treatment effect. Matching right and Regression wrong = we're fine. Matching wrong and Regression right = we're fine too.
 
-However, that if *both* methods have problems, then not even this super cool estimator can salvage our analysis. We need one of them to be appropriately specified. Still, a big improvement over using Regression or Matching on their own.
+Of course, not even this super cool estimator can solve our problems if both methods have issues. We need at least one of them to be appropriately specified. Still, it's a big improvement over using Regression or Matching on their own.
 
-Before showing you a code definition/implementation, note that *double-robustness* is actually a property that many estimators have, so if you look at the literature you can find a lot of "double robust estimators". But let's just look at the one that is shown in *Causal Inference for the Brave and True*:
+Before showing you a code definition/implementation, note that *double-robustness* is actually a property that many estimators have, so if you look at the literature, you can find a lot of "double robust estimators". For now, let's just look at the one that is shown in *Causal Inference for the Brave and True*:
 
 ```{r}
-# Here I REALLY wanted to parametrise the outcome, treatment and covariates variable names, but doing so requiered to add a lot of rlang "black magic" code that made the script harder to understand, so what you're seeing here is an implementation with the `lalonde` variable names hardcoded.
+# Here I REALLY wanted to parametrise the outcome, treatment and
+# covariates variable names, but doing so required to add a lot of
+# rlang "black magic" code that made the script harder to 
+# understand, so what you're seeing here is an implementation 
+# with the `lalonde` variable names hardcoded.
 
-# TL:DR, change the variable names if you want to re-use this function with your own data
+# TL:DR, you must change the variables names if you 
+# want to re-use this function with your own data
 
 double_robust_estimator <- function(data,
                         # `index` makes the estimator bootstrap-able
                         index = 1:nrow(data)) {
-  
   
     data <- data %>% slice(index)
     
@@ -572,24 +583,24 @@ double_robust_estimator <- function(data,
 ```{r, message=FALSE, warning=FALSE, cache=TRUE}
 # Estimation through bootstrap to get standard errors
 # 'dre' stands for Double Robust Estimator
-#b_dre <- boot(lalonde, double_robust_estimator, R = 100)
+b_dre <- boot(lalonde, double_robust_estimator, R = 100)
 
-#b_dre
+b_dre
 ```
 
 ## Final remarks: the most important question
 
-We've seen a lot of methods and estimators on this two-part blog post. Sometimes the differences between them are pretty clear, but a lot of times they are much more nuanced. However, if you have to bring one idea home, I think it should be the **Conditional Independence** concept we reviewed on the first part (also known as "selection on observables") and how *none* of these methods can help you if your data doesn't meet that assumption.
+We've seen a lot of methods and estimators on this three-parter. Sometimes the differences between them are pretty clear, but a lot of times they are much more nuanced. However, if you had to bring only one idea home, I think it should be the **Conditional Independence** concept we reviewed [in the first part](https://www.franciscoyira.com/post/matching-in-r-part-1) (also known as "selection on observables") and how *none* of these methods can help you if your data doesn't meet that assumption.
 
 So, [***are the confounders directly available in your data as variables you can condition on?***]{.underline} THIS is the first-order question you should ask yourself before doing anything else. Only if you have reasons to answer "yes!" to this question you can start weighing if you should perform Regression, Subclassification, Exact Matching, Approximate Matching, Inverse Probability Weighting, or use the Double Robust Estimator.
 
-To check if the "selection on observables" is a credible assumption you should always summarise your current knowledge about the data generating process in a DAG, and then see if this DAG shows a way to close all the backdoors by conditioning on observables[^9]. The package `ggdag` and its function `ggdag_adjustment_set` come in handy for this.
+To check if the "selection on observables" is a credible assumption, you should always summarise your current knowledge about the data generating process in a DAG and then see if this DAG shows a way to close all the backdoors by conditioning on observables[^9]. The package `ggdag` and its function `ggdag_adjustment_set` come in handy for this.
 
-[^9]: If you don't understand what these sentences mean, check the [Introduction to DAGs](https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/) blog post.
+[^9]: If you don't understand what this last sentence mean, check the [Introduction to DAGs](https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/) blog post.
 
 ![](images/use_the_dag.png){width="550"}
 
-If, after doing this, you find that some of your confounders are *un*observable, then, as I said before, none of the estimators we've just reviewed are appropriate for estimating the causal effect and you'll have to look for other causal inference methodologies. The good news is that, starting with the next blog post, I'll now move on to reviewing techniques that deal with unobservable confounders, such as Instrumental Variables, Differences in Differences, and Regression discontinuity design, so stay tuned!
+If, after doing this, you find that some of your confounders are *un*observable, then, as I said before, none of the estimators we've just reviewed are appropriate for estimating the causal effect and you'll have to look for other causal inference methodologies. The good news is that starting with the next blog post, I'll start reviewing techniques that deal with unobservable confounders, such as Instrumental Variables, Differences in Differences, and Regression discontinuity design, so stay tuned!
 
 ## References 📚
 
