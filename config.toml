@@ -9,7 +9,7 @@ paginate = 5
   # "light" or "dark"
   defaultTheme = "light"
   # if you set this to 0, only submenu trigger will be visible
-  showMenuItems = 4
+  showMenuItems = 5
   # Enable to show reading time in minutes for posts
   showReadingTime = true
   rssFullText = true
@@ -46,7 +46,7 @@ paginate = 5
     [languages.en.menu]
       [[languages.en.menu.main]]
         identifier = "archive"
-        name = "Archive"
+        name = "️Archive"
         url = "/archive"
       [[languages.en.menu.main]]
         identifier = "about"
@@ -54,12 +54,16 @@ paginate = 5
         url = "/about"
       [[languages.en.menu.main]]
         identifier = "subscribe"
-        name = "Subscribe"
+        name = "📩Subscribe"
         url = "/subscribe"
       [[languages.en.menu.main]]
         identifier = "change_lang"
         name = "Español"
         url = "/es"
+      [[languages.en.menu.main]]
+        identifier = "cv"
+        name = "CV"
+        url = "https://franciscoyira.github.io/cv/"
 
         
   [languages.es]
@@ -96,10 +100,14 @@ paginate = 5
           url = "/es/about"
         [[languages.es.menu.main]]
           identifier = "subscribe"
-          name = "Suscribirse"
-          url = "/es/subscribe"
+          name = "📩Suscribirse"
+          url = "/subscribe"
         [[languages.es.menu.main]]
           identifier = "change_lang"
           name = "English"
           url = "/"
+        [[languages.es.menu.main]]
+          identifier = "cv"
+          name = "CV"
+          url = "https://franciscoyira.github.io/cv/"
 
