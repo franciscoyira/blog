@@ -1,7 +1,7 @@
 ---
 title: 'Matching in R (III): Propensity score, Weighting and the Double Robust Estimator'
 author: Francisco Yirá
-date: '2022-04-15'
+date: '2022-05-01'
 slug: matching-in-r-3-propensity-score-iptw
 useRelativeCover: true
 cover: "images/cover.jpg"
@@ -29,6 +29,14 @@ library(tidyverse)
 ```
 
 Welcome to the final post of this three-part article about **Matching estimators in R**. First, let's quickly recap what we've seen until now. In [the first part](https://www.franciscoyira.com/post/matching-in-r-part-1) we took a look at *when* we can use these kind of estimators (it's when the *conditional independence assumption* holds) and then we dived into some of them, like the **Subclassification estimator**, the **Exact Matching Estimator**, and the **Approximate Matching Estimator**.
+
+> ***Series about Matching***
+>
+> -   [Part I: Subclassification, Common Support and the Curse of Dimensionality](/post/matching-in-r-part-1/)
+>
+> -   [Part II: Differences between Matching and Regression](/post/matching-in-r-2-differences-regression/.)
+>
+> -   **Part III: You're here.**
 
 Then, in [the second part](https://www.franciscoyira.com/post/matching-in-r-2-differences-regression), we looked at the **differences between matching and regression**. These mainly boil down to Matching being a *non-parametric* method (i.e. it doesn't assume a specific kind of relationship between the variables) that requires *common support* (that is, having both treated and control units for each set of values of the covariates/confounders). Meanwhile, regression requires us to impose a functional form, but, in return, it can estimate a causal effect even in areas without common support by extrapolating based on the functional form we give to it. This can be good or bad, depending on how accurate is the model specification we're imposing.
 

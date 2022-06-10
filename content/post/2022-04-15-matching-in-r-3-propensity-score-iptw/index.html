@@ -1,7 +1,7 @@
 ---
 title: 'Matching in R (III): Propensity score, Weighting and the Double Robust Estimator'
 author: Francisco Yirá
-date: '2022-04-15'
+date: '2022-05-01'
 slug: matching-in-r-3-propensity-score-iptw
 useRelativeCover: true
 cover: "images/cover.jpg"
@@ -27,6 +27,14 @@ tags:
 
 
 <p>Welcome to the final post of this three-part article about <strong>Matching estimators in R</strong>. First, let’s quickly recap what we’ve seen until now. In <a href="https://www.franciscoyira.com/post/matching-in-r-part-1">the first part</a> we took a look at <em>when</em> we can use these kind of estimators (it’s when the <em>conditional independence assumption</em> holds) and then we dived into some of them, like the <strong>Subclassification estimator</strong>, the <strong>Exact Matching Estimator</strong>, and the <strong>Approximate Matching Estimator</strong>.</p>
+<blockquote>
+<p><strong><em>Series about Matching</em></strong></p>
+<ul>
+<li><p><a href="/post/matching-in-r-part-1/">Part I: Subclassification, Common Support and the Curse of Dimensionality</a></p></li>
+<li><p><a href="/post/matching-in-r-2-differences-regression/.">Part II: Differences between Matching and Regression</a></p></li>
+<li><p><strong>Part III: You’re here.</strong></p></li>
+</ul>
+</blockquote>
 <p>Then, in <a href="https://www.franciscoyira.com/post/matching-in-r-2-differences-regression">the second part</a>, we looked at the <strong>differences between matching and regression</strong>. These mainly boil down to Matching being a <em>non-parametric</em> method (i.e. it doesn’t assume a specific kind of relationship between the variables) that requires <em>common support</em> (that is, having both treated and control units for each set of values of the covariates/confounders). Meanwhile, regression requires us to impose a functional form, but, in return, it can estimate a causal effect even in areas without common support by extrapolating based on the functional form we give to it. This can be good or bad, depending on how accurate is the model specification we’re imposing.</p>
 <p>And now, for the last part, we’ll examine another set of relevant Matching topics:</p>
 <ul>

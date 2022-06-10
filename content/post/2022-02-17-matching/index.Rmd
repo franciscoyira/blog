@@ -1,5 +1,5 @@
 ---
-title: 'A guide to Matching estimators, in R and with DAGs - Part 1'
+title: 'Matching in R (I): Subclassification, Common Support and the Curse of Dimensionality'
 author: Francisco Yirá
 date: '2022-02-27'
 slug: matching-in-r-part-1
@@ -27,6 +27,14 @@ knitr::opts_chunk$set(class.source="language-r", class.output="language-r")
 Until this moment, [the posts about causal inference on this blog](https://www.franciscoyira.com/categories/causal-inference/) have been centred around frameworks that enable the discussion of causal inference problems, such as [Directed Acyclical Graphs (DAGs)](https://franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/) and [the Potential Outcomes model](https://franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/)[^1]. Now it's time to go one step further and start talking about the "toolbox" that allows us to address causal inference questions when working with **observational data** (that is, data where the treatment variable is not under the full control of the researcher).
 
 [^1]: This blog post builds on top of the concepts introduced on those articles, so if you feel that there a lot of unknown words in this post, it may be helpful to check those previous posts first.
+
+> ***Series about Matching***
+>
+> -   **Part I: You're here.**
+>
+> -   [Part II: Differences between Matching and Regression](/post/matching-in-r-2-differences-regression/)
+>
+> -   [Part III: Propensity score, Weighting and the Double Robust Estimator](/post/matching-in-r-3-propensity-score-iptw/)
 
 We've already seen that, in randomised experiments, it's relatively easy to obtain unbiased estimates of causal effects because [the **independence assumption holds**](https://www.franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/#:~:text=The%20independence%20assumption%20(and%20the%20effectiveness%20of%20randomization)). If the data scientist has assigned the treatment variable in a way that has nothing to do with the potential outcomes of the units, then the simple difference in outcomes (SDO) between the control and treated group is enough to get an unbiased estimate of the average treatment effect (ATE).
 
@@ -898,7 +906,9 @@ How would this work if we were estimating the ATE instead? As in `exact_matching
 
 ## But wait! There is even more!
 
-Stay tuned for **part 2** of this post, where I'll be discussing more Matching estimators and topics, such as **Propensity Score** and **Inverse Probability Weighting**, the differences between Matching and Multivariate Linear Regression, and the **Double Robust Estimator**, a clever way to combine both Regression and Matching in order to increase our chances of obtaining a credible estimate of the average treatment effect.
+Stay tuned for **the next parts** of this series, where I'll be discussing more Matching estimators and topics, such as **Propensity Score** and **Inverse Probability Weighting**, the differences between Matching and Multivariate Linear Regression, and the **Double Robust Estimator**, a clever way to combine both Regression and Matching in order to increase our chances of obtaining a credible estimate of the average treatment effect.
+
+***UPDATE:** check out Part 2 [here](/post/matching-in-r-2-differences-regression/) and Part 3 [here](/post/matching-in-r-3-propensity-score-iptw/).*
 
 ![](images/to_be_continued.jpg)
 
