@@ -1,7 +1,7 @@
 ---
 title: 'Matching in R (III): Propensity score, Weighting and the Double Robust Estimator'
 author: Francisco Yirá
-date: '2022-04-15'
+date: '2022-05-01'
 slug: matching-in-r-3-propensity-score-iptw
 useRelativeCover: true
 cover: "images/cover.jpg"
