@@ -27,11 +27,19 @@ knitr::opts_chunk$set(class.source="language-r", class.output="language-r")
 
 Welcome to the second part of the series about **Matching estimators in R**. This sequel will build on top of [the first part](https://www.franciscoyira.com/post/matching-in-r-part-1/) and the concepts explained there, so if you haven't read it yet, I recommend doing so before you continue reading. But if you don't have time for that, don't worry. Here it's a quick summary of the key ideas from the previous past that are required to understand this new post.
 
+> ***Series about Matching***
+>
+> -   [Part I: Subclassification, Common Support and the Curse of Dimensionality](/post/matching-in-r-part-1/)
+>
+> -   **Part II: You're here.**
+>
+> -   [Part III: Propensity score, Weighting and the Double Robust Estimator](/post/matching-in-r-3-propensity-score-iptw/)
+
 ## Quick recap of Part 1
 
 -   First, we talked about the **conditional independence assumption** (CIA), which is like a "weak version" of [the "full" independence (between treatment assignment and potential outcomes) we find in completely randomised trials](https://www.franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/#:~:text=The%20independence%20assumption,ATE!%20(it%E2%80%99s%20unbiased)). It states that the treatment assignment is "as good as random" inside subgroups of the data with the same values of some covariates X, despite not being random in the data as a whole.
 
--   How do we know if we have conditional independence? Technically, it's an untestable assumption, but we can assess how reasonable or far fetched it's to believe in it by **drawing a [causal diagram](https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/)**[ **(DAG)**](https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/), which is a neat representation of all our current knowledge about the data generating process. By looking at our DAG, we can tell if it makes sense to assume conditional independence in our data.
+-   How do we know if we have conditional independence? Technically, it's an untestable assumption, but we can assess how reasonable or far fetched it's to believe in it by **drawing a [causal diagram(DAG)](https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/)**, which is a neat representation of all our current knowledge about the data generating process. By looking at our DAG, we can tell if it makes sense to assume conditional independence in our data.
 
 ![*The Conditional Independence Assumption states that the [potential outcomes](https://www.franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/) are independent of the treatment assignment after adjust/controlling for X (a set of covariates).*](images/conditional_indepence_believe.jpg)
 
@@ -474,7 +482,9 @@ Luckily, there are estimators, known as "*double robust*", that allow us to comb
 
 ![](images/double_robust_est_doge.jpg)
 
-Stay tuned to part 3 of this series, which is going to cover this **Double Robust Estimator** in more detail, along with two additional and important Matching topics: the **Propensity Score**, a way to "collapse" all the confounders in a single scalar number, and **Inverse Probability Weighting**, an estimator that leverages the propensity score to achieve covariate balance by weighting the units according to their probability of being treated.
+Stay tuned to Part 3 of this series, which is going to cover this **Double Robust Estimator** in more detail, along with two additional and important Matching topics: the **Propensity Score**, a way to "collapse" all the confounders in a single scalar number, and **Inverse Probability Weighting**, an estimator that leverages the propensity score to achieve covariate balance by weighting the units according to their probability of being treated.
+
+***UPDATE:** Check out Part 3 [here](/post/matching-in-r-3-propensity-score-iptw/).*
 
 ![](images/to_be_continued.jpg)
 

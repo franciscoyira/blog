@@ -25,11 +25,19 @@ tags:
 
 
 <p>Welcome to the second part of the series about <strong>Matching estimators in R</strong>. This sequel will build on top of <a href="https://www.franciscoyira.com/post/matching-in-r-part-1/">the first part</a> and the concepts explained there, so if you haven’t read it yet, I recommend doing so before you continue reading. But if you don’t have time for that, don’t worry. Here it’s a quick summary of the key ideas from the previous past that are required to understand this new post.</p>
+<blockquote>
+<p><strong><em>Series about Matching</em></strong></p>
+<ul>
+<li><p><a href="/post/matching-in-r-part-1/">Part I: Subclassification, Common Support and the Curse of Dimensionality</a></p></li>
+<li><p><strong>Part II: You’re here.</strong></p></li>
+<li><p><a href="/post/matching-in-r-3-propensity-score-iptw/">Part III: Propensity score, Weighting and the Double Robust Estimator</a></p></li>
+</ul>
+</blockquote>
 <div id="quick-recap-of-part-1" class="section level2">
 <h2>Quick recap of Part 1</h2>
 <ul>
 <li><p>First, we talked about the <strong>conditional independence assumption</strong> (CIA), which is like a “weak version” of <a href="https://www.franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/#:~:text=The%20independence%20assumption,ATE!%20(it%E2%80%99s%20unbiased)">the “full” independence (between treatment assignment and potential outcomes) we find in completely randomised trials</a>. It states that the treatment assignment is “as good as random” inside subgroups of the data with the same values of some covariates X, despite not being random in the data as a whole.</p></li>
-<li><p>How do we know if we have conditional independence? Technically, it’s an untestable assumption, but we can assess how reasonable or far fetched it’s to believe in it by <strong>drawing a <a href="https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">causal diagram</a></strong><a href="https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/"><strong>(DAG)</strong></a>, which is a neat representation of all our current knowledge about the data generating process. By looking at our DAG, we can tell if it makes sense to assume conditional independence in our data.</p></li>
+<li><p>How do we know if we have conditional independence? Technically, it’s an untestable assumption, but we can assess how reasonable or far fetched it’s to believe in it by <strong>drawing a <a href="https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">causal diagram(DAG)</a></strong>, which is a neat representation of all our current knowledge about the data generating process. By looking at our DAG, we can tell if it makes sense to assume conditional independence in our data.</p></li>
 </ul>
 <div class="figure">
 <img src="images/conditional_indepence_believe.jpg" alt="" />
@@ -86,9 +94,9 @@ ggplot(df,
 
 confint(linear_model1)</code></pre>
 <pre class="language-r"><code>##                  2.5 %     97.5 %
-## (Intercept) 0.59521614 0.69482602
-## d           0.12618413 0.23514521
-## x           0.03654858 0.07396301</code></pre>
+## (Intercept) 0.60344781 0.70408731
+## d           0.16060850 0.27040535
+## x           0.01187394 0.04975662</code></pre>
 <p>Here <code>x</code> is a confounder because it affects both the outcome (<code>y</code>) and the probability of receiving the treatment (<code>d</code>). But simple linear regression can’t help us, even if we include the confounder as control, because both relationships (X-&gt;D and X-&gt;Y) are highly non-linear. Therefore, the final estimate is so biased that the true value is outside the confidence interval. Sad!</p>
 <p><img src="images/your-regression-is-bad-and-you-should-feel-bad.jpg" /></p>
 <p>Now let’s use Matching with the same data. Here we’re going to use a Matching estimator implemented by a CRAN R package instead of coding it ourselves<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>:</p>
@@ -96,18 +104,18 @@ confint(linear_model1)</code></pre>
 M &lt;- Match(df$y, df$d, df$x, M = 5, Weight = 2, caliper = 0.05)
 summary(M)</code></pre>
 <pre class="language-r"><code>## 
-## Estimate...  0.95854 
-## AI SE......  0.036405 
-## T-stat.....  26.33 
+## Estimate...  1.0075 
+## AI SE......  0.037524 
+## T-stat.....  26.849 
 ## p.val......  &lt; 2.22e-16 
 ## 
 ## Original number of observations..............  1000 
-## Original number of treated obs...............  584 
-## Matched number of observations...............  95 
-## Matched number of observations  (unweighted).  481 
+## Original number of treated obs...............  581 
+## Matched number of observations...............  116 
+## Matched number of observations  (unweighted).  592 
 ## 
 ## Caliper (SDs)........................................   0.05 
-## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  489</code></pre>
+## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  465</code></pre>
 <p>As expected, the Matching estimate is much closer to the true treatment effect (and its confidence interval includes the true value) because it’s not relying on false linearity assumptions<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>.</p>
 <p>Here is an illustration that makes it clearer what each of the estimators is doing and why the linear regression estimate is so off<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>:</p>
 <pre class="r language-r"><code># Matching 
@@ -200,9 +208,9 @@ ggplot(df_wo_common_support,
 
 confint(reg_wo_common_support)</code></pre>
 <pre class="language-r"><code>##                   2.5 %     97.5 %
-## (Intercept) -0.01137697 0.02479129
-## d            0.97424414 1.01909740
-## sin(x)       0.97038439 1.00662188</code></pre>
+## (Intercept) -0.01787111 0.01868533
+## d            0.97794964 1.02237554
+## sin(x)       0.98417674 1.02130990</code></pre>
 <p>You could argue that this dataset is more challenging than the previous one. Nevertheless, regression is able to handle it because it now extrapolates using an appropriate specification.</p>
 <p>Here is a visualisation of what regression is doing under the hood:</p>
 <pre class="r language-r"><code># Hacky data manipulation to avoid the plot looking weird
@@ -327,18 +335,18 @@ plot_matching_wo_cs</code></pre>
                  caliper = 0.05)
 summary(M_wo_cs)</code></pre>
 <pre class="language-r"><code>## 
-## Estimate...  0.98559 
-## AI SE......  0.039607 
-## T-stat.....  24.884 
+## Estimate...  0.99173 
+## AI SE......  0.040044 
+## T-stat.....  24.766 
 ## p.val......  &lt; 2.22e-16 
 ## 
 ## Original number of observations..............  1000 
-## Original number of treated obs...............  601 
-## Matched number of observations...............  18 
-## Matched number of observations  (unweighted).  90 
+## Original number of treated obs...............  593 
+## Matched number of observations...............  20 
+## Matched number of observations  (unweighted).  100 
 ## 
 ## Caliper (SDs)........................................   0.05 
-## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  583</code></pre>
+## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  573</code></pre>
 <p>Here our alarms should ring after seeing the number of dropped observations (588 of 604) and the number of matched units (only 16). This should be enough to convince yourself that there is no common support, even if you can’t see it visually<a href="#fn9" class="footnote-ref" id="fnref9"><sup>9</sup></a>.</p>
 <p><img src="images/minion_matching.jpg" width="400" /></p>
 </div>
@@ -438,7 +446,8 @@ Match(
 <p>However, datasets in the real world are more likely to fall in some “middle ground” where is not so obvious which method is the best option. Therefore, it could be much more difficult to decide which is “the right tool” to use for our causal inference problem, even if we’re sure that the CIA holds (which is another whole conversation on its own).</p>
 <p>Luckily, there are estimators, known as “<em>double robust</em>”, that allow us to combine a regression specification with a matching-based model in order to obtain a good estimate <em>even when there is something wrong with one of the two underlying models</em>. Sounds pretty cool, right?</p>
 <p><img src="images/double_robust_est_doge.jpg" /></p>
-<p>Stay tuned to part 3 of this series, which is going to cover this <strong>Double Robust Estimator</strong> in more detail, along with two additional and important Matching topics: the <strong>Propensity Score</strong>, a way to “collapse” all the confounders in a single scalar number, and <strong>Inverse Probability Weighting</strong>, an estimator that leverages the propensity score to achieve covariate balance by weighting the units according to their probability of being treated.</p>
+<p>Stay tuned to Part 3 of this series, which is going to cover this <strong>Double Robust Estimator</strong> in more detail, along with two additional and important Matching topics: the <strong>Propensity Score</strong>, a way to “collapse” all the confounders in a single scalar number, and <strong>Inverse Probability Weighting</strong>, an estimator that leverages the propensity score to achieve covariate balance by weighting the units according to their probability of being treated.</p>
+<p><em><strong>UPDATE:</strong> Check out Part 3 <a href="/post/matching-in-r-3-propensity-score-iptw/">here</a>.</em></p>
 <p><img src="images/to_be_continued.jpg" /></p>
 </div>
 <div id="references" class="section level2">
