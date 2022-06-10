@@ -1,5 +1,5 @@
 ---
-title: 'A guide to Matching estimators, in R and with DAGs - Part 1'
+title: 'Matching in R (I): Subclassification, Common Support and the Curse of Dimensionality'
 author: Francisco Yirá
 date: '2022-02-27'
 slug: matching-in-r-part-1
@@ -24,7 +24,14 @@ tags:
 
 
 <p>Until this moment, <a href="https://www.franciscoyira.com/categories/causal-inference/">the posts about causal inference on this blog</a> have been centred around frameworks that enable the discussion of causal inference problems, such as <a href="https://franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">Directed Acyclical Graphs (DAGs)</a> and <a href="https://franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/">the Potential Outcomes model</a><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>. Now it’s time to go one step further and start talking about the “toolbox” that allows us to address causal inference questions when working with <strong>observational data</strong> (that is, data where the treatment variable is not under the full control of the researcher).</p>
-<p>We’ve already seen that, in randomised experiments, it’s relatively easy to obtain unbiased estimates of causal effects because <a href="https://www.franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/#:~:text=The%20independence%20assumption%20(and%20the%20effectiveness%20of%20randomization)">the <strong>independence assumption holds</strong></a>. If the data scientist has assigned the treatment variable in a way that has nothing to do with the potential outcomes of the units, then the simple difference in outcomes (SDO) between the control and treated group is enough to get an unbiased estimate of the average treatment effect (ATE).</p>
+<blockquote>
+<p><strong><em>Series about Matching</em></strong></p>
+<ul>
+<li><p><strong>Part I: You’re here.</strong></p></li>
+<li><p><a href="/post/matching-in-r-2-differences-regression/">Part II: Differences between Matching and Regression</a></p></li>
+<li><p><a href="/post/matching-in-r-3-propensity-score-iptw/">Part III: Propensity score, Weighting and the Double Robust Estimator</a></p></li>
+</ul>
+</blockquote>
 <p>But there are many situations when it’s impossible to carry out a randomised experiment. In such cases, it’s <em>almost certain</em> that the independence assumption doesn’t hold.<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.</p>
 <p>In fact, we could have experimental data and still not meet the independence assumption. How is that? Well, the treatment could be randomised within subgroups of the population (e.g. children grouped in schools or customers grouped in tiers or regions) but having different treatment probabilities across the subgroups. If these subgroups have systematic differences in potential outcomes, then there will be correlation between the potential outcomes and the treatment variable, and the independence assumption won’t hold.</p>
 <p>Fortunately, we still have a way out in situations like that. We can leverage the <strong>conditional independence assumption</strong>.</p>
@@ -796,7 +803,8 @@ mean_treated - mean_untreated</code></pre>
 </div>
 <div id="but-wait-there-is-even-more" class="section level2">
 <h2>But wait! There is even more!</h2>
-<p>Stay tuned for <strong>part 2</strong> of this post, where I’ll be discussing more Matching estimators and topics, such as <strong>Propensity Score</strong> and <strong>Inverse Probability Weighting</strong>, the differences between Matching and Multivariate Linear Regression, and the <strong>Double Robust Estimator</strong>, a clever way to combine both Regression and Matching in order to increase our chances of obtaining a credible estimate of the average treatment effect.</p>
+<p>Stay tuned for <strong>the next parts</strong> of this series, where I’ll be discussing more Matching estimators and topics, such as <strong>Propensity Score</strong> and <strong>Inverse Probability Weighting</strong>, the differences between Matching and Multivariate Linear Regression, and the <strong>Double Robust Estimator</strong>, a clever way to combine both Regression and Matching in order to increase our chances of obtaining a credible estimate of the average treatment effect.</p>
+<p><em><strong>UPDATE:</strong> check out Part 2 <a href="/post/matching-in-r-2-differences-regression/">here</a> and Part 3 <a href="/post/matching-in-r-3-propensity-score-iptw/">here</a>.</em></p>
 <p><img src="images/to_be_continued.jpg" /></p>
 <p><em>You can <a href="https://www.franciscoyira.com/subscribe/">subscribe</a> to receive an email when I publish the next post (I’ll never send you spam, and you can unsubscribe whenever you want).</em></p>
 </div>
@@ -809,7 +817,7 @@ mean_treated - mean_untreated</code></pre>
 </ul>
 <p><em>Your feedback is welcome! You can send me comments about this article to my <a href="mailto:francisco.yira@outlook.com">email</a>.</em></p>
 </div>
-<div class="footnotes">
+<div class="footnotes footnotes-end-of-document">
 <hr />
 <ol>
 <li id="fn1"><p>This blog post builds on top of the concepts introduced on those articles, so if you feel that there a lot of unknown words in this post, it may be helpful to check those previous posts first.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
