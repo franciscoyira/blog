@@ -13,7 +13,7 @@ Sign up to get my latest blog posts directly to your inbox.
     <div id="mc_embed_signup_scroll">
     
 <div class="mc-field-group">
-    <label for="mce-EMAIL">Email Address </label>
+    <strong><label for="mce-EMAIL">Email Address </label></strong>
     <input type="email" value="" name="EMAIL" class="required email" id="mce-EMAIL">
 </div>
 <br>
@@ -28,7 +28,7 @@ Sign up to get my latest blog posts directly to your inbox.
         <div class="response" id="mce-success-response" style="display:none"></div>
         <!-- real people should not fill this in and expect good things - do not remove this or risk form bot signups-->
     <div style="position: absolute; left: -5000px;" aria-hidden="true"><input type="text" name="b_88de9b935b8985cfde91ed5fa_190d593590" tabindex="-1" value=""></div>
-<div class="clear"><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" style="height:27px; width:100px; font-size:16px"></div>
+<div class="clear"><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" style="height:35px; width:130px; font-size:20px"></div>
     </div>
 </form>
 
@@ -36,7 +36,7 @@ Sign up to get my latest blog posts directly to your inbox.
 
 <!--End mc_embed_signup-->
 
-If you can't see the signup form, [you can sign up from here](https://franciscoyira.us5.list-manage.com/subscribe?u=88de9b935b8985cfde91ed5fa&id=190d593590).
+If you can't see the signup form above, [sign up here](https://franciscoyira.us5.list-manage.com/subscribe?u=88de9b935b8985cfde91ed5fa&id=190d593590).
 
 ## Privacy commitment
 
