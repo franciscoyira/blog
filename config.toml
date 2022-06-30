@@ -9,7 +9,7 @@ paginate = 5
   # "light" or "dark"
   defaultTheme = "light"
   # if you set this to 0, only submenu trigger will be visible
-  showMenuItems = 5
+  showMenuItems = 3
   # Enable to show reading time in minutes for posts
   showReadingTime = true
   rssFullText = true
@@ -22,10 +22,10 @@ paginate = 5
 [languages]
   [languages.en]
     title = "francisco yirá's blog"
-    subtitle = "data science, tech, and other stuff"
+    subtitle = "data science, tech, and +"
     keywords = ""
     copyright = ""
-    menuMore = "Show more"
+    menuMore = "More"
     writtenBy = "Written by"
     readMore = "Read more"
     readOtherPosts = "Read other posts"
@@ -48,30 +48,33 @@ paginate = 5
         identifier = "archive"
         name = "️Archive"
         url = "/archive"
-      [[languages.en.menu.main]]
-        identifier = "about"
-        name = "About me"
-        url = "/about"
+        weight = 1
       [[languages.en.menu.main]]
         identifier = "subscribe"
         name = "📩Subscribe"
         url = "/subscribe"
+        weight = 2
+      [[languages.en.menu.main]]
+        identifier = "about"
+        name = "About"
+        url = "/about"
       [[languages.en.menu.main]]
         identifier = "change_lang"
         name = "Español"
         url = "/es"
       [[languages.en.menu.main]]
         identifier = "cv"
-        name = "CV"
-        url = "https://franciscoyira.github.io/cv/"
+        name = "CV/Portfolio"
+        url = "https://cv.franciscoyira.com/#projects"
+        weight = 3
 
         
   [languages.es]
       title = "blog de francisco yirá"
-      subtitle = "ciencia de datos, tecnología y otras cosas"
+      subtitle = "ciencia de datos, tecnología y +"
       keywords = ""
       copyright = ""
-      menuMore = "Mostrar más"
+      menuMore = "Más"
       writtenBy = "Escrito por"
       readMore = "Leer más"
       readOtherPosts = "Leer otros posts"
@@ -102,12 +105,15 @@ paginate = 5
           identifier = "subscribe"
           name = "📩Suscribirse"
           url = "/subscribe"
+          weight = 1
         [[languages.es.menu.main]]
           identifier = "change_lang"
           name = "English"
           url = "/"
+          weight = 3
         [[languages.es.menu.main]]
           identifier = "cv"
-          name = "CV"
-          url = "https://franciscoyira.github.io/cv/"
+          name = "CV/Portfolio"
+          url = "https://cv.franciscoyira.com/#projects"
+          weight = 2
 
