@@ -28,7 +28,7 @@ Sign up to get my latest blog posts directly to your inbox.
         <div class="response" id="mce-success-response" style="display:none"></div>
         <!-- real people should not fill this in and expect good things - do not remove this or risk form bot signups-->
     <div style="position: absolute; left: -5000px;" aria-hidden="true"><input type="text" name="b_88de9b935b8985cfde91ed5fa_190d593590" tabindex="-1" value=""></div>
-<div class="clear"><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" style="height:35px; width:130px; font-size:20px"></div>
+<div class="clear"><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" style="height:35px; width:190px; font-size:20px"></div>
     </div>
 </form>
 
