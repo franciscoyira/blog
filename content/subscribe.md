@@ -13,8 +13,8 @@ Sign up to get my latest blog posts directly to your inbox.
     <div id="mc_embed_signup_scroll">
     
 <div class="mc-field-group">
-    <strong><label for="mce-EMAIL">Email Address </label></strong>
-    <input type="email" value="" name="EMAIL" class="required email" id="mce-EMAIL">
+    <strong><label for="mce-EMAIL">Email Address </label></strong><br>
+    <input type="email" value="" name="EMAIL" class="required email" id="mce-EMAIL" style="width: 350px">
 </div>
 <br>
 
