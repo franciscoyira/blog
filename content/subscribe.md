@@ -1,9 +1,9 @@
 ---
-title: "Subscribe to my blog"
+title: "📫 Subscribe to my blog"
 date: '2021-08-01'
 ---
 
-Sign up to get my latest blog posts directly to your inbox.
+Sign up to receive my latest blog posts directly in your inbox.
 
 <!-- Begin Mailchimp Signup Form -->
 
@@ -13,7 +13,7 @@ Sign up to get my latest blog posts directly to your inbox.
     <div id="mc_embed_signup_scroll">
     
 <div class="mc-field-group">
-    <strong><label for="mce-EMAIL">Email Address </label></strong><br>
+    <strong><label for="mce-EMAIL">Email Address</label></strong><br>
     <input type="email" value="" name="EMAIL" class="required email" id="mce-EMAIL" style="width: 350px">
 </div>
 <br>
@@ -21,7 +21,7 @@ Sign up to get my latest blog posts directly to your inbox.
 <div class="mc-field-group input-group">
     <strong>Which content do you want to subscribe to?</strong>
     <br><input type="radio" value="1" name="group[30037]" id="mce-group[30037]-30037-0"><label for="mce-group[30037]-30037-0">Data science only</label>
-<br><input type="radio" value="2" name="group[30037]" id="mce-group[30037]-30037-1" checked><label for="mce-group[30037]-30037-1">All content (ocasional posts about consumer technology, productivity and other topics)</label>
+<br><input type="radio" value="2" name="group[30037]" id="mce-group[30037]-30037-1" checked><label for="mce-group[30037]-30037-1">All content (occasional posts about consumer technology, productivity and adjacent topics)</label>
 </div></br>
     <div id="mce-responses" class="clear">
         <div class="response" id="mce-error-response" style="display:none"></div>

@@ -48,16 +48,16 @@ paginate = 5
         identifier = "archive"
         name = "️Archive"
         url = "/archive"
-        weight = 1
       [[languages.en.menu.main]]
         identifier = "subscribe"
-        name = "📩Subscribe"
+        name = "📩 Subscribe"
         url = "/subscribe"
         weight = 2
       [[languages.en.menu.main]]
         identifier = "about"
         name = "About"
         url = "/about"
+        weight = 1
       [[languages.en.menu.main]]
         identifier = "change_lang"
         name = "Español"
@@ -103,7 +103,7 @@ paginate = 5
           url = "/es/about"
         [[languages.es.menu.main]]
           identifier = "subscribe"
-          name = "📩Suscribirse"
+          name = "📩 Suscribirse"
           url = "/subscribe"
           weight = 1
         [[languages.es.menu.main]]
