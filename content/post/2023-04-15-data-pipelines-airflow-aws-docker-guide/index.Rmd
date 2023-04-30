@@ -16,6 +16,13 @@ tags:
   - docker
 ---
 
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(class.source="language-python", class.output="language-python")
+library(reticulate)
+knitr::knit_engines$set(python = reticulate::eng_python)
+```
+
 After a long hiatus (sorry about that 😳), I'm excited to post again on this blog and share with you what I've been learning recently: how to use Apache Airflow to build data pipelines that interact with AWS cloud services, such as S3 (object storage) and RDS (relational databases).
 
 If you're new to Airflow and curious about what it's good for (maybe you've heard some data engineers talking about it or have seen it on data science job postings?), then this will be a great place to start, because the post won't assume any previous knowledge about it.
@@ -55,23 +62,93 @@ All of these involve using some features (logging, scalability, dependencies, mo
 
 ![](images/airflow_orchestra.jpg)
 
-Apache Airflow can be defined as an **orchestrator for complex data flows**. Just like a music conductor coordinantes the different instruments and sections of an orchestra to produce harmonious sound, Airflow coordinates your pipelines and their components to make sure that they work well with each other, and correctly do what you want them to do.
+Apache Airflow can be defined as an **orchestrator for complex data flows**. Just like a music conductor coordinates the different instruments and sections of an orchestra to produce harmonious sound, Airflow coordinates your pipelines to make sure they complete the tasks you want them to do, even when they depend on each other in very complex ways.
 
-The analogy falls short, however, in depicting the full range of Airflow benefits: it's not only the coordination but also the **monitoring**, **logging** and **scaling**. For example, Airflow provides a web interface that allows you to monitor the status of your pipelines, view logs and metrics, and troubleshoot issues by, for example, re-running only the tasks that have failed (and their downstream dependencies), while leaving the successful tasks untouched.
+The analogy falls short, however, in depicting the full range of Airflow benefits: it's not only the coordination but also the **monitoring**, **logging** and **scaling**.
 
-Airflow also helps you better manage your computing resources by setting up a queue of tasks that get assigned to the available computers (called nodes or workers), and by letting you scale up or down the pool of nodes assigned to executing your tasks [check how correct is to say this], thus allowing your pipelines to complete faster (or to save money on your AWS bill).
+For example, Airflow provides an extremely thorough web UI that allows you to **monitor** the status and history of your pipelines, sparing you the need to develop your own dashboard.
 
-Another benefit of Airflow is that, since it's extensible (we'll get into details about this later), it makes easy to re-use code across all the pipelines of your team. A data engineer can create an parametrised *Operator* (more on them later!) that connects to your data warehouse and performs a frequent operation on it and then all the data scientist can just use this operator without having to write their own implementation of the task. Even better, you can find ready-to-use extensions on the [Airflow plugin repository](https://airflow.apache.org/plugins.html) so for many cases nobody in your team will have to write anyting from scratch.
+![*Airflow UI: Tree View of a single pipeline that allows you to see the state and history of each of the tasks in a pipeline and even how they relate to each other!*](images/airflow_ui.png)
 
-### With great power comes great complexity
+The same UI gives you access to **detailed logs**, which can be used to to debug your pipeline's code when a task is failing. You can also receive **mail** **alerts** when a task fails or exceeds a certain duration, and configure Airflow to automatically **re-try tasks** that fail under certain conditions. And when fixing the error requires manually modifying your code, you can **re-run only the failing tasks** and their downstream dependencies, while keeping the upstream tasks untouched, thus saving time and processing power.
 
-All of this sounds pretty neat, right? You may even be wondering why anyone would not want to use Airflow for their data pipelines. Here the music director analogy becomes appropriate again: **you wouldn't hire a music conductor to direct a solo performance or a small band**. If your pipeline involves few steps and has no complex dependency logic, then the overhead of deploying it with Airflow is probably higher than the benefits you'll get from doing so.
+![*Accessing tasks' logs on Airflow's UI. Again, this is something you would have to implement by yourself if you used Cron Jobs, but which you get for free with Airflow.*](images/logs_airflow.png){width="850"}
 
-I would even say that **using Airflow just doesn't spark joy**. I mean, **it's the kind of tool than even very experienced users complain about**. One way to think about it is as a necessary or lesser evil: you pay up-front for a lot of complexity ~~and annoyance~~ in order to get a more scalable and robust system on which each additional pipeline or component adds less marginal complexity.
+Airflow also helps you **better manage your computing resources** by setting up a queue of tasks that get assigned to the available computers (called nodes or workers), and by letting you **scale up or down** the pool of nodes dedicated to your tasks. This allows you to run your pipelines faster or to lower your cloud computing bill, depending on your needs
 
-## The basic components of Airflow
+Finally, with Airflow you also get **extensibility**, which makes it easy to re-use code across pipelines and teams. For example, a data engineer on your team can create a parametrised *Operator* (more on them later!) that performs a frequent task on your company's data warehouse. Then you can just reuse that operator instead of having to code the task on your own. Even better, you can find ready-to-use extensions on the [Airflow plugin repository](https://airflow.apache.org/plugins.html) so most of the time nobody in your team will have to write anything from scratch.
 
-explain what a DAG is
+### Do you *really* need Airflow?
+
+All of this sounds pretty neat, right? You may even be wondering why anyone would not want to use Airflow for their data pipelines. Here the music director analogy becomes appropriate again: **you wouldn't hire a music conductor to direct a solo performance or a small band**. If your pipeline involves few steps and has no complex dependency logic, then you'll spend more time and resources setting up Airflow than you'll gain from using it, and you'll be better off with a simpler tool, like a Cron Job.
+
+One way to think about Airflow is as a **lesser evil**: you pay up-front for a lot of complexity ~~and annoyance~~ in order to get a more scalable and robust system on which each additional pipeline or component adds less marginal complexity.
+
+![*This graph is intentionally drawn by hand so you don't take it too seriously.*](images/airflow_complexity.png)
+
+## How to declare our pipelines in Airflow: introducing *dag.py*
+
+Okay, now we know what Airflow is and what it's good for. Time to learn how to use it!
+
+First, we need to learn how to declare our pipelines in Airflow. For this we use a concept named **DAG** or **Directed Acyclic Graph**[^2]. A DAG is a *graph* with **nodes** and ***directed*** **edges** (arrows) that represent the tasks and dependencies in our pipelines. It is "acyclic" because it doesn't allow loops or cycles: **you can't plug the output of a task back into an upstream dependency** (it would be a paradox as if Marty McFly from Back to Future met his younger self in 1955 😜).
+
+[^2]: Yes, we're talking about DAGs [again](/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/), but not the same kind. Here, DAGs are for managing tasks and workflows, not for modeling causality. Still, Airflow DAGs will be more intuitive to you if you know causal DAGs because both share the same logic.
+
+[image of what is and is not a DAG / I should draw this by hand]
+
+How do these DAGs look in practice? Here is an example script that declares a simple one:
+
+```{python reticulate=FALSE, eval=FALSE, include=TRUE}
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime, timedelta
+
+with DAG(
+    "tutorial",
+    default_args={
+        "depends_on_past": False,
+        "email": ["airflow@example.com"],
+        "email_on_failure": False,
+        "email_on_retry": False,
+        "retries": 1,
+        "retry_delay": timedelta(minutes=5),
+    },
+    description="A simple tutorial DAG",
+    schedule=timedelta(days=1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    tags=["example"],
+) as dag:
+
+    t1 = BashOperator(
+        task_id="print_date",
+        bash_command="date",
+    )
+
+    t2 = BashOperator(
+        task_id="sleep",
+        depends_on_past=False,
+        bash_command="sleep 5",
+        retries=3,
+    )
+
+    templated_command = """
+        {% for i in range(5) %}
+            echo "{{ ds }}"
+            echo "{{ macros.ds_add(ds, 7)}}"
+        {% endfor %}
+    """
+
+    t3 = BashOperator(
+        task_id="templated",
+        depends_on_past=False,
+        bash_command=templated_command,
+    )
+
+    t1 >> [t2, t3]
+```
+
+Airflow basic components
 
 Airflow consists of four main components: the web server, the scheduler, the executor, and the metadata database. These components work together to run your DAGs and tasks.
 
