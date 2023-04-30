@@ -1,0 +1,94 @@
+---
+title: "Building Data Pipelines with Airflow and AWS: A Beginner's Guide"
+author: Francisco Yirá
+date: '2023-04-15'
+slug: data-pipelines-airflow-aws-docker-guide
+useRelativeCover: true
+cover: "images/cover.jpeg"
+coverCaption: "My attempt of using Stable Diffussion to depict something cloud-computery."
+categories:
+  - data-science
+  - tutorial
+  - cloud-computing
+tags:
+  - aws
+  - airflow
+  - docker
+---
+
+
+
+<p>After a long hiatus (sorry about that 😳), I’m excited to post again on this blog and share with you what I’ve been learning recently: how to use Apache Airflow to build data pipelines that interact with AWS cloud services, such as S3 (object storage) and RDS (relational databases).</p>
+<p>If you’re new to Airflow and curious about what it’s good for (maybe you’ve heard some data engineers talking about it or have seen it on data science job postings?), then this will be a great place to start, because the post won’t assume any previous knowledge about it.</p>
+<p>By the end of this post, you will:</p>
+<ul>
+<li>Understand what Airflow is used for, what are its main capabilities, and how to tell if it’s a suitable solution for your data pipelines.</li>
+<li>Know how to use Airflow on a local environment through Docker.</li>
+<li>Have some familiarity with the core components of the Airflow UI and a typical Airflow code repository.</li>
+<li>And last but not least, <strong>know how to code and debug a basic Airflow data pipeline</strong> that reads data from S3, manipulates it and then writes on a Postgres database hosted on Amazon RDS.</li>
+</ul>
+<p>One thing that I’ll have to assume, though, is that you have some basic familiarity with the AWS ecosystem, Python, and Docker, but I’ll also provide links to introductory resources on them that you can refer to if you feel lost at some point 🙂.</p>
+<div id="what-problem-does-airflow-solve" class="section level2">
+<h2>What problem does Airflow solve?</h2>
+<p><em>You can skip this part if you already know what Airflow is and just want to learn to use it.</em></p>
+<p>If you’ve been working on data science for some time, you’ve probably encountered the need to set up automatic, scheduled pipelines. Typical examples of this are retrieving data from an API on daily basis or loading scores from a predictive model to your company’s database.</p>
+<p>For the simplest pipelines, this can be achieved through a Cron Job<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a> or even using the Windows’ Task Scheduler. If your pipeline consists only of SQL queries, you can also leverage the <a href="https://docs.aws.amazon.com/redshift/latest/mgmt/query-editor-schedule-query.html">scheduling features available on some databases</a>.</p>
+<p>However, as your pipelines grow in number and complexity, you may reach a point where these tools are no longer enough. Some signals that you’ve reached this threshold are:</p>
+<ul>
+<li><p>You need detailed logs for most of your pipelines but you’re setting up the logging system “manually” for each one of them. Even worse, each of the data scientists on your team has implemented their own logging mechanism.</p></li>
+<li><p>Some of your pipelines are very intensive on compute and would benefit from being distributed on a scalable infrastructure (i.e. run on more computers).</p></li>
+<li><p>Other processes must run before your pipeline, but their end time is variable or unknown (you need to “detect” or “listen to” when they’re done).</p></li>
+<li><p>Your pipelines are becoming more critical in your organisation so you’re starting to develop a dashboard to check their status and receive alerts when something goes wrong.</p></li>
+</ul>
+<p>All of these involve using some features (logging, scalability, dependencies, monitoring, etc) that you <em>technically</em> can code on your own, but why waste on that time if someone else already has done this for you? <strong>This is where Airflow comes in handy</strong>.</p>
+<div id="airflow-the-orchestrator-of-data-pipelines" class="section level3">
+<h3>Airflow, the orchestrator of data pipelines</h3>
+<p><img src="images/airflow_orchestra.jpg" /></p>
+<p>Apache Airflow can be defined as an <strong>orchestrator for complex data flows</strong>. Just like a music conductor coordinantes the different instruments and sections of an orchestra to produce harmonious sound, Airflow coordinates your pipelines and their components to make sure that they work well with each other, and correctly do what you want them to do.</p>
+<p>The analogy falls short, however, in depicting the full range of Airflow benefits: it’s not only the coordination but also the <strong>monitoring</strong>, <strong>logging</strong> and <strong>scaling</strong>. For example, Airflow provides a web interface that allows you to monitor the status of your pipelines, view logs and metrics, and troubleshoot issues by, for example, re-running only the tasks that have failed (and their downstream dependencies), while leaving the successful tasks untouched.</p>
+<p>Airflow also helps you better manage your computing resources by setting up a queue of tasks that get assigned to the available computers (called nodes or workers), and by letting you scale up or down the pool of nodes assigned to executing your tasks [check how correct is to say this], thus allowing your pipelines to complete faster (or to save money on your AWS bill).</p>
+<p>Another benefit of Airflow is that, since it’s extensible (we’ll get into details about this later), it makes easy to re-use code across all the pipelines of your team. A data engineer can create an parametrised <em>Operator</em> (more on them later!) that connects to your data warehouse and performs a frequent operation on it and then all the data scientist can just use this operator without having to write their own implementation of the task. Even better, you can find ready-to-use extensions on the <a href="https://airflow.apache.org/plugins.html">Airflow plugin repository</a> so for many cases nobody in your team will have to write anyting from scratch.</p>
+</div>
+<div id="with-great-power-comes-great-complexity" class="section level3">
+<h3>With great power comes great complexity</h3>
+<p>All of this sounds pretty neat, right? You may even be wondering why anyone would not want to use Airflow for their data pipelines. Here the music director analogy becomes appropriate again: <strong>you wouldn’t hire a music conductor to direct a solo performance or a small band</strong>. If your pipeline involves few steps and has no complex dependency logic, then the overhead of deploying it with Airflow is probably higher than the benefits you’ll get from doing so.</p>
+<p>I would even say that <strong>using Airflow just doesn’t spark joy</strong>. I mean, <strong>it’s the kind of tool than even very experienced users complain about</strong>. One way to think about it is as a necessary or lesser evil: you pay up-front for a lot of complexity <del>and annoyance</del> in order to get a more scalable and robust system on which each additional pipeline or component adds less marginal complexity.</p>
+</div>
+</div>
+<div id="the-basic-components-of-airflow" class="section level2">
+<h2>The basic components of Airflow</h2>
+<p>explain what a DAG is</p>
+<p>Airflow consists of four main components: the web server, the scheduler, the executor, and the metadata database. These components work together to run your DAGs and tasks.</p>
+<ul>
+<li><p>The web server is the component that provides the web-based user interface for Airflow. You can use it to view your DAGs, their status and history, trigger or pause them manually, inspect logs and metadata, etc. The web server also communicates with the scheduler and the executor to coordinate the execution of tasks.</p></li>
+<li><p>The scheduler is the component that monitors your DAGs and triggers tasks based on their schedule and dependencies. The scheduler also sends tasks to the executor for execution and updates the metadata database with their status.</p></li>
+<li><p>The executor is the component that actually runs your tasks on a distributed system. The executor can be configured to use different modes or backends depending on your needs and resources. Some of the common executors are:</p>
+<ul>
+<li>LocalExecutor: runs tasks on the same machine as the scheduler</li>
+<li>SequentialExecutor: runs tasks sequentially on the same machine as the scheduler</li>
+<li>CeleryExecutor: runs tasks on multiple workers using Celery</li>
+<li>KubernetesExecutor: runs tasks on Kubernetes pods</li>
+<li>DaskExecutor: runs tasks on Dask clusters</li>
+</ul></li>
+<li><p>The metadata database is the component that stores information about your DAGs and tasks, such as their definitions, schedules, dependencies, status, logs, etc. The metadata database also acts as a source of truth for Airflow. You can use any SQL database as your metadata database.</p></li>
+</ul>
+</div>
+<div id="how-to-start-using-airflow-on-your-pc" class="section level2">
+<h2>How to start using Airflow on your PC</h2>
+<p>One of the easiest ways to start using Airflow on your PC is to use Docker. Docker is a tool that allows you to run applications in isolated containers that have all the dependencies and configurations they need. You can use Docker to run Airflow without having to install it or set it up manually.</p>
+<p>To use Airflow with Docker, you need to have Docker installed on your PC. You can follow this guide (<a href="https://docs.docker.com/get-docker/" class="uri">https://docs.docker.com/get-docker/</a>) to install Docker for your operating system.</p>
+<p>Once you have Docker installed, you can follow these steps to run Airflow with Docker:</p>
+<ul>
+<li><p>Create a folder for your Airflow project. For example:</p>
+<p><code>mkdir airflow-docker</code></p></li>
+<li><p>Navigate to your project folder. For example:</p>
+<p><code>cd airflow-docker</code></p></li>
+<li><p>Create a file named <code>docker-compose.yml</code> in your project</p></li>
+</ul>
+</div>
+<div class="footnotes footnotes-end-of-document">
+<hr />
+<ol>
+<li id="fn1"><p>A task scheduler for Unix-based operating systems.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>

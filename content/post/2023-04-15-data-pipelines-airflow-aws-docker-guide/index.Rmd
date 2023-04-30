@@ -1,0 +1,108 @@
+---
+title: "Building Data Pipelines with Airflow and AWS: A Beginner's Guide"
+author: Francisco Yirá
+date: '2023-04-15'
+slug: data-pipelines-airflow-aws-docker-guide
+useRelativeCover: true
+cover: "images/cover.jpeg"
+coverCaption: "My attempt of using Stable Diffussion to depict something cloud-computery."
+categories:
+  - data-science
+  - tutorial
+  - cloud-computing
+tags:
+  - aws
+  - airflow
+  - docker
+---
+
+After a long hiatus (sorry about that 😳), I'm excited to post again on this blog and share with you what I've been learning recently: how to use Apache Airflow to build data pipelines that interact with AWS cloud services, such as S3 (object storage) and RDS (relational databases).
+
+If you're new to Airflow and curious about what it's good for (maybe you've heard some data engineers talking about it or have seen it on data science job postings?), then this will be a great place to start, because the post won't assume any previous knowledge about it.
+
+By the end of this post, you will:
+
+-   Understand what Airflow is used for, what are its main capabilities, and how to tell if it's a suitable solution for your data pipelines.
+-   Know how to use Airflow on a local environment through Docker.
+-   Have some familiarity with the core components of the Airflow UI and a typical Airflow code repository.
+-   And last but not least, **know how to code and debug a basic Airflow data pipeline** that reads data from S3, manipulates it and then writes on a Postgres database hosted on Amazon RDS.
+
+One thing that I'll have to assume, though, is that you have some basic familiarity with the AWS ecosystem, Python, and Docker, but I'll also provide links to introductory resources on them that you can refer to if you feel lost at some point 🙂.
+
+## What problem does Airflow solve?
+
+*You can skip this part if you already know what Airflow is and just want to learn to use it.*
+
+If you've been working on data science for some time, you've probably encountered the need to set up automatic, scheduled pipelines. Typical examples of this are retrieving data from an API on daily basis or loading scores from a predictive model to your company's database.
+
+For the simplest pipelines, this can be achieved through a Cron Job[^1] or even using the Windows' Task Scheduler. If your pipeline consists only of SQL queries, you can also leverage the [scheduling features available on some databases](https://docs.aws.amazon.com/redshift/latest/mgmt/query-editor-schedule-query.html).
+
+[^1]: A task scheduler for Unix-based operating systems.
+
+However, as your pipelines grow in number and complexity, you may reach a point where these tools are no longer enough. Some signals that you've reached this threshold are:
+
+-   You need detailed logs for most of your pipelines but you're setting up the logging system "manually" for each one of them. Even worse, each of the data scientists on your team has implemented their own logging mechanism.
+
+-   Some of your pipelines are very intensive on compute and would benefit from being distributed on a scalable infrastructure (i.e. run on more computers).
+
+-   Other processes must run before your pipeline, but their end time is variable or unknown (you need to "detect" or "listen to" when they're done).
+
+-   Your pipelines are becoming more critical in your organisation so you're starting to develop a dashboard to check their status and receive alerts when something goes wrong.
+
+All of these involve using some features (logging, scalability, dependencies, monitoring, etc) that you *technically* can code on your own, but why waste on that time if someone else already has done this for you? **This is where Airflow comes in handy**.
+
+### Airflow, the orchestrator of data pipelines
+
+![](images/airflow_orchestra.jpg)
+
+Apache Airflow can be defined as an **orchestrator for complex data flows**. Just like a music conductor coordinantes the different instruments and sections of an orchestra to produce harmonious sound, Airflow coordinates your pipelines and their components to make sure that they work well with each other, and correctly do what you want them to do.
+
+The analogy falls short, however, in depicting the full range of Airflow benefits: it's not only the coordination but also the **monitoring**, **logging** and **scaling**. For example, Airflow provides a web interface that allows you to monitor the status of your pipelines, view logs and metrics, and troubleshoot issues by, for example, re-running only the tasks that have failed (and their downstream dependencies), while leaving the successful tasks untouched.
+
+Airflow also helps you better manage your computing resources by setting up a queue of tasks that get assigned to the available computers (called nodes or workers), and by letting you scale up or down the pool of nodes assigned to executing your tasks [check how correct is to say this], thus allowing your pipelines to complete faster (or to save money on your AWS bill).
+
+Another benefit of Airflow is that, since it's extensible (we'll get into details about this later), it makes easy to re-use code across all the pipelines of your team. A data engineer can create an parametrised *Operator* (more on them later!) that connects to your data warehouse and performs a frequent operation on it and then all the data scientist can just use this operator without having to write their own implementation of the task. Even better, you can find ready-to-use extensions on the [Airflow plugin repository](https://airflow.apache.org/plugins.html) so for many cases nobody in your team will have to write anyting from scratch.
+
+### With great power comes great complexity
+
+All of this sounds pretty neat, right? You may even be wondering why anyone would not want to use Airflow for their data pipelines. Here the music director analogy becomes appropriate again: **you wouldn't hire a music conductor to direct a solo performance or a small band**. If your pipeline involves few steps and has no complex dependency logic, then the overhead of deploying it with Airflow is probably higher than the benefits you'll get from doing so.
+
+I would even say that **using Airflow just doesn't spark joy**. I mean, **it's the kind of tool than even very experienced users complain about**. One way to think about it is as a necessary or lesser evil: you pay up-front for a lot of complexity ~~and annoyance~~ in order to get a more scalable and robust system on which each additional pipeline or component adds less marginal complexity.
+
+## The basic components of Airflow
+
+explain what a DAG is
+
+Airflow consists of four main components: the web server, the scheduler, the executor, and the metadata database. These components work together to run your DAGs and tasks.
+
+-   The web server is the component that provides the web-based user interface for Airflow. You can use it to view your DAGs, their status and history, trigger or pause them manually, inspect logs and metadata, etc. The web server also communicates with the scheduler and the executor to coordinate the execution of tasks.
+
+-   The scheduler is the component that monitors your DAGs and triggers tasks based on their schedule and dependencies. The scheduler also sends tasks to the executor for execution and updates the metadata database with their status.
+
+-   The executor is the component that actually runs your tasks on a distributed system. The executor can be configured to use different modes or backends depending on your needs and resources. Some of the common executors are:
+
+    -   LocalExecutor: runs tasks on the same machine as the scheduler
+    -   SequentialExecutor: runs tasks sequentially on the same machine as the scheduler
+    -   CeleryExecutor: runs tasks on multiple workers using Celery
+    -   KubernetesExecutor: runs tasks on Kubernetes pods
+    -   DaskExecutor: runs tasks on Dask clusters
+
+-   The metadata database is the component that stores information about your DAGs and tasks, such as their definitions, schedules, dependencies, status, logs, etc. The metadata database also acts as a source of truth for Airflow. You can use any SQL database as your metadata database.
+
+## How to start using Airflow on your PC
+
+One of the easiest ways to start using Airflow on your PC is to use Docker. Docker is a tool that allows you to run applications in isolated containers that have all the dependencies and configurations they need. You can use Docker to run Airflow without having to install it or set it up manually.
+
+To use Airflow with Docker, you need to have Docker installed on your PC. You can follow this guide (<https://docs.docker.com/get-docker/>) to install Docker for your operating system.
+
+Once you have Docker installed, you can follow these steps to run Airflow with Docker:
+
+-   Create a folder for your Airflow project. For example:
+
+    `mkdir airflow-docker`
+
+-   Navigate to your project folder. For example:
+
+    `cd airflow-docker`
+
+-   Create a file named `docker-compose.yml` in your project
