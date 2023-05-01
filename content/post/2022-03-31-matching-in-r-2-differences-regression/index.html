@@ -21,7 +21,6 @@ tags:
   - english-only-ds
 ---
 
-<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
 
 
 <p>Welcome to the second part of the series about <strong>Matching estimators in R</strong>. This sequel will build on top of <a href="https://www.franciscoyira.com/post/matching-in-r-part-1/">the first part</a> and the concepts explained there, so if you haven’t read it yet, I recommend doing so before you continue reading. But if you don’t have time for that, don’t worry. Here it’s a quick summary of the key ideas from the previous past that are required to understand this new post.</p>
@@ -40,7 +39,7 @@ tags:
 <li><p>How do we know if we have conditional independence? Technically, it’s an untestable assumption, but we can assess how reasonable or far fetched it’s to believe in it by <strong>drawing a <a href="https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">causal diagram(DAG)</a></strong>, which is a neat representation of all our current knowledge about the data generating process. By looking at our DAG, we can tell if it makes sense to assume conditional independence in our data.</p></li>
 </ul>
 <div class="figure">
-<img src="images/conditional_indepence_believe.jpg" alt="" />
+<img src="images/conditional_indepence_believe.jpg" alt="The Conditional Independence Assumption states that the potential outcomes are independent of the treatment assignment after adjust/controlling for X (a set of covariates)." />
 <p class="caption"><em>The Conditional Independence Assumption states that the <a href="https://www.franciscoyira.com/post/potential-outcomes-causal-inference-mixtape/">potential outcomes</a> are independent of the treatment assignment after adjust/controlling for X (a set of covariates).</em></p>
 </div>
 <ul>
@@ -94,9 +93,9 @@ ggplot(df,
 
 confint(linear_model1)</code></pre>
 <pre class="language-r"><code>##                  2.5 %     97.5 %
-## (Intercept) 0.60344781 0.70408731
-## d           0.16060850 0.27040535
-## x           0.01187394 0.04975662</code></pre>
+## (Intercept) 0.61017921 0.71206352
+## d           0.14335792 0.25336340
+## x           0.01409772 0.05177948</code></pre>
 <p>Here <code>x</code> is a confounder because it affects both the outcome (<code>y</code>) and the probability of receiving the treatment (<code>d</code>). But simple linear regression can’t help us, even if we include the confounder as control, because both relationships (X-&gt;D and X-&gt;Y) are highly non-linear. Therefore, the final estimate is so biased that the true value is outside the confidence interval. Sad!</p>
 <p><img src="images/your-regression-is-bad-and-you-should-feel-bad.jpg" /></p>
 <p>Now let’s use Matching with the same data. Here we’re going to use a Matching estimator implemented by a CRAN R package instead of coding it ourselves<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>:</p>
@@ -104,18 +103,18 @@ confint(linear_model1)</code></pre>
 M &lt;- Match(df$y, df$d, df$x, M = 5, Weight = 2, caliper = 0.05)
 summary(M)</code></pre>
 <pre class="language-r"><code>## 
-## Estimate...  1.0075 
-## AI SE......  0.037524 
-## T-stat.....  26.849 
+## Estimate...  1.0065 
+## AI SE......  0.036803 
+## T-stat.....  27.348 
 ## p.val......  &lt; 2.22e-16 
 ## 
 ## Original number of observations..............  1000 
-## Original number of treated obs...............  581 
-## Matched number of observations...............  116 
-## Matched number of observations  (unweighted).  592 
+## Original number of treated obs...............  583 
+## Matched number of observations...............  133 
+## Matched number of observations  (unweighted).  678 
 ## 
 ## Caliper (SDs)........................................   0.05 
-## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  465</code></pre>
+## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  450</code></pre>
 <p>As expected, the Matching estimate is much closer to the true treatment effect (and its confidence interval includes the true value) because it’s not relying on false linearity assumptions<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>.</p>
 <p>Here is an illustration that makes it clearer what each of the estimators is doing and why the linear regression estimate is so off<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>:</p>
 <pre class="r language-r"><code># Matching 
@@ -207,10 +206,10 @@ ggplot(df_wo_common_support,
 <pre class="r language-r"><code>reg_wo_common_support &lt;- lm(y ~ d + sin(x), data = df_wo_common_support)
 
 confint(reg_wo_common_support)</code></pre>
-<pre class="language-r"><code>##                   2.5 %     97.5 %
-## (Intercept) -0.01787111 0.01868533
-## d            0.97794964 1.02237554
-## sin(x)       0.98417674 1.02130990</code></pre>
+<pre class="language-r"><code>##                  2.5 %     97.5 %
+## (Intercept) -0.0117022 0.02665018
+## d            0.9671270 1.01474254
+## sin(x)       0.9781552 1.01752056</code></pre>
 <p>You could argue that this dataset is more challenging than the previous one. Nevertheless, regression is able to handle it because it now extrapolates using an appropriate specification.</p>
 <p>Here is a visualisation of what regression is doing under the hood:</p>
 <pre class="r language-r"><code># Hacky data manipulation to avoid the plot looking weird
@@ -335,18 +334,18 @@ plot_matching_wo_cs</code></pre>
                  caliper = 0.05)
 summary(M_wo_cs)</code></pre>
 <pre class="language-r"><code>## 
-## Estimate...  0.99173 
-## AI SE......  0.040044 
-## T-stat.....  24.766 
+## Estimate...  0.97469 
+## AI SE......  0.039626 
+## T-stat.....  24.598 
 ## p.val......  &lt; 2.22e-16 
 ## 
 ## Original number of observations..............  1000 
-## Original number of treated obs...............  593 
-## Matched number of observations...............  20 
-## Matched number of observations  (unweighted).  100 
+## Original number of treated obs...............  586 
+## Matched number of observations...............  19 
+## Matched number of observations  (unweighted).  95 
 ## 
 ## Caliper (SDs)........................................   0.05 
-## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  573</code></pre>
+## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  567</code></pre>
 <p>Here our alarms should ring after seeing the number of dropped observations (588 of 604) and the number of matched units (only 16). This should be enough to convince yourself that there is no common support, even if you can’t see it visually<a href="#fn9" class="footnote-ref" id="fnref9"><sup>9</sup></a>.</p>
 <p><img src="images/minion_matching.jpg" width="400" /></p>
 </div>
@@ -433,6 +432,7 @@ Match(
 <p>Regression gives us an ATE estimate equal to 1.716 while Matching returns an estimate equal to 0.986.</p>
 <p>The explanation for this is the one given above: Regression weights the group-specific ATEs by treatment variance. The subgroup with <code>gender=="other"</code> has the highest treatment variance AND ALSO a higher treatment effect (3 vs 1 of the other units), so the final estimate is “pushed upwards” by these observations.</p>
 <p>Matching, on the other hand, returns a lower estimate because it puts a higher weight on the treatment effects of groups with higher frequency (men and women), which in turn have a lower treatment effect (the final estimate is “pushed downwards”).</p>
+{{% subscribe %}}
 </div>
 <div id="regression-has-more-bias-while-matching-has-more-variance" class="section level3">
 <h3>Regression has more bias, while Matching has more variance</h3>
@@ -457,18 +457,18 @@ Match(
 </ul>
 <p><em>Your feedback is welcome! You can send me comments about this article to my <a href="mailto:francisco.yira@outlook.com">email</a>.</em></p>
 </div>
-<div class="footnotes footnotes-end-of-document">
+<div class="footnotes">
 <hr />
 <ol>
-<li id="fn1"><p>Or, in DAG lingo, one where all the backdoors can be closed by adjusting for observable variables.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
-<li id="fn2"><p>It’s worth mentioning that regression could also handle non-linear relationships, but we have to “declare” such non-linearity in the model specification.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
-<li id="fn3"><p>Which is what we should do most of the time. The “estimators as R functions” of the previous blog post had only pedagogical purposes, and, in general, it’s better to leverage implementations of statistical methods available in CRAN packages. Not only are they less likely to have errors, but they also have extra goodies such as standard errors calculation and nice <code>print</code> or <code>summary</code> methods.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
-<li id="fn4"><p>Regression fans may object that regression is technically <em>capable</em> of handling datasets like this, given that we include the non-linear relationships in the specification (for example, <code>lm(y ~ d + sin(x), data = df)</code> returns a treatment effect estimate close to 1). But the point is that we should critically assess if we have enough information to assume a specific functional form between the variables. If we don’t, then a non-parametric approach such as Matching may be a better option.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
-<li id="fn5"><p>Yes, KNN regression is <em>technically not the same</em> as matching, but, for the effect of this visualisation, the KNN algorithm illustrates well what matching is doing.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
-<li id="fn6"><p>Big If, though.<a href="#fnref6" class="footnote-back">↩︎</a></p></li>
-<li id="fn7"><p>This is a general principle that should be followed in many code-related situations: fail early (so you know ASAP that there is a problem) instead of returning garbage (that will mess up with stuff downstream).<a href="#fnref7" class="footnote-back">↩︎</a></p></li>
-<li id="fn8"><p>This <code>caliper</code> is interpreted as standard deviations by the functions. If you’re matching on several variables, you could also specify different callipers for each one. For more details, check the documentation of <code>MatchIt::Match()</code>.<a href="#fnref8" class="footnote-back">↩︎</a></p></li>
-<li id="fn9"><p>We should still visualise the data whenever we can, but if we were doing matching in more dimensions, the lack of common support would be more difficult to see.<a href="#fnref9" class="footnote-back">↩︎</a></p></li>
-<li id="fn10"><p><a href="https://stats.stackexchange.com/a/50641/249455" class="uri">https://stats.stackexchange.com/a/50641/249455</a><a href="#fnref10" class="footnote-back">↩︎</a></p></li>
+<li id="fn1"><p>Or, in DAG lingo, one where all the backdoors can be closed by adjusting for observable variables.<a href="#fnref1" class="footnote-back">↩</a></p></li>
+<li id="fn2"><p>It’s worth mentioning that regression could also handle non-linear relationships, but we have to “declare” such non-linearity in the model specification.<a href="#fnref2" class="footnote-back">↩</a></p></li>
+<li id="fn3"><p>Which is what we should do most of the time. The “estimators as R functions” of the previous blog post had only pedagogical purposes, and, in general, it’s better to leverage implementations of statistical methods available in CRAN packages. Not only are they less likely to have errors, but they also have extra goodies such as standard errors calculation and nice <code>print</code> or <code>summary</code> methods.<a href="#fnref3" class="footnote-back">↩</a></p></li>
+<li id="fn4"><p>Regression fans may object that regression is technically <em>capable</em> of handling datasets like this, given that we include the non-linear relationships in the specification (for example, <code>lm(y ~ d + sin(x), data = df)</code> returns a treatment effect estimate close to 1). But the point is that we should critically assess if we have enough information to assume a specific functional form between the variables. If we don’t, then a non-parametric approach such as Matching may be a better option.<a href="#fnref4" class="footnote-back">↩</a></p></li>
+<li id="fn5"><p>Yes, KNN regression is <em>technically not the same</em> as matching, but, for the effect of this visualisation, the KNN algorithm illustrates well what matching is doing.<a href="#fnref5" class="footnote-back">↩</a></p></li>
+<li id="fn6"><p>Big If, though.<a href="#fnref6" class="footnote-back">↩</a></p></li>
+<li id="fn7"><p>This is a general principle that should be followed in many code-related situations: fail early (so you know ASAP that there is a problem) instead of returning garbage (that will mess up with stuff downstream).<a href="#fnref7" class="footnote-back">↩</a></p></li>
+<li id="fn8"><p>This <code>caliper</code> is interpreted as standard deviations by the functions. If you’re matching on several variables, you could also specify different callipers for each one. For more details, check the documentation of <code>MatchIt::Match()</code>.<a href="#fnref8" class="footnote-back">↩</a></p></li>
+<li id="fn9"><p>We should still visualise the data whenever we can, but if we were doing matching in more dimensions, the lack of common support would be more difficult to see.<a href="#fnref9" class="footnote-back">↩</a></p></li>
+<li id="fn10"><p><a href="https://stats.stackexchange.com/a/50641/249455" class="uri">https://stats.stackexchange.com/a/50641/249455</a><a href="#fnref10" class="footnote-back">↩</a></p></li>
 </ol>
 </div>

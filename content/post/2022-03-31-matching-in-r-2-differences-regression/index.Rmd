@@ -464,6 +464,10 @@ The explanation for this is the one given above: Regression weights the group-sp
 
 Matching, on the other hand, returns a lower estimate because it puts a higher weight on the treatment effects of groups with higher frequency (men and women), which in turn have a lower treatment effect (the final estimate is "pushed downwards").
 
+```{r, echo=FALSE}
+blogdown::shortcode("subscribe")
+```
+
 ### Regression has more bias, while Matching has more variance
 
 The last difference has to do with the bias-variance trade-off. We already saw how Matching could have more or less bias and variance depending on the way in which we perform it but, regardless of that, Matching tends to have more variance and less bias than Regression.
