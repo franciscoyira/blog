@@ -76,6 +76,10 @@ The same UI gives you access to **detailed logs**, which can be used to to debug
 
 Airflow also helps you **better manage your computing resources** by setting up a queue of tasks that get assigned to the available computers (called nodes or workers), and by letting you **scale up or down** the pool of nodes dedicated to your tasks. This allows you to run your pipelines faster or to lower your cloud computing bill, depending on your needs
 
+```{r, echo=FALSE}
+blogdown::shortcode("subscribe")
+```
+
 Finally, with Airflow you also get **extensibility**, which makes it easy to re-use code across pipelines and teams. For example, a data engineer on your team can create a parametrised *Operator* (more on them later!) that performs a frequent task on your company's data warehouse. Then you can just reuse that operator instead of having to code the task on your own. Even better, you can find ready-to-use extensions on the [Airflow plugin repository](https://airflow.apache.org/plugins.html) so most of the time nobody in your team will have to write anything from scratch.
 
 ### Do you *really* need Airflow?
