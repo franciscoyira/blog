@@ -54,6 +54,10 @@ paginate = 5
         url = "/subscribe"
         weight = 1
       [[languages.en.menu.main]]
+        identifier = "mastodon"
+        name = "🐘 Mastodon"
+        url = "https://techhub.social/@franciscoyira"
+      [[languages.en.menu.main]]
         identifier = "about"
         name = "About"
         url = "/about"
