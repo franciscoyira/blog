@@ -9,7 +9,7 @@ paginate = 5
   # "light" or "dark"
   defaultTheme = "light"
   # if you set this to 0, only submenu trigger will be visible
-  showMenuItems = 3
+  showMenuItems = 1
   # Enable to show reading time in minutes for posts
   showReadingTime = true
   rssFullText = true
@@ -52,12 +52,11 @@ paginate = 5
         identifier = "subscribe"
         name = "📩 Subscribe"
         url = "/subscribe"
-        weight = 2
+        weight = 1
       [[languages.en.menu.main]]
         identifier = "about"
         name = "About"
         url = "/about"
-        weight = 1
       [[languages.en.menu.main]]
         identifier = "change_lang"
         name = "Español"
@@ -66,7 +65,7 @@ paginate = 5
         identifier = "cv"
         name = "CV/Portfolio"
         url = "https://cv.franciscoyira.com/#projects"
-        weight = 3
+        weight = 2
 
         
   [languages.es]
