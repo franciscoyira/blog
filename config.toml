@@ -58,6 +58,10 @@ paginate = 5
         name = "🐘 Mastodon"
         url = "https://techhub.social/@franciscoyira"
       [[languages.en.menu.main]]
+        identifier = "linkedin"
+        name = "💼 LinkedIn"
+        url = "https://www.linkedin.com/in/franciscoyira/"
+      [[languages.en.menu.main]]
         identifier = "about"
         name = "About"
         url = "/about"
