@@ -1,0 +1,5 @@
+﻿{
+  "Description": "Archivo de comprobación de propiedad del dominio para Microsoft 365: colocar en la raíz del sitio web",
+  "Domain": "franciscoyira.com",
+  "Id": "c93ae7e2-8150-4ac3-9697-b9ef90582b72"
+}
