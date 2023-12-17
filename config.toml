@@ -12,7 +12,7 @@ paginate = 5
   showMenuItems = 1
   # Enable to show reading time in minutes for posts
   showReadingTime = true
-  rssFullText = false
+  rssFullText = true
   
 [markup]
   [markup.goldmark]
