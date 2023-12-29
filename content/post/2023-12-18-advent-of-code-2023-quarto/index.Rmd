@@ -17,7 +17,7 @@ tags:
   - advent-of-code
 ---
 
-As a Christmas enthusiast, I've always felt attracted and intrigued by the Advent of Code. This is a series of programming puzzles, of increasing difficulty, that are posted daily during the Advent period that precedes Christmas. Each riddle is woven into an ongoing narrative that lasts the entire month (this year, for instance, snow production has mysteriously stopped and we need to work with elves and other creatures to restore it). But, most importantly, these challenges can be solved using any programming language, allowing for many different coding styles and techniques.
+As a Christmas enthusiast, I've always felt attracted and intrigued by the [Advent of Code](https://adventofcode.com/). This is a series of programming puzzles, of increasing difficulty, that are posted daily during the Advent period that precedes Christmas. Each riddle is woven into an ongoing narrative that lasts the entire month (this year, for instance, snow production has mysteriously stopped and we need to work with elves and other creatures to restore it). But, most importantly, these challenges can be solved using any programming language, allowing for many different coding styles and techniques.
 
 This year, I'm attempting to solve these puzzles with either R or Python, using a spinning wheel to choose between them each day for extra whimsy.
 
