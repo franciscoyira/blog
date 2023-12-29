@@ -2,7 +2,7 @@
 title: Sharing My Advent of Code 2023 with Quarto (And How You Can Do the Same)
 author: Francisco Yirá
 date: '2023-12-28'
-description: As a Christmas enthusiast, I've always been intrigued by the Advent of Code, a series of daily programming puzzles leading up to Christmas. This year, I'm taking on the challenge with either R or Python, adding a touch of whimsy by using a spinning wheel to choose my language each day. I'm also sharing my solutions on a special Advent of Code-themed website. Find out how you can create your own Advent of Code site and automate the process with the `aochelpers` R package.
+description: As a Christmas enthusiast, I've always been intrigued by the [Advent of Code](https://adventofcode.com/), a series of daily programming puzzles leading up to Christmas. This year, I'm taking on the challenge with either R or Python, adding a touch of whimsy by using a spinning wheel to choose my language each day. I'm also sharing my solutions on a [special Advent of Code-themed website](https://adventofcode.franciscoyira.com/). Find out how you can create your own Advent of Code site and automate the process with the `aochelpers` R package.
 useRelativeCover: true
 cover: "images/advent.webp"
 coverCaption: "Make a wish: DALL-E 3 got the text right."
@@ -31,7 +31,7 @@ Moreover, I'm sharing my solutions through a special, advent-of-code-themed webs
 
 ![](images/minisite-aoc.png)
 
-I've already posted there some of the solutions I've completed so far, and I'll continue to do so until I've attempted all 25 puzzles of 2023 (although I'll probably finish in January 2024). Here is an example with [day 1](https://adventofcode.franciscoyira.com/2023/day/1/).
+I've already posted there some of the solutions I've completed so far, and I'll continue to do so until I've attempted all 25 puzzles of 2023 (although I'll probably finish in January 2024). Here there are [day 1](https://adventofcode.franciscoyira.com/2023/day/1/), [day 2](https://adventofcode.franciscoyira.com/2023/day/2/) and [day 3](https://adventofcode.franciscoyira.com/2023/day/3/).
 
 ## How to get your own Advent of Code website
 
