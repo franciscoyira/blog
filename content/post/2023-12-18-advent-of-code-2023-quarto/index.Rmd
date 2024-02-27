@@ -31,7 +31,7 @@ Moreover, I'm sharing my solutions through a special, advent-of-code-themed webs
 
 ![](images/minisite-aoc.png)
 
-I've already posted there some of the solutions I've completed so far, and I'll continue to do so until I've attempted all 25 puzzles of 2023 (although I'll probably finish in January 2024). Here there are [day 1](https://adventofcode.franciscoyira.com/2023/day/1/), [day 2](https://adventofcode.franciscoyira.com/2023/day/2/) and [day 3](https://adventofcode.franciscoyira.com/2023/day/3/).
+I've already posted there solutions [up to day 10](https://adventofcode.franciscoyira.com/2023).
 
 ## How to get your own Advent of Code website
 
