@@ -3,9 +3,8 @@ title: 'Randomization Inference en R: una mejor forma de calcular p-values en ex
 author: Francisco Yirá
 date: '2022-01-18'
 slug: randomization-inference-causal-mixtape
-cover: "images/dices.jpg"
+cover: "images/dices2.jpg"
 useRelativeCover: true
-coverCaption: "Créditos de la imagen: © Bert Brus | [www.bertbrus.nl](https://www.bertbrus.nl/)"
 isMath: "true"
 categories:
   - inferencia-causal

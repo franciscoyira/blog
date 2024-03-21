@@ -3,9 +3,8 @@ title: 'Randomization Inference in R: a better way to compute p-values in random
 author: Francisco Yirá
 date: '2022-01-18'
 slug: randomization-inference-causal-mixtape
-cover: "images/dices.jpg"
+cover: "images/dices2.jpg"
 useRelativeCover: true
-coverCaption: "Image credits: © Bert Brus | [www.bertbrus.nl](https://www.bertbrus.nl/)"
 isMath: "true"
 categories:
   - causal-inference
