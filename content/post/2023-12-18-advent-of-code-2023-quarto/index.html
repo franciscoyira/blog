@@ -5,7 +5,7 @@ date: '2023-12-28'
 description: As a Christmas enthusiast, I've always been intrigued by the Advent of Code, a series of daily programming puzzles leading up to Christmas. This year, I'm taking on the challenge with either R or Python, adding a touch of whimsy by using a spinning wheel to choose my language each day. I'm also sharing my solutions on a special Advent of Code-themed website. Find out how you can create your own Advent of Code site and automate the process with the `aochelpers` R package.
 useRelativeCover: true
 cover: "images/advent.webp"
-coverCaption: "Make a wish: DALL-E got the text right."
+coverCaption: "[Check the website here](https://adventofcode.franciscoyira.com/2023)."
 slug: advent-of-code-2023-quarto
 categories:
   - data-science
@@ -22,9 +22,9 @@ tags:
 <p>As a Christmas enthusiast, I’ve always felt attracted and intrigued by the <a href="https://adventofcode.com/">Advent of Code</a>. This is a series of programming puzzles, of increasing difficulty, that are posted daily during the Advent period that precedes Christmas. Each riddle is woven into an ongoing narrative that lasts the entire month (this year, for instance, snow production has mysteriously stopped and we need to work with elves and other creatures to restore it). But, most importantly, these challenges can be solved using any programming language, allowing for many different coding styles and techniques.</p>
 <p>This year, I’m attempting to solve these puzzles with either R or Python, using a spinning wheel to choose between them each day for extra whimsy.</p>
 <center>
-<div class="float">
-<img src="images/wheel.jpg" width="400" alt="This is how I’m choosing what language to use for each day. App: TinyDecisions." />
-<div class="figcaption"><em>This is how I’m choosing what language to use for each day. App: <a href="https://apps.apple.com/us/app/tiny-decisions/id1338769645">TinyDecisions</a>.</em></div>
+<div class="figure">
+<img src="images/wheel.jpg" alt="This is how I’m choosing what language to use for each day. App: TinyDecisions." width="400" />
+<p class="caption"><em>This is how I’m choosing what language to use for each day. App: <a href="https://apps.apple.com/us/app/tiny-decisions/id1338769645">TinyDecisions</a>.</em></p>
 </div>
 </center>
 <p>Moreover, I’m sharing my solutions through a special, advent-of-code-themed website created with <a href="https://quarto.org/">Quarto</a>: <a href="https://adventofcode.franciscoyira.com"><strong>adventofcode.franciscoyira.com</strong></a><strong>.</strong></p>
@@ -82,9 +82,9 @@ remotes::install_github(&quot;EllaKaye/aochelpers&quot;)</code></pre>
 <p>You can also call the function with a second argument named <code>year</code> to work on puzzles for previous years (if you omit it, it defaults to the current year).</p>
 <p>Then you work on your solution inside the corresponding <code>index.qmd</code> file, and when you’re done, you just go to the terminal (not R), execute the command <code>quarto render</code>, and commit and push your changes.</p>
 </div>
-<div class="footnotes footnotes-end-of-document">
+<div class="footnotes">
 <hr />
 <ol>
-<li id="fn1"><p>As a side note, this process is similar to, but distinct from, forking the original repo. In this case, you’ll get a brand new repo with no commit history, and, unlike what happens with forks, your commits to this repo will count towards your contribution graph (in case you care about that). <a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template">Check this link for more information about templates.</a><a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn1"><p>As a side note, this process is similar to, but distinct from, forking the original repo. In this case, you’ll get a brand new repo with no commit history, and, unlike what happens with forks, your commits to this repo will count towards your contribution graph (in case you care about that). <a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template">Check this link for more information about templates.</a><a href="#fnref1" class="footnote-back">↩</a></p></li>
 </ol>
 </div>
