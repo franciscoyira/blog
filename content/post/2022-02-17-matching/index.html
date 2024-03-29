@@ -517,6 +517,7 @@ bind_rows(
 <p>One way to approach the lack of common support is to <strong>just give up on estimating the ATE and focus on the ATT instead</strong>. When estimating the ATT, we still need control units for all the values of X that have treated units, but not vice versa, so we’re “lowering the bar”. And if our treated group is small compared to the whole dataset, then it’s much more likely to have common support to estimate the ATT. In fact, we already saw an example of this with the <code>trainee_df</code>, where it was possible to estimate the ATT, but not the ATE, through exact matching.</p>
 <p>But what if there is not even common support for the treated units? Well, then exact matching can’t possibly estimate the ATT. Still, it could provide a treatment effect estimate for “those units who got matched” (for example, in <code>exact_matching_estimator_ate</code> we could have dropped the rows without matches and have gotten a result anyway), but since this is not an estimate of the ATT or the ATE (the averages we are usually interested in), this figure probably won’t be helpful to our audience or stakeholders.</p>
 <p>And now the time has come to meet the sinister archrival of the matching methodologies: <strong>the curse of dimensionality</strong>.</p>
+{{% subscribe %}}
 </div>
 <div id="the-curse-of-dimensionality" class="section level2">
 <h2>The Curse of Dimensionality</h2>
@@ -723,6 +724,7 @@ mean_treated - mean_untreated</code></pre>
 \mu_0(X_i)-\mu_0(X_{j(i)})
 \]</span></p>
 <p>The elements of this subtraction represent the expected potential outcome <span class="math inline">\(Y_0\)</span> given the covariates values inside the parenthesis. <span class="math inline">\(X_i\)</span> are the covariates values for the original unit, and <span class="math inline">\(X_{j(i)}\)</span> are the covariates values for the matched control unit. Since those covariate values are not exactly the same, the bias contributed by the unit will be non-zero.</p>
+{{% subscribe %}}
 <p>We can <strong>estimate this bias</strong> and then <strong>subtract it</strong> from the treatment effect estimated for each unit:</p>
 <p><span class="math display">\[
 \hat{ATT} = \frac{1}{N_T}\sum_{i=1}^{N_T}{ (Y_i - Y_{i(j)}) -(\hat{\mu}_0(X_i)-\hat{\mu}_0(X_{j(i)})) }

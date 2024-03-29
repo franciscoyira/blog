@@ -560,6 +560,10 @@ But what if there is not even common support for the treated units? Well, then e
 
 And now the time has come to meet the sinister archrival of the matching methodologies: **the curse of dimensionality**.
 
+```{r, echo=FALSE}
+blogdown::shortcode("subscribe")
+```
+
 ## The Curse of Dimensionality
 
 This is a phenomenon that occurs whenever we work with a lot of variables (a.k.a. dimensions). If you come from the machine learning world, you may already be familiar with this problem, but for those who don't, I'm going to drop the [Wikipedia definition](https://en.wikipedia.org/wiki/Curse_of_dimensionality):
@@ -815,6 +819,10 @@ $$
 $$
 
 The elements of this subtraction represent the expected potential outcome $Y_0$ given the covariates values inside the parenthesis. $X_i$ are the covariates values for the original unit, and $X_{j(i)}$ are the covariates values for the matched control unit. Since those covariate values are not exactly the same, the bias contributed by the unit will be non-zero.
+
+```{r, echo=FALSE}
+blogdown::shortcode("subscribe")
+```
 
 We can **estimate this bias** and then **subtract it** from the treatment effect estimated for each unit:
 
