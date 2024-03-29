@@ -145,9 +145,8 @@ df_knn <- df %>%
   mutate(pred_knn = knn1$pred)
 
 # Regression
-df_linear <- df %>% 
+df_linear <- df %>%
   modelr::add_predictions(linear_model1, var = "pred_linear")
-
 
 # Plots
 plot_matching <- 
@@ -162,7 +161,7 @@ plot_matching <-
     axis.title.x = element_blank()
   )
 
-plot_linear <- 
+plot_linear <-
   ggplot(df_linear) +
   aes(x = x, color = d_factor) +
   geom_point(aes(y = y), alpha = 0.3) +
@@ -173,9 +172,9 @@ plot_linear <-
 library(patchwork)
 
 (plot_matching / plot_linear) +
-  plot_layout(guides = "collect") + 
-  plot_annotation(subtitle = "In each subplot, the estimated ATE is the average distance between the two lines")
-    
+  plot_layout(guides = "collect") +
+  plot_annotation(
+                  subtitle = "In each subplot, the estimated ATE is the average distance between the two lines") # nolint: line_length_linter.
 ```
 
 ### Common support assumption versus Extrapolation
@@ -185,6 +184,10 @@ Up to this point, it seems that Matching is winning. Why would we want to assume
 ![](images/stop_linear_regression.jpg)
 
 Sadly, there is no free lunch, and the flexibility of Matching comes at a price: **the common support assumption**. In order to get a counterfactual estimate without a parametric model, we need to have observations with the same (or similar) covariate values and opposite treatment status for each of the original units. If we don't, Matching will fail.
+
+```{r, echo=FALSE}
+blogdown::shortcode("subscribe")
+```
 
 However, Regression doesn't have such a requisite. Instead, it leverages the parametric specification to get estimates by "extrapolation" in the areas without common support. And, if our parametric specification appropriately reflects the data generating process, such extrapolation is a reasonable way to handle these cases[^6].
 
