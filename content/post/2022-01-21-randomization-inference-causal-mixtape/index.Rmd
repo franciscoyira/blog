@@ -297,6 +297,10 @@ declaration
 
 The output is stored in an R object that later we can pass to the function `ri2::conduct_ri`, which is the function that performs the RI procedure itself.
 
+```{r, echo=FALSE}
+blogdown::shortcode("subscribe")
+```
+
 To declare the **test statistic** we have two options.
 
 The first is to use the `formula` argument in the `conduct_ri` function. If our test statistic is just the SDO, then the formula will be something like `y ~ d`, where `y` is the outcome variable and `d` is the treatment assignment variable.
@@ -365,6 +369,10 @@ It's worth noting that `conduct_ri` also has a `sims` argument that specifies th
 ### Bonus: using the KS statistic to measure differences between outcome distributions
 
 One of the advantages of RI that were mentioned at the beginning of this post was the freedom to use alternative test statistics, having as only restriction to be scalar values obtained from $D$ and $Y$.
+
+```{r, echo=FALSE}
+blogdown::shortcode("subscribe")
+```
 
 One of the most interesting "alternative" statistics (in my opinion) is the **KS statistic** (Kolmogorov-Smirnov), which measures the maximum distance between two empirical cumulative distribution functions (ECDFs). In this case, it measures the distance between the ECDF of the treated units $\hat{F_T}$ and the ECDF of the control units $\hat{F_C}$:
 

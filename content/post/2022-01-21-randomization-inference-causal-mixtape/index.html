@@ -3,7 +3,7 @@ title: 'Randomization Inference in R: a better way to compute p-values in random
 author: Francisco Yirá
 date: '2022-01-18'
 slug: randomization-inference-causal-mixtape
-cover: "images/dices.jpg"
+cover: "images/dices2.jpg"
 useRelativeCover: true
 isMath: "true"
 categories:
@@ -19,7 +19,6 @@ tags:
   - books
 ---
 
-<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
 
 
 <p>Welcome to a new post of <a href="https://www.franciscoyira.com/es/tags/causal-inference-the-mixtape/">the series</a> about the book <a href="https://mixtape.scunning.com/"><strong>Causal Inference: The Mixtape</strong></a>.
@@ -72,7 +71,7 @@ ri &lt;- causaldata::ri %&gt;%
          y1 = as.numeric(y1))
 
 ri</code></pre>
-<pre class="language-r"><code>## # A tibble: 8 x 6
+<pre class="language-r"><code>## # A tibble: 8 × 6
 ##   name       d     y    y0    y1 id_unit
 ##   &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;int&gt;
 ## 1 Andy       1    10    NA    10       1
@@ -89,7 +88,7 @@ ri</code></pre>
          y1 = y)
 
 ri_fischer_null</code></pre>
-<pre class="language-r"><code>## # A tibble: 8 x 6
+<pre class="language-r"><code>## # A tibble: 8 × 6
 ##   name       d     y    y0    y1 id_unit
 ##   &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;int&gt;
 ## 1 Andy       1    10    10    10       1
@@ -148,7 +147,7 @@ ri_permuted &lt;-
   mutate(d = map2_dbl(id_unit, treated_units, ~.x %in% .y))
 
 ri_permuted</code></pre>
-<pre class="language-r"><code>## # A tibble: 560 x 8
+<pre class="language-r"><code>## # A tibble: 560 × 8
 ##    id_perm treated_units name       d     y    y0    y1 id_unit
 ##      &lt;int&gt; &lt;list&gt;        &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;int&gt;
 ##  1       1 &lt;int [4]&gt;     Andy       1    10    10    10       1
@@ -161,7 +160,7 @@ ri_permuted</code></pre>
 ##  8       1 &lt;int [4]&gt;     Hank       0    10    10    10       8
 ##  9       2 &lt;int [4]&gt;     Andy       1    10    10    10       1
 ## 10       2 &lt;int [4]&gt;     Ben        1     5     5     5       2
-## # ... with 550 more rows</code></pre>
+## # ℹ 550 more rows</code></pre>
 <pre class="r language-r"><code>ri_permuted %&gt;% 
   pull(id_perm) %&gt;% 
   n_distinct()</code></pre>
@@ -177,7 +176,7 @@ ri_permuted</code></pre>
 
 perms_stats %&gt;% 
   select(id_perm, sdo)</code></pre>
-<pre class="language-r"><code>## # A tibble: 70 x 2
+<pre class="language-r"><code>## # A tibble: 70 × 2
 ##    id_perm   sdo
 ##      &lt;int&gt; &lt;dbl&gt;
 ##  1       1   1  
@@ -190,7 +189,7 @@ perms_stats %&gt;%
 ##  8       8  -3  
 ##  9       9  -2  
 ## 10      10  -2.5
-## # ... with 60 more rows</code></pre></li>
+## # ℹ 60 more rows</code></pre></li>
 <li><p>Voilà! The statistic values obtained in (3) tell us what the statistic’s distribution is under the sharp null assumption.</p>
 <pre class="r language-r"><code>ggplot(perms_stats, aes(sdo)) +
   geom_histogram() +
@@ -227,6 +226,11 @@ ggplot(perms_stats,
            y = 10,
            label = &quot;More &#39;extreme&#39; statistics&quot;,
            colour = &quot;purple&quot;)</code></pre>
+<pre><code>## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+## ℹ Please use `linewidth` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+## generated.</code></pre>
 <p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
 <p>Having done this, we can calculate the <strong>p-value</strong> itself (which is what we have been looking for since the beginning).</p>
 <p>This p-value can be calculated through the following steps:</p>
@@ -243,7 +247,7 @@ ggplot(perms_stats,
   mutate(new_rank = max(rank))
 
 perms_ranked</code></pre>
-<pre class="language-r"><code>## # A tibble: 70 x 4
+<pre class="language-r"><code>## # A tibble: 70 × 4
 ## # Groups:   abs_sdo [11]
 ##    id_perm abs_sdo  rank new_rank
 ##      &lt;int&gt;   &lt;dbl&gt; &lt;int&gt;    &lt;int&gt;
@@ -257,7 +261,7 @@ perms_ranked</code></pre>
 ##  8      23     4.5     8       12
 ##  9      48     4.5     9       12
 ## 10      49     4.5    10       12
-## # ... with 60 more rows</code></pre>
+## # ℹ 60 more rows</code></pre>
 <ol start="2" style="list-style-type: decimal">
 <li>We calculate the ratio between the final ranking of the true statistic and N, the total number of permutations we did.</li>
 </ol>
@@ -291,6 +295,7 @@ declaration</code></pre>
 ## prob_0 prob_1 
 ##    0.5    0.5</code></pre>
 <p>The output is stored in an R object that later we can pass to the function <code>ri2::conduct_ri</code>, which is the function that performs the RI procedure itself.</p>
+{{% subscribe %}}
 <p>To declare the <strong>test statistic</strong> we have two options.</p>
 <p>The first is to use the <code>formula</code> argument in the <code>conduct_ri</code> function. If our test statistic is just the SDO, then the formula will be something like <code>y ~ d</code>, where <code>y</code> is the outcome variable and <code>d</code> is the treatment assignment variable.</p>
 <p>Alternatively, we can specify the statistic through the argument <code>test_function</code> (also in the function <code>conduct_ri</code>), which admits any R function capable of receiving a dataframe and returning a scalar (i.e., the statistic value).</p>
@@ -323,14 +328,12 @@ summary(ri2_out)</code></pre>
 <p>As we see, the p-value returned by <code>conduct_ri</code> is exactly the same as the one we got with the “manual” code from the previous section, but now the code is much simpler and easier to read 😊.</p>
 <p>Another advantage of <code>conduct_ri</code> is that its output can be directly plotted by the function <code>plot()</code>.</p>
 <pre class="r language-r"><code>plot(ri2_out)</code></pre>
-<pre><code>## Warning: It is deprecated to specify `guide = FALSE` to remove a guide. Please
-## use `guide = &quot;none&quot;` instead.</code></pre>
-<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
 <p>This plot is even better than the one we created manually in the previous section because it automatically highlights the statistics that are as or more extreme than the real statistic. It also appropriately portrays two-tailed tests without having to transform the statistics to their absolute value ✨.</p>
 <p>In addition, since the output of <code>plot(ri2_out)</code> is a ggplot2 object, we can customize it or transform it through the ggplot2 functions we already know. For example, we can apply a <code>ggthemes</code> theme to make it look like a Stata plot:</p>
 <pre class="r language-r"><code>plot(ri2_out) +
   ggthemes::theme_stata()</code></pre>
-<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
 <p>If we want to manually inspect the simulations data, we can extract the dataframe <code>sims_df</code> from the output of <code>conduct_ri</code>. This dataframe will have as many rows as permutations of <span class="math inline">\(D\)</span> had been performed.</p>
 <pre class="r language-r"><code>ri2_out[[&quot;sims_df&quot;]] %&gt;% head()</code></pre>
 <pre class="language-r"><code>##   est_sim est_obs                  term
@@ -344,13 +347,14 @@ summary(ri2_out)</code></pre>
 <div id="bonus-using-the-ks-statistic-to-measure-differences-between-outcome-distributions" class="section level3">
 <h3>Bonus: using the KS statistic to measure differences between outcome distributions</h3>
 <p>One of the advantages of RI that were mentioned at the beginning of this post was the freedom to use alternative test statistics, having as only restriction to be scalar values obtained from <span class="math inline">\(D\)</span> and <span class="math inline">\(Y\)</span>.</p>
+{{% subscribe %}}
 <p>One of the most interesting “alternative” statistics (in my opinion) is the <strong>KS statistic</strong> (Kolmogorov-Smirnov), which measures the maximum distance between two empirical cumulative distribution functions (ECDFs). In this case, it measures the distance between the ECDF of the treated units <span class="math inline">\(\hat{F_T}\)</span> and the ECDF of the control units <span class="math inline">\(\hat{F_C}\)</span>:</p>
 <p><span class="math display">\[
 T_{KS}=\max|\hat{F_T}(Y_i) - \hat{F_C}(Y_i)|
 \]</span></p>
 <p>We can see a visual example in the following plot, where the KS statistic equals the length of the red dotted line.</p>
 <div class="figure">
-<img src="images/ks_example.png" alt="" />
+<img src="images/ks_example.png" alt="Example of KS statistic with 2 cumulative distribution functions. Source: StackExchange" />
 <p class="caption"><em>Example of KS statistic with 2 cumulative distribution functions. Source: <a href="https://stats.stackexchange.com/questions/208517/kolmogorov-smirnov-test-vs-t-test">StackExchange</a></em></p>
 </div>
 <p><strong>Why would we use the KS statistic instead of something more familiar, like the difference in means?</strong></p>
@@ -389,7 +393,7 @@ ggplot(kdensity)+
   geom_point(size = 0.3, aes(x,y, color = d))+
   xlim(-7, 8)+
   scale_color_discrete(labels = c(&quot;Control&quot;, &quot;Treatment&quot;))</code></pre>
-<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
 <p>If we do RI with the data from above using the SDO as test statistic, we can’t reject the sharp null of having zero effect for all the units, despite having two evidently different outcome distributions.</p>
 <pre class="r language-r"><code>set.seed(1989)
 
@@ -477,7 +481,13 @@ ggplot(tb2) +
                linetype = &quot;dashed&quot;, color = &quot;red&quot;, size = 1) +
   geom_point(aes(x = x0[1] , y= y0[1]), color=&quot;red&quot;, size=4) +
   geom_point(aes(x = x0[1] , y= y1[1]), color=&quot;red&quot;, size=4)</code></pre>
-<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-21-1.png" width="672" /></p>
+<pre><code>## Warning in geom_segment(aes(x = x0[1], y = y0[1], xend = x0[1], yend = y1[1]), : All aesthetics have length 1, but the data has 40 rows.
+## ℹ Did you mean to use `annotate()`?</code></pre>
+<pre><code>## Warning in geom_point(aes(x = x0[1], y = y0[1]), color = &quot;red&quot;, size = 4): All aesthetics have length 1, but the data has 40 rows.
+## ℹ Did you mean to use `annotate()`?</code></pre>
+<pre><code>## Warning in geom_point(aes(x = x0[1], y = y1[1]), color = &quot;red&quot;, size = 4): All aesthetics have length 1, but the data has 40 rows.
+## ℹ Did you mean to use `annotate()`?</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-23-1.png" width="672" /></p>
 </div>
 </div>
 <div id="considerations-and-additional-references" class="section level2">
@@ -500,10 +510,10 @@ ggplot(tb2) +
 <div class="footnotes">
 <hr />
 <ol>
-<li id="fn1"><p>For example, two coins have the same expected value when tossed, but if we toss each one 5 times, it’s very likely that the number of heads and tails returned by each one is going to be different, just because of the intrinsic variance of this data generating process.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
-<li id="fn2"><p>Some causal inference methodologies that tend to leverage placebo tests are Discontinuous Regression and Difference-in-differences. Both will be covered in more detail in future blog posts.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
-<li id="fn3"><p>If the randomization was done using clustering or blocking by groups, then we should do the same when obtaining the permutations.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
-<li id="fn4"><p>As a reference, the function <code>ri2::conduct_ri</code>, which is one of the RI implementations existing in R, performs 1000 simulations/permutations by default.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
-<li id="fn5"><p>Of course, it’s a bad idea to repeat the RI test many times using different statistics until finding one that rejects the null since that would qualify as <a href="https://en.wikipedia.org/wiki/Data_dredging">p-hacking</a>. The test statistic, I think, should be part of the experiment design.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn1"><p>For example, two coins have the same expected value when tossed, but if we toss each one 5 times, it’s very likely that the number of heads and tails returned by each one is going to be different, just because of the intrinsic variance of this data generating process.<a href="#fnref1" class="footnote-back">↩</a></p></li>
+<li id="fn2"><p>Some causal inference methodologies that tend to leverage placebo tests are Discontinuous Regression and Difference-in-differences. Both will be covered in more detail in future blog posts.<a href="#fnref2" class="footnote-back">↩</a></p></li>
+<li id="fn3"><p>If the randomization was done using clustering or blocking by groups, then we should do the same when obtaining the permutations.<a href="#fnref3" class="footnote-back">↩</a></p></li>
+<li id="fn4"><p>As a reference, the function <code>ri2::conduct_ri</code>, which is one of the RI implementations existing in R, performs 1000 simulations/permutations by default.<a href="#fnref4" class="footnote-back">↩</a></p></li>
+<li id="fn5"><p>Of course, it’s a bad idea to repeat the RI test many times using different statistics until finding one that rejects the null since that would qualify as <a href="https://en.wikipedia.org/wiki/Data_dredging">p-hacking</a>. The test statistic, I think, should be part of the experiment design.<a href="#fnref5" class="footnote-back">↩</a></p></li>
 </ol>
 </div>
