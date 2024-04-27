@@ -261,7 +261,7 @@ Before we install Airflow this way, we need to make sure that we have the follow
 
 -   **Windows 10 version 2004 or higher** (to run WSL 2.0).
 
--   **WSL 2.0 enabled and configured**. If you don't have this already, you can just open PowerShell or Windows Command Prompt in administrator mode (by right-clicking and selecting "Run as administrator"), then enter the `wsl --install command` and then restart your machine.
+-   **WSL 2.0 enabled and configured**. If you don't have this already, you can just open PowerShell or Windows Command Prompt in administrator mode (by right-clicking and selecting "Run as administrator"), then enter the `wsl --install` and then restart your machine.
 
 -   **Ubuntu 20.04 LTS installed on WSL 2.0.** After enabling WSL you can install it [directly from the Microsoft Store](https://apps.microsoft.com/store/detail/ubuntu-20046-lts/9MTTCL66CPXJ?hl=en-us&gl=us). Then it will appear as an app on your Start Menu. You just click on it and follow the instructions to configure your UNIX user account[^7].
 
