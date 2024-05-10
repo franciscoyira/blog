@@ -71,15 +71,17 @@
 
   &__text {
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
     overflow: hidden;
   }
 
   &.next .button__icon {
     margin-left: 8px;
+    align-content: space-evenly;
   }
 
   &.previous .button__icon {
     margin-right: 8px;
+    align-content: space-evenly;
   }
 }
