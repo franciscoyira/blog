@@ -459,6 +459,9 @@ aws ec2 delete-security-group --group-id $GROUP_ID
 
 ## Feedback Survey
 
-<iframe width="640px" height="530px" src="https://forms.office.com/Pages/ResponsePage.aspx?id=DQSIkWdsW0yxEjajBLZtrQAAAAAAAAAAAAO__a4Ml6hUMUYyTDJLMTIzUVlINjIyT0dXU0oxMko0WC4u&amp;embed=true" frameborder="0" marginwidth="0" marginheight="0" style="border: none; max-width:100%; max-height:100vh" allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen>
+I hope you enjoyed this post and found it useful. If you have any feedback, please let me know by filling out the survey below. It will take less than 2 minutes, and it will help me improve the content of this blog. Thank you!
 
+<div style="display: flex; justify-content: center;">
+<iframe width="640px" height="530px" src="https://forms.office.com/Pages/ResponsePage.aspx?id=DQSIkWdsW0yxEjajBLZtrQAAAAAAAAAAAAO__a4Ml6hUMUYyTDJLMTIzUVlINjIyT0dXU0oxMko0WC4u&amp;embed=true" frameborder="0" marginwidth="0" marginheight="0" style="border: none; max-width:100%; max-height:100vh" allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen>
 </iframe>
+</div>
