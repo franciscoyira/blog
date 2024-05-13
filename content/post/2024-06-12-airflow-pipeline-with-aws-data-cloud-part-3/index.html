@@ -5,7 +5,6 @@ author: Francisco Yirá
 date: '2024-06-12'
 description: "After covering the basics of Apache Airflow and learning how to interact with Amazon Web Services (AWS) through the command line, this third and last part of the Data Pipelines in the Cloud series puts all the pieces together to build a complete Airflow pipeline that communicates with AWS services such as RDS and S3."
 useRelativeCover: true
-draft: true
 cover: "images/airflow3.png"
 slug: airflow-pipeline-with-aws-data-cloud-part-3
 categories:
@@ -24,12 +23,12 @@ tags:
 
 
 
-<p>Welcome back everyone to the third part of this series on Data Pipelines in the Cloud! In the <a href="post/data-pipelines-cloud-intro-airflow-docker/">first part</a>, I introduced Apache Airflow, a powerful tool for orchestrating data pipelines. In the <a href="post/data-pipelines-2-cloud-aws-command-line-s3-rds/">second part</a>, we learned how to interact with Amazon Web Services (AWS) using the command line. And today, <strong>we will put all the pieces together and build an Airflow pipeline that talks to AWS</strong> 🥳.</p>
+<p>Welcome back everyone to the third part of this series on Data Pipelines in the Cloud! In the <a href="post/data-pipelines-cloud-intro-airflow-docker/">first part</a>, I introduced Apache Airflow, a powerful tool for orchestrating data pipelines. In the <a href="post/aws-command-line-data-pipelines-cloud-part-2/">second part</a>, we learned how to interact with Amazon Web Services (AWS) using the command line. And today, <strong>we will put all the pieces together and build an Airflow pipeline that talks to AWS</strong> 🥳.</p>
 <blockquote>
 <p><strong><em>Data Pipelines in the Cloud Series</em></strong></p>
 <ul>
 <li><p><a href="post/data-pipelines-cloud-intro-airflow-docker/">Part I: A Beginner’s Introduction to Airflow</a></p></li>
-<li><p><a href="post/data-pipelines-2-cloud-aws-command-line-s3-rds/">Part II: Using Amazon Web Services with the Command Line</a></p></li>
+<li><p><a href="post/aws-command-line-data-pipelines-cloud-part-2/">Part II: Using Amazon Web Services with the Command Line</a></p></li>
 <li><p><strong>Part III: You’re here.</strong></p></li>
 </ul>
 </blockquote>
@@ -40,7 +39,7 @@ tags:
 <li><strong>You are familiar with Airflow’s fundamentals</strong>. If you are 100% new to this tool, consider reading <a href="/post/data-pipelines-cloud-intro-airflow-docker/">the beginner’s guide provided in the first part of this series</a>.</li>
 <li>You have access to a <strong>Linux or macOS Terminal</strong>, which is where all the AWS CLI and Docker commands are meant to be executed. If you use Windows, check <a href="/post/data-pipelines-cloud-intro-airflow-docker/#installing-airflow-on-the-windows-subsystem-for-linux">the first part of this series</a> for instructions on setting up the Linux Subsystem for Windows.</li>
 <li>You have <strong>Docker Desktop</strong> set up on your machine. <a href="/post/data-pipelines-cloud-intro-airflow-docker/">The first part of this series</a> explains how to do this.</li>
-<li>You have the <strong>AWS Command Line Interface tool installed and configured with an AWS account</strong>. If you need help with that, check <a href="post/data-pipelines-2-cloud-aws-command-line-s3-rds/">the second part of this series</a>. <strong>There you can also find detailed explanations of all the AWS CLI commands and AWS services used in this third part</strong>. I’ll skip explaining these again in this new post to focus on the Airflow DAG instead.</li>
+<li>You have the <strong>AWS Command Line Interface tool installed and configured with an AWS account</strong>. If you need help with that, check <a href="post/aws-command-line-data-pipelines-cloud-part-2/">the second part of this series</a>. <strong>There you can also find detailed explanations of all the AWS CLI commands and AWS services used in this third part</strong>. I’ll skip explaining these again in this new post to focus on the Airflow DAG instead.</li>
 </ul>
 <p>Without further ado, let’s go through the data pipeline we’ll build today.</p>
 </div>
@@ -172,7 +171,7 @@ aws s3 mb s3://$bucket_name
 echo &quot;Bucket created: $bucket_name&quot;
 
 aws s3 cp raw_data/input_data.csv s3://$bucket_name/input_data/input_data.csv</code></pre>
-<p><a href="/post/data-pipelines-2-cloud-aws-command-line-s3-rds/#an-s3-bucket-to-store-the-raw-data"><em>Explanation of the commands above.</em></a></p>
+<p><a href="/post/aws-command-line-data-pipelines-cloud-part-2/#an-s3-bucket-to-store-the-raw-data"><em>Explanation of the commands above.</em></a></p>
 <p><strong>🚨 Important: take note of the name of the <code>$bucket_name</code></strong>, as we’ll need it later when setting up the DAG.</p>
 <p>Now, let’s provision an Amazon RDS instance and its corresponding security group, enabling incoming traffic from our own IP:</p>
 <pre class="language-bash"><code>GROUP_ID=$(aws ec2 create-security-group --group-name airflow-rds-sg --description &quot;Security group for RDS accessible by Airflow&quot; --query &#39;GroupId&#39; --output text)
@@ -193,7 +192,7 @@ aws rds create-db-instance \
     --master-username postgres \
     --master-user-password ${MY_PASSWORD} \
     --vpc-security-group-ids ${GROUP_ID}</code></pre>
-<p><a href="/post/data-pipelines-2-cloud-aws-command-line-s3-rds/#provisioning-the-database"><em>Explanation of the commands above.</em></a></p>
+<p><a href="/post/aws-command-line-data-pipelines-cloud-part-2/#provisioning-the-database"><em>Explanation of the commands above.</em></a></p>
 <p>In order to connect to the instance, we need to download the corresponding Certificate Authority (CA) and install the PostgreSQL and the jq tool:</p>
 <pre class="language-bash"><code>curl -o us-east-1-bundle.pem https://truststore.pki.rds.amazonaws.com/us-east-1/us-east-1-bundle.pem
 
@@ -206,7 +205,7 @@ ENDPOINT_URL=$(echo $output | jq -r &#39;.[0][0]&#39;)
 PORT=$(echo $output | jq -r &#39;.[0][1]&#39;)
 
 psql &quot;host=${ENDPOINT_URL} port=${PORT} dbname=airflow_tutorial user=postgres password=${MY_PASSWORD} sslmode=verify-ca sslrootcert=us-east-1-bundle.pem&quot;</code></pre>
-<p><a href="/post/data-pipelines-2-cloud-aws-command-line-s3-rds/#testing-the-connection"><em>Explanation of the commands above.</em></a></p>
+<p><a href="/post/aws-command-line-data-pipelines-cloud-part-2/#testing-the-connection"><em>Explanation of the commands above.</em></a></p>
 <p>You should see this on screen <code>airflow_tutorial =&gt;</code> if the connection was successful. Once there, you can create the table where our processed data will live by executing the following SQL statement:</p>
 <pre class="language-sql"><code>CREATE TABLE IF NOT EXISTS pomodoro_day_catg (
   date DATE NOT NULL,
@@ -229,7 +228,7 @@ echo $MY_PASSWORD</code></pre>
 <pre class="language-bash"><code>AWS_ACCESS_KEY_ID=[WRITE YOUR OWN ACCESS KEY ID]
 AWS_SECRET_ACCESS_KEY=[WRITE YOUR OWN SECRET ACCESS KEY]
 _PIP_ADDITIONAL_REQUIREMENTS: s3fs</code></pre>
-<p><a href="/post/data-pipelines-2-cloud-aws-command-line-s3-rds/#configuring-the-aws-cli-with-an-aws-account"><em>Here</em> <em>you can find instructions to obtain these keys from AWS</em>.</a></p>
+<p><a href="/post/aws-command-line-data-pipelines-cloud-part-2/#configuring-the-aws-cli-with-an-aws-account"><em>Here</em> <em>you can find instructions to obtain these keys from AWS</em>.</a></p>
 <p>Now, the only step left to have a functional Airflow environment is to initialize the Airflow containers through Docker. To do this, open Docker Desktop on your machine and then execute the following commands on the Terminal:</p>
 <pre class="bash language-bash"><code>sudo service docker start
 docker compose up airflow-init
@@ -659,7 +658,7 @@ branch_task &gt;&gt; end_task</code></pre>
 </div>
 <div id="shutting-down-aws-resources" class="section level2">
 <h2>Shutting Down AWS Resources</h2>
-<p>Please remember to <a href="/post/data-pipelines-2-cloud-aws-command-line-s3-rds/#wrap-up-shutting-down-resources-to-minimize-costs">shut down all the AWS resources</a> used in this tutorial after you’re done to save costs and stay within the Free Tier limits. You can do this by running the following commands on your Terminal:</p>
+<p>Please remember to <a href="/post/aws-command-line-data-pipelines-cloud-part-2/#wrap-up-shutting-down-resources-to-minimize-costs">shut down all the AWS resources</a> used in this tutorial after you’re done to save costs and stay within the Free Tier limits. You can do this by running the following commands on your Terminal:</p>
 <pre class="language-bash"><code>aws rds delete-db-instance --db-instance-identifier airflow-postgres --skip-final-snapshot
 
 aws s3 rb s3://$bucket_name --force</code></pre>

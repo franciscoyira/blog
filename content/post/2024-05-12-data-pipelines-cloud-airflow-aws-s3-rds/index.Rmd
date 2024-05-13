@@ -41,7 +41,7 @@ In this second part, we'll get closer to what an actual Airflow pipeline in prod
 >
 > -   **Part II: You're here.**
 >
-> -   *Part III: Building an Airflow Pipeline That Talks to AWS. (Coming soon! [Subscribe to get notified](/subscribe))*
+> -   [Part III: Building an Airflow Pipeline That Talks to AWS.](/post/airflow-pipeline-with-aws-data-cloud-part-3/)
 
 ## First Things First: Setting Up Your AWS Environment
 
