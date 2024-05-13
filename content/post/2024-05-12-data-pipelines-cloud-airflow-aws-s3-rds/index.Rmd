@@ -372,6 +372,10 @@ aws rds describe-db-instances --db-instance-identifier airflow-postgres
 
 The output should be a rather large JSON describing the properties and state of the instance we just created.
 
+```{r, echo=FALSE}
+blogdown::shortcode("subscribe")
+```
+
 ### Testing the Connection
 
 *Can we connect to the database already?* Not yet! There are still a couple of steps left.
