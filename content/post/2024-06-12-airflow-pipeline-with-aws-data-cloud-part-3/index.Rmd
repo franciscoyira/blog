@@ -30,7 +30,7 @@ use_python("/usr/bin/python3")
 knitr::knit_engines$set(python = reticulate::eng_python)
 ```
 
-Welcome back everyone to the third part of this series on Data Pipelines in the Cloud! In the [first part](post/data-pipelines-cloud-intro-airflow-docker/), I introduced Apache Airflow, a powerful tool for orchestrating data pipelines. In the [second part](post/aws-command-line-data-pipelines-cloud-part-2/), we learned how to interact with Amazon Web Services (AWS) using the command line. And today, **we will put all the pieces together and build an Airflow pipeline that talks to AWS** 🥳.
+Welcome back, everyone, to the third part of this series on Data Pipelines in the Cloud! In the [first part](post/data-pipelines-cloud-intro-airflow-docker/), I introduced Apache Airflow, a powerful tool for orchestrating data pipelines. In the [second part](post/aws-command-line-data-pipelines-cloud-part-2/), we learned how to interact with Amazon Web Services (AWS) using the command line. And today, **we will put all the pieces together and build an Airflow pipeline that talks to AWS** 🥳.
 
 > ***Data Pipelines in the Cloud Series***
 >
@@ -44,10 +44,10 @@ Welcome back everyone to the third part of this series on Data Pipelines in the 
 
 Before moving on, keep in mind that what comes next assumes:
 
--   **You are familiar with Airflow's fundamentals**. If you are 100% new to this tool, consider reading [the beginner's guide provided in the first part of this series](/post/data-pipelines-cloud-intro-airflow-docker/).
--   You have access to a **Linux or macOS Terminal**, which is where all the AWS CLI and Docker commands are meant to be executed. If you use Windows, check [the first part of this series](/post/data-pipelines-cloud-intro-airflow-docker/#installing-airflow-on-the-windows-subsystem-for-linux) for instructions on setting up the Linux Subsystem for Windows.
+-   **You are familiar with Airflow's fundamentals**. If you are 100% new to this tool, consider reading [the guide for beginners provided in the first part of this series](/post/data-pipelines-cloud-intro-airflow-docker/).
+-   You have access to a **Linux or macOS Terminal (Bash shell or Z shell)**, which is where the AWS CLI and Docker commands are meant to be executed. If you use Windows, check [the first part of this series](/post/data-pipelines-cloud-intro-airflow-docker/#installing-airflow-on-the-windows-subsystem-for-linux) for instructions on setting up the Linux Subsystem for Windows.
 -   You have **Docker Desktop** set up on your machine. [The first part of this series](/post/data-pipelines-cloud-intro-airflow-docker/) explains how to do this.
--   You have the **AWS Command Line Interface tool installed and configured with an AWS account**. If you need help with that, check [the second part of this series](post/aws-command-line-data-pipelines-cloud-part-2/). **There you can also find detailed explanations of all the AWS CLI commands and AWS services used in this third part**. I’ll skip explaining these again in this new post to focus on the Airflow DAG instead.
+-   You have the **AWS Command Line Interface tool installed and configured with an AWS account**. [The second part of this series](post/aws-command-line-data-pipelines-cloud-part-2/) provides help with that. **There you can also find detailed explanations of all the AWS CLI commands and AWS services used in this third part**. I’ll skip explaining these again in this new post to focus on the Airflow DAG instead.
 
 Without further ado, let's go through the data pipeline we'll build today.
 
@@ -58,20 +58,20 @@ Without further ado, let's go through the data pipeline we'll build today.
 Our goal is to implement an Airflow DAG that:
 
 -   **Reads** input data from an S3 bucket on AWS.
--   Performs some meaningful **data transformations** in an automated way (below more details about what these transformations are).
--   **UPSERTS** this transformed data into a **PostgreSQL database**, running on Amazon RDS. *UPSERT* means that data corresponding to *new* records will be appended to the table, whereas data about *existing* records will overwrite or update the previous information. A Primary Key column will be used to determine whether a record is new or not.
+-   Performs some meaningful **data transformations** in an automated way (more details below about what these transformations are).
+-   **UPSERTS** this transformed data into a **PostgreSQL database** running on Amazon RDS. *UPSERT* means that data corresponding to *new* records will be appended to the table, whereas data about *existing* records will overwrite or update the previous information. A Primary Key column will be used to determine whether a record is new.
 
 ## The Input Data
 
 ![](images/sandglass.jpeg "Focused work session"){alt="A digital painting of an hourglass with galaxies and celestial bodies contained within, set against a backdrop of swirling cosmic clouds and stars. The hourglass, with its wooden frame and detailed carvings, symbolizes the intertwining of time and space. The scene is mystical and awe-inspiring, with dynamic swirls of orange, yellow, blue, and white clouds, and a bright star shining prominently to the right" width="1000"}
 
-Our source data consists of a sample of [*pomodoro sessions*](https://en.wikipedia.org/wiki/Pomodoro_Technique), that is, short periods of time in which a person performed **focused work** on some project. The data is at the **Session** level of detail, so the columns contain attributes about each session such as:
+Our source data consists of a sample of [Pomodoro sessions](https://en.wikipedia.org/wiki/Pomodoro_Technique): short periods in which a person performed **focused work** on some project. The data is at the **Session** level of detail, so the columns contain attributes about each session:
 
--   **Project**: indicates if the session was dedicated to Paid Work ("*Work"*) or study and side-projects ("*Learning"*).
+-   **Project**: indicates whether session was spent on Paid Work ("*Work"*) or study and side-projects ("*Learning"*).
 
--   **Duration (in minutes)**: a decimal number indicating the duration in minutes of the session. Typically 25 minutes, but may vary.
+-   **Duration (in minutes)**: a decimal number indicating the duration of the session. Typically 25 minutes, but it may vary.
 
--   **Start date** and **End date**: timestamps in local time indicating when each session started and when it ended.
+-   **Start date** and **End date**: timestamps in local time indicating when each session started and ended.
 
 Here is a glimpse of the values in the data:
 
@@ -89,7 +89,7 @@ And this is what we want our Airflow DAG to do:
 
 -   Remove the time component of `Start Date` (turn it into a date instead of a timestamp).
 
--   Group the data by `Start Date` and `Project`. Note that there could be multiple or no rows for each day and project.
+-   Group the data by `Start Date` and `Project`. Note that there might be multiple rows or no rows at all for each day and project.
 
 -   Sum up `Duration` for each `Start Date` and `Project`, so we end up with a table that shows how much time was spent on each project per day.
 
@@ -138,21 +138,21 @@ df_pivoted.sample(5, random_state=1989)
 
 -   The last step is to *UPSERT* the data from the previous step into a PostgreSQL table, using `Start Date` as the primary key. As hinted before, this means that for each `Start Date` in the input data, we will either:
 
-    -   *INSERT* a new record (row), if that Date does not exist in the destination table or...
+    -   *INSERT* a new record (row) if that Date does not exist in the destination table or...
 
     -   *UPDATE* (overwrite) the existing values of `work_minutes` and `learning_minutes` if it does.
 
     The goal is to end up with a table that contains up-to-date information for each `Start Date` but no duplicate records.
 
-![*UPSERT in a nutshell. Source: [data-nerd.blog](https://data-nerd.blog/2021/07/15/postgresql-how-to-upsert-update-or-insert-into-a-table/).*](images/upsert.png){alt="A flowchart with an oval in the center containing the question ‘Key Exists?’ inside the oval. Two arrows emerge from the oval, labeled ‘Yes’ and ‘No’. The ‘Yes’ arrow points to a rectangle labeled ‘UPDATE’, indicating that if the key exists, it should be updated. The ‘No’ arrow points to another rectangle labeled ‘INSERT’, indicating that if the key does not exist, a new one should be inserted." width="900"}
+![A flowchart with an oval in the center containing the question ‘Key Exists?’ inside the oval. Two arrows emerge from the oval, labeled ‘Yes’ and ‘No’. The ‘Yes’ arrow points to a rectangle labeled ‘UPDATE’, indicating that if the key exists, it should be updated. The ‘No’ arrow points to another rectangle labeled ‘INSERT’, indicating that if the key does not exist, a new one should be inserted.](images/upsert.png){width="900"}
 
-As you can see, the whole pipeline (except the UPSERT, which which we still need to write) can be expressed as a handful of lines of Python code. Still, it performs a meaningful transformation on the data (it isn't just a `print('Hello world')`, [like the dummy DAG we implemented on the first part](/post/data-pipelines-cloud-intro-airflow-docker/)) and outputs a table in a format that may be suitable for dashboards or reports. The main challenge is to perform these transformations in an automated way, under Airflow orchestration, while also interacting with AWS cloud services like S3 and RDS.
+As you can see, the whole pipeline (except the UPSERT part, which we still need to write) can be expressed as a few lines of Python code. Still, it performs a meaningful transformation on the data (it isn't just a `print('Hello world')`, [like the dummy DAG we implemented in the first part](/post/data-pipelines-cloud-intro-airflow-docker/)) and outputs a table in a format that may be suitable for dashboards or reports. The main challenge is to perform these transformations in an automated way, under Airflow orchestration, while also interacting with AWS cloud services like S3 and RDS.
 
 ## Getting Things Ready
 
 ### Cloning The Repo
 
-To get started, clone this repo that contains all code we'll be working with, and then open it in your favourite IDE: <https://github.com/franciscoyira/aws_airflow_tutorial.git>
+To get started, clone this repo that contains all the code we'll be working with, and then open it in your favourite IDE: <https://github.com/franciscoyira/aws_airflow_tutorial.git>
 
 There are many ways to do this, but the workflow I prefer is to use `git clone` from the Terminal:
 
@@ -197,7 +197,7 @@ aws s3 cp raw_data/input_data.csv s3://$bucket_name/input_data/input_data.csv
 
 **🚨 Important: take note of the name of the `$bucket_name`**, as we'll need it later when setting up the DAG.
 
-Now, let's provision an Amazon RDS instance and its corresponding security group, enabling incoming traffic from our own IP:
+Now, let's provision an Amazon RDS instance and its corresponding security group, enabling incoming traffic from our IP:
 
 ``` language-bash
 GROUP_ID=$(aws ec2 create-security-group --group-name airflow-rds-sg --description "Security group for RDS accessible by Airflow" --query 'GroupId' --output text)
@@ -222,7 +222,7 @@ aws rds create-db-instance \
 
 [*Explanation of the commands above.*](/post/aws-command-line-data-pipelines-cloud-part-2/#provisioning-the-database)
 
-In order to connect to the instance, we need to download the corresponding Certificate Authority (CA) and install the PostgreSQL and the jq tool:
+In order to connect to the instance, we need to download the corresponding Certificate Authority (CA) and install the PostgreSQL client and the jq tool:
 
 ``` language-bash
 curl -o us-east-1-bundle.pem https://truststore.pki.rds.amazonaws.com/us-east-1/us-east-1-bundle.pem
@@ -230,7 +230,7 @@ curl -o us-east-1-bundle.pem https://truststore.pki.rds.amazonaws.com/us-east-1/
 sudo apt install jq postgresql-client
 ```
 
-Now wait a couple of minutes until the Postgres database instance is provisioned, and then connect to it with these commands.
+Now wait a couple of minutes until the Postgres database instance is provisioned and then connect to it with these commands:
 
 ``` language-bash
 output=$(aws rds describe-db-instances --db-instance-identifier airflow-postgres --query 'DBInstances[*].Endpoint.[Address,Port]')
@@ -244,7 +244,11 @@ psql "host=${ENDPOINT_URL} port=${PORT} dbname=airflow_tutorial user=postgres pa
 
 [*Explanation of the commands above.*](/post/aws-command-line-data-pipelines-cloud-part-2/#testing-the-connection)
 
-You should see this on screen `airflow_tutorial =>` if the connection was successful. Once there, you can create the table where our processed data will live by executing the following SQL statement:
+You should see this on-screen:
+
+`airflow_tutorial =>`
+
+if the connection was successful. Once there, you can create the table where our processed data will live by executing the following SQL statement:
 
 ``` language-sql
 CREATE TABLE IF NOT EXISTS pomodoro_day_catg (
@@ -294,11 +298,11 @@ docker compose up -d
 docker ps
 ```
 
-Some commands may take a while, but after they're finished you should be able to access the Airflow Web UI using the URL [localhost:8080](http://localhost:8080/) on your web browser:
+Some commands may take a while, but after they're finished you should be able to access the Airflow Web UI through [localhost:8080](http://localhost:8080/) on your web browser:
 
-![*If you have any problems or questions about the Airflow setup, check [the first part of this series](/post/data-pipelines-cloud-intro-airflow-docker/#installing-airflow-on-the-windows-subsystem-for-linux) .*](images/airflow_login.png){alt="Login interface for Airflow on a web browser. The URL indicates it’s hosted on localhost. The ‘Sign In’ section has fields for entering ‘Username’ and ‘Password’." width="1000"}
+![Login interface for Airflow on a web browser. The URL indicates it’s hosted on localhost. The ‘Sign In’ section has fields for entering ‘Username’ and ‘Password’.](images/airflow_login.png){width="1000"}
 
-Here you can login using `airflow` as username and `airflow` as a password.
+Here you can log in using `airflow` as username and `airflow` as a password.
 
 Lastly, we must add a variable to the Airflow environment indicating the name of our S3 bucket. You can do that directly from the Airflow Web UI by **going to the Admin menu \> Variables \> '+' button.**
 
@@ -322,13 +326,13 @@ This section is all about taking a deep dive into the Airflow code that declares
 
 ![](images/dag_in_vscode.png){width="1000" alt="Screenshot of Visual Studio Code with the file 'transform_and_upsert.py' open in the editor. The file contains Python code for an Apache Airflow DAG."}
 
-Note that you can also access this code through the Airflow Web UI, by clicking on `transform_and_upsert` from the "DAGs" tab, and then selecting the "*Code*" tab. This is because Airflow automatically monitors the `dags/` folder and parses its contents as proper DAGs that can be managed and monitored on the Web UI. The *Code* tab is super useful to check if Airflow has parsed already any changes you've made to your DAG files.
+You can also access this code through the Airflow Web UI by clicking on `transform_and_upsert` from the "DAGs" tab and then selecting the "*Code*" tab. Airflow automatically monitors the `dags/` folder and parses its contents as proper DAGs that can be managed and monitored on the Web UI. As a result, the *Code* tab is extremely useful for checking if Airflow has already parsed any changes you've made to your DAG files.
 
 ![](images/code_dag_airflow_ui.png){width="1000" alt="Screenshot of the Airflow Web UI, showing the 'transform_and_upsert' DAG in the 'Code' tab. The Python code for the DAG is displayed."}
 
 This DAG file can seem intimidating if you're new to Airflow, but I'll go through it line by line to make it easier to understand. **By the end of this article, you'll have a good grasp of how to code a similar Airflow DAG on your own**.
 
-*(Note: all of this code is meant be run by Airflow itself when executing the DAG. It is not designed to run it interactively on your Terminal.)*
+*(Note: all of this code is meant to be run by Airflow itself when executing the DAG. It is not designed to run interactively on your Terminal.)*
 
 ### Boilerplate Code
 
@@ -347,10 +351,10 @@ All these dependencies should have been installed when you executed `pip install
 
 From these, I'll explain the ones that are less common in Python:
 
--   `boto3` is the AWS Software Development Kit (SDK) for Python, which allows Python developers to write software that makes use of services like Amazon S3 and RDS.
--   `s3fs` is a Pythonic file interface to Amazon S3. It builds on top of `boto3` to provide typical file-system style operations like `cp`, `mv`, `ls`, along with put/get of local files to/from S3.
+-   `boto3` is the AWS Software Development Kit (SDK) for Python, which allows writing Python code that interacts with services like Amazon S3 and RDS.
+-   `s3fs` is a Pythonic file interface to Amazon S3. It builds on top of `boto3` to provide typical file-system style operations like `cp`, `mv`, and `ls`, along with put/get of local files to/from S3.
 
-Now, we put these packages to use by creating a `boto3.Sesion()`, which allows us to interact with AWS services and instantiate clients for S3 and RDS.
+Now, we put these packages to use by instantiating a `boto3.Session()` to interact with AWS services and create clients for S3 and RDS.
 
 ``` {.python .language-python}
 session = boto3.Session()
@@ -392,17 +396,17 @@ default_args = {
 
 Here is an explanation of what each of these arguments mean:
 
--   `'owner': 'airflow'` defines the user "*airflow*" as the owner of this DAG. Since "*airflow*" is the default username of our Airflow environment, and the one we used to access the Web UI, this gives us the ownership of the DAG.
+-   `'owner': 'airflow'` defines the user "*airflow*" as the owner of this DAG. Since "*airflow*" is the default username of our Airflow environment and the one we used to access the Web UI, this gives us ownership of the DAG.
 
--   `depends_on_past` controls whether the DAG should be run even if the previous scheduled execution failed. A value of `False` means that the DAG will be triggered anyway under this scenario.
+-   `depends_on_past` controls whether the DAG should run even if the previous scheduled execution failed. A value of `False` means that the DAG will be triggered anyway under this scenario.
 
 -   `start_date` is like a lower bound for DAG executions. In this case, the DAG will not run for any execution dates before February 1st, 2024. The DAG could run for execution dates between `start_date` and the current date depending on the value of the `catchup` argument, but...
 
 -   ...since `'catchup': False`, Airflow won't run the DAG for any scheduled dates before the current date. Running a DAG for execution dates scheduled in the past is known as *backfilling,* and it makes sense in some scenarios but not for our sample pipeline.
 
--   `'retries': 1` and `'retry_delay': timedelta(minutes=1)` mean that if something fails when running the DAG, Airflow will wait one minute and then will attempt to run it again. If that run also fails, it will give up and the DAG run will be marked as "failed".
+-   `'retries': 1` and `'retry_delay': timedelta(minutes=1)` means that if something fails when running the DAG, Airflow will wait one minute and then will attempt to run it again. If that run also fails, Airflow will give up and the DAG run will be marked as "failed".
 
-Then we instantiate the DAG itself:
+Then, we instantiate the DAG itself:
 
 ``` {.python .language-python}
 dag = DAG(
@@ -412,7 +416,7 @@ dag = DAG(
 )
 ```
 
-We use the class constructor `DAG()` to create the `dag` object, passing the `default_args` to it, giving it the name `transform_and_upsert`[^2] and setting up with a *monthly* `schedule` (it should run the first day of each month).
+We use the class constructor `DAG()` to create the `dag` object, passing the `default_args` to it, giving it the name `transform_and_upsert`[^2] and setting up a *monthly* `schedule` (it should run the first day of each month).
 
 [^2]: Note that *THIS* is the name that will appear on the Airflow Web UI as the DAG name and NOT the name of the .py file inside the `dags/` folder. It is recommended have one DAG per .py file and to name these files with the same name as the `dag_id`s to keep our repo tidy and easy to navigate, but Airflow itself doesn't care about the name of the Python files.
 
@@ -436,9 +440,9 @@ def read_combines_new_files_from_s3(**kwargs):
         Prefix='input_data/')['Contents']
 ```
 
--   [`s3.list_objects_v2`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/list_objects_v2.html) is a function that returns a dictionary with *information about* the objects in our bucket (not the objects themselves). We use the arguments `Prefix` to retrieve just the objects within the `input_data/` directory of the bucket.
+-   [`s3.list_objects_v2`](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/list_objects_v2.html) is a function that returns a dictionary with *information about* the objects in our bucket (not the objects themselves). We use the argument `Prefix` to retrieve just the objects within the `input_data/` directory of the bucket.
 
--   From this dictionary, we access `'Contents'` to keep only the information pertinent to the individual, discarding a bunch of metadata that is not relevant for our function.
+-   From this dictionary, we access `'Contents'` to keep only the information pertinent to the individual, discarding a bunch of metadata that is not relevant to our function.
 
 You may wonder what the `**kwargs` is for. In Python, it serves as a placeholder for handling multiple arguments passed in a key-value pair format (*kwargs = Keyworded Arguments*). Within Airflow, it is used by the `PythonOperator` to pass custom arguments and relevant context to the callable functions. We'll see an example of this later!
 
@@ -462,7 +466,7 @@ Then, we ask whether there are any successful runs at all (`len(dag_runs) > 0`?)
 
 When *there are* previous successful runs, we just retrieve the `execution_date` attribute from the last one with `dag_runs[-1].execution_date`. Here, `dag_runs[-1]` uses [Python's negative indexing](https://medium.com/@journalehsan/what-is-negative-indexing-in-python-and-how-to-use-it-34ec7ac5b36) to access the last element of `dag_runs`.
 
-Also, notice that there is a `print()` statement at the end, which I added for debugging purposes (it is not really necessary). We can view the output of print statements like this in the **Logs** section of the **Airflow Web UI**. I'll show you how to do that in the conclusion of this article.
+Also, notice there is a `print()` statement at the end, which I added for debugging purposes (it is not really necessary). We can view the output of print statements like this in the **Logs** section of the **Airflow Web UI**. I'll show you how to do that in the conclusion of this article.
 
 ``` {.python .language-python}
     # Reading the objects that are more recent than last_dag_run_date into a Pandas DataFrame 
@@ -488,9 +492,9 @@ Then, having the list of input files from the bucket (`objects`) and the `last_d
 
 -   Checking its `['LastModified']` attribute. If the CSV file was modified after the `last_dag_run_date`, it's read and `append`ed to the `dfs` list, using the `obj['Key'` to access it.
 
--   If any new files were found, the DataFrames in `dfs` are combined (`concat`) into a single `df_combined`. This DataFrame is saved as a CSV file in the `/intermediate_data` directory of our S3 bucket. The function ends returning a `True` value (why? explanation to come!).
+-   If any new files are found, the DataFrames in `dfs` are combined (`concat`) into a single `df_combined`. This DataFrame is saved as a CSV file in the `/intermediate_data` directory of our S3 bucket. The function ends up returning a `True` value (why? explanation to come!).
 
--   If no new files were found, no further action is performed and the function returns `False`.
+-   If no new files are found, no further action is performed and the function returns `False`.
 
 #### Flow Control: Are There New Input Files or Not?
 
@@ -564,7 +568,7 @@ def pivoting_df(**kwargs):
     df_pivoted.to_csv(f's3://{bucket_name}/intermediate_data/df_pivoted.csv', index=False)
 ```
 
-Most of this function consists of pandas code, which was already explained when we talked about [the input data](/post/data-pipelines-3-cloud-build-airflow-pipeline-aws/#the-input-data), so I'll skip over that and focus just on **the code that interacts with AWS**:
+Most of this function consists of pandas code already explained when we talked about [the input data](/post/data-pipelines-3-cloud-build-airflow-pipeline-aws/#the-input-data), so I'll skip over that and focus just on **the code that interacts with AWS**:
 
 -   We use the [f-string](https://www.geeksforgeeks.org/formatted-string-literals-f-strings-python/) `f's3://{bucket_name}/intermediate_data/df_combined.csv'` to set the path to the CSV file created by `read_combines_new_files_from_s3`[^3].
 
@@ -576,7 +580,7 @@ Most of this function consists of pandas code, which was already explained when 
 
 [^3]: Remember that, thanks to the branch function, `pivoting_df` is only executed when `read_combines_new_files_from_s3` succeeded in writing `df_combined.csv` to S3, so we can be pretty confident of the file's existence at the time this code runs.
 
-Some may wonder why we are using S3 to write temporary files and pass data between tasks when we could use the XCom feature instead. The answer is simple - **the XCom feature is designed for passing small pieces of data, such as variables and parameters. It is not intended for transferring larger datasets or files**. Doing so may result in unreliable behavior of XCom and thus is considered bad practice.
+Some may wonder why we use S3 to write temporary files and pass data between tasks when we could use the XCom feature instead. The answer is simple - **the XCom feature is designed to pass small pieces of data, such as variables and parameters. It is not intended for transferring larger datasets or files**. Doing so may result in unreliable behaviour of XCom and thus is considered bad practice.
 
 ![](images/meme_xcom.jpg "Couldn't help it. I'm sorry."){alt="A four-panel meme from the TV show Doctor Who. The first panel shows a character asking, ‘Is my data too big for Airflow XCom?’ The second panel has another character replying, ‘It depends.’ In the third panel, the response is, ‘If it’s a variable, no.’ The fourth panel concludes with, ‘If it’s a dataframe, yes.’ The meme humorously addresses the limitations of Airflow’s XCom feature when dealing with different types of data"}
 
@@ -598,13 +602,13 @@ def upsert_df_to_rds(**kwargs):
     df = read_csv(s3_file_path, dtype=dtype_spec, parse_dates=['Start date'])
 ```
 
-Here, we begin by initializing the variables required to talk to the database and S3: the `db_instance_identifier` of our database, and the `s3_file_path` of the file with the transformed data.
+Here, we begin by initializing the variables required to talk to the database and S3: the `db_instance_identifier` of our database and the `s3_file_path` of the file with the transformed data.
 
-Then, we `read_csv` the data from S3, taking some extra precautions to ensure the file is parsed using the same data types as the destination table in PostgreSQL.
+Then, we `read_csv` the data from S3, taking some extra precautions to ensure we parse the file using the same data types as the destination table in PostgreSQL.
 
 -   For the numerical columns, we specify the correct data types in the dictionary `dtype_spec` and pass it to the argument `dtype`.
 
--   For the `Start date` column, we ask `read_csv` to parse it as date using the `parse_dates` argument.
+-   For the `Start date` column, we ask `read_csv` to parse it as a date using the `parse_dates` argument.
 
 Then, there is a bunch of code whose only purpose is to **minimize AWS costs** by enabling public accessibility of the PostgreSQL database only when required by the DAG execution.
 
@@ -646,11 +650,11 @@ Then, there is a bunch of code whose only purpose is to **minimize AWS costs** b
         return
 ```
 
-**The goal here is to keep the time we use a Public IP for our database to a minimum because exposing a Public IP address is the only AWS resource in this tutorial that is not covered by the AWS Free Tier.**
+**The goal here is to keep the time we use a Public IP for our database to a minimum as it is the only AWS resource in this tutorial that is not included in the AWS Free Tier.**
 
 To achieve this, our database will be `PubliclyAccessible=False` most of the time, but the `upsert_df_to_rds` function will change this property to `True` when needed.
 
-We ask to `ApplyImmediately` this change, but it may still take some time to take effect. Therefore, we set up a **while loop** that checks every `interval` of 30 seconds if the database is already publicly accessible. Once `db_instance['PubliclyAccessible']` is `True`, we exit the loop and proceed with the UPSERT operation[^4]. Later, when the UPSERT is completed, the function will set `PubliclyAccessible` to `False` again.
+We ask to `ApplyImmediately` this change but it may still take some time to take effect. Therefore, we set up a **while loop** that checks every `interval` of 30 seconds if the database is already publicly accessible. Once `db_instance['PubliclyAccessible']` is `True`, we exit the loop and proceed with the UPSERT operation[^4]. Later, when the UPSERT is completed, the function will set `PubliclyAccessible` to `False` again.
 
 [^4]: However, if the database is still not publicly accessible after a `timeout` of 300 seconds, the function will exit, and the task will fail.
 
@@ -673,9 +677,9 @@ On the Airflow UI, go to **Admin** and then to **Connections**.
 
 Then click on the light blue '+' button (*Add a new record*).
 
-![](images/add_connection.png){width="400" alt="Screenshot of the Airflow Web UI, highlighting the light blue Plus button to add a new connection, inside the 'List Connection' section."}  
+![](images/add_connection.png){width="400" alt="Screenshot of the Airflow Web UI, highlighting the light blue Plus button to add a new connection, inside the 'List Connection' section."}
 
-And then fill out the details of the new connection. If you followed the instructions of the [Setting Up AWS Resources] section, then you can use the same values as the ones shown on the screenshot below, except for **Host**, **Password** and **Port**. The values for these parameters should be available on your Terminal as variables named `ENDPOINT_URL` (Host), `PORT` and `MY_PASSWORD`. Print them with the following Terminal commands:
+And then fill out the details of the new connection. If you followed the instructions in the [Setting Up AWS Resources] section, then you can use the same values as the ones shown on the screenshot below, except for **Host**, **Password** and **Port**. The values for these parameters should be available on your Terminal as variables named `ENDPOINT_URL` (Host), `PORT` and `MY_PASSWORD`. Print them with the following Terminal commands:
 
 ``` language-bash
 echo $ENDPOINT_URL
@@ -689,9 +693,9 @@ And paste them on the corresponding sections of the *Edit Connection* page[^6]. 
 
 ![](images/connection_data.png){width="1000" alt="Screenshot of the Airflow Web UI, showing the 'Edit Connection' page with the fields 'Connection Id', 'Connection Type', 'Host', 'Database', 'Login', 'Password', and 'Port' filled with the connection data for the PostgreSQL database."}
 
-Then we *Save* the connection and we're done! An Airflow Connection with Id `postgres_conn` now exists, so `rds_hook= PostgresHook(postgres_conn_id='postgres_conn')` should run without any issues when our DAG is executed.
+Then we *Save* the connection, and we're done! An Airflow Connection with Id `postgres_conn` now exists, so `rds_hook= PostgresHook(postgres_conn_id='postgres_conn')` should run without any issues when our DAG is executed.
 
-Going back to the `upsert_df_to_rds` function, we meet again our old friend `kwargs`.
+Returning to the `upsert_df_to_rds` function, we meet again our old friend `kwargs`.
 
 ``` {.python .language-python}
     # Get the table name and schema from the parameters
@@ -702,7 +706,7 @@ Going back to the `upsert_df_to_rds` function, we meet again our old friend `kwa
     rds_hook.run(f"CREATE TEMPORARY TABLE tmp_{table} (LIKE {schema}.{table});")
 ```
 
-But this time it plays a different role. We're not using it to access the *task instance* object, but to retrieve *parameters*. These parameters can be passed to a Python function by the `PythonOperator` that executed the function. In this case, the Operator that calls `upsert_df_to_rds` is passing two parameters: `table` and `schema` (the code where that happens will be shown in a moment!).
+But this time it plays a different role. We're not using it to access the *task instance* object, but to retrieve *parameters*. These parameters can be passed to a Python function by the `PythonOperator` that executes the function. In this case, the Operator that calls `upsert_df_to_rds` is passing two parameters: `table` and `schema` (the code where that happens will be shown in a moment!).
 
 These parameters, as you may guess, correspond the the name and schema or the destination table for our data, within the Postgres database.
 
@@ -718,10 +722,10 @@ After retrieving the parameters, we use them to create a temporary table that ha
        index=False)
 ```
 
-Then, we use the `to_sql` method from pandas to insert `df` (which is the transformed data output by `pivoting_df`) into the temporary table we just created. This method requires the following arguments:
+Then, we use the `to_sql` method from pandas to insert `df` (the transformed data output by `pivoting_df`) into the temporary table we just created. This method requires the following arguments:
 
 -   `f"tmp_{table}"` is the name of the temporary table.
--   `rds_hook.get_sqlalchemy_engine()` is a method that returns a SQLAlchemy engine object, which is required by `to_sql` to connect to the database.
+-   `rds_hook.get_sqlalchemy_engine()` is a method that returns a SQLAlchemy engine object required by `to_sql` to connect to the database.
 -   `schema=schema` specifies the schema where the table is located.
 -   `if_exists='replace'` tells `to_sql` to replace the table if it already exists.
 -   `index=False` avoids writing the DataFrame index to the table.
@@ -746,7 +750,7 @@ Let's understand what's going on here:
 -   **`INSERT INTO`:** We use this statement to insert the data from the temporary table (`tmp_{table}`) into the target table (`{schema}.{table}`).
 -   **`ON CONFLICT (date)`:** This clause tells PostgreSQL to expect potential conflicts based on our Primary Key: the `date` column. If a row being inserted has the same `date` as an existing row, PostgreSQL will follow the instructions in the `DO UPDATE` clause instead of inserting a duplicate.
 -   **`DO UPDATE SET ...`:** This clause specifies how to resolve the conflict. We update the `work_minutes` and `learning_minutes` columns in the existing row with the corresponding new values from `tmp_{table}`.
--   **`EXCLUDED`:** Represents the row from `tmp_{table}` that would have been inserted if there were no conflict on the `date` column. Therefore, we can use `EXCLUDED.column_name` to update `work_minutes` and `learning_minutes` with the corresponding values from the temporary table.
+-   **`EXCLUDED`:** Represents the row from `tmp_{table}` that would have been inserted if there were no conflicts on the `date` column. Therefore, we can use `EXCLUDED.column_name` to update `work_minutes` and `learning_minutes` with the corresponding values from the temporary table.
 
 To conclude, we delete any temporary objects and resources that are no longer needed.
 
@@ -780,7 +784,7 @@ blogdown::shortcode("subscribe")
 
 It seems we should be done by now since the code we've seen so far covers all the steps of our pipeline. However, just as defining a function in Python doesn’t execute it (we need to call the function to perform an action), **we still need to wrap these functions into tasks** so they can be executed by Airflow.
 
-We'll do this by using Airflow's `PythonOperator`, which allows us to **run arbitrary Python functions as part of our DAG**.
+We do this by using Airflow's `PythonOperator`, which allows us to **run arbitrary Python functions as part of our DAG**.
 
 ``` {.python .language-python}
 read_task = PythonOperator(
@@ -837,7 +841,7 @@ end_task = DummyOperator(
 
 ### Defining the Execution Order
 
-Now that we have all the tasks defined, we need to specify the order in which they should be executed. This is done by using the `>>` operator to define the dependencies between tasks.
+Now that we have all the tasks defined, we need to specify the order to execute them. This is done by using the `>>` operator, which indicates the dependencies between tasks.
 
 ``` {.python .language-python}
 read_task >> branch_task
@@ -845,9 +849,9 @@ branch_task >> pivot_task >> upsert_task
 branch_task >> end_task
 ```
 
-In this case, we have two possible paths: - If `read_combines_new_files_from_s3` finds new files in S3, the pipeline will proceed to `pivoting_df` and then to `upsert_task`. - If no new files are found, the pipeline will proceed to `end_task` and the DAG will end.
+In this case, we have two possible paths: - If `read_combines_new_files_from_s3` finds new files in S3, the pipeline will proceed to `pivoting_df` and then to `upsert_task`. - If no new files are found, the pipeline will end with `end_task`.
 
-On the Airflow Web UI, you can view a visual representation of this DAG. Simply go to **DAGs \> transform_and_upsert** and click on the **Graph** button.
+You can view a visual representation of this DAG on the Airflow Web UI by going to **DAGs \> transform_and_upsert** and clicking the Graph button.
 
 ![](images/final_dag.png){width="1000" alt="Screenshot of the Airflow Web UI, showing the 'Graph View' of the 'transform_and_upsert' DAG. The graph displays the tasks 'read_combines_new_files_from_s3', 'branch_task', 'pivoting_df', 'upsert_df_to_rds', and 'end_task', with arrows indicating the flow of execution between them."}
 
@@ -855,15 +859,15 @@ On the Airflow Web UI, you can view a visual representation of this DAG. Simply 
 
 Given that our `dag` was set up with `schedule="@monthly"` and `catchup=False`, it will automatically run for the first time on the first day of the next month. However, since we're already on the Airflow UI, we can take the chance to manually trigger it to test if everything is working as expected.
 
-To do this, go to **DAGs \> transform_and_upsert** and then click on the **Trigger DAG** button on the upper-right corner of the screen:
+To do this, go to **DAGs \> transform_and_upsert** and then click on the **Trigger DAG** button in the upper-right corner of the screen:
 
 ![](images/trigger_dag.png){width="1000" alt="Screenshot of the Airflow Web UI, showing the 'Trigger DAG' button highlighted in the upper-right corner of the 'transform_and_upsert' DAG page."}
 
-Then, you can monitor the progress of the DAG by clicking on the **Grid View** button. If everything goes well, after a couple of minutes you should see a something like the highlighted task sequence on the image below *(please ignore all the failed DAG runs I had while debugging this 🤣)*:
+Then, you can monitor the progress of the DAG by clicking on the **Grid View** button. If everything goes well, after a couple of minutes, you should see something like the highlighted task sequence on the image below *(please ignore all the failed DAG runs I had while debugging this 🤣)*:
 
 ![](images/dag_run.png){width="1000" alt="A graphical representation of a data processing pipeline in an Apache Airflow Grid View. The left side displays a bar graph with colors indicating task statuses like ‘failed’, ‘queued’, and ‘running’. Task labels such as ‘read_combines_new_files_from_s3’ are listed below. The right side shows a flowchart with tasks connected by arrows, visualizing the sequence of operations. A successful DAG run in green is selected on the left pane."}
 
-In summary, read_combines_new_files_from_s3, branch_task, pivoting_df, and upsert_df_to_rds should be marked as **succeeded**, in green. The end_task should be marked as **skipped**, in pink. Why? Because this was the first successful run of the DAG, so the `input_data.csv` in the bucket is considered as a *new file* and thus the pivoting_df and upsert_df_to_rds tasks were executed.
+In summary, read_combines_new_files_from_s3, branch_task, pivoting_df, and upsert_df_to_rds should be marked as **succeeded**, in green. The end_task should be marked as **skipped**, in pink. Why? Because this was the first successful run of the DAG, so the `input_data.csv` in the bucket is considered as a *new file* and, as a result, the pivoting_df and upsert_df_to_rds tasks were executed.
 
 But then, you could **trigger the DAG a second time**, and now it should skip the `pivoting_df` and `upsert_df_to_rds` tasks, as no new files were added to the S3 bucket since the last run.
 
@@ -875,15 +879,15 @@ If something failed, you can check the logs of the failed task by clicking on th
 
 ![](images/accessing_logs.png){width="1000" alt="A detailed view of the Apache Airflow web interface showcasing the execution log of one of the failed tasks. The right part of the screen presents a log output window, detailing the command execution for counting local files and the resulting output, with timestamps providing a real-time look into the task’s progress. Navigation tabs for ‘Details’, ‘Graph’, ‘Gantt’, ‘Code’, ‘Logs’, and ‘XCom’ are available at the top right, offering different perspectives and management options for the DAG."}
 
-I think even experienced Airflow users would agree that these logs are not the most user-friendly thing in the world. Still, they are essential to figuring out what went wrong. If you're having trouble debugging your DAG, consider adding `print` statements to your Python functions. Their output will be displayed here. Alternatively, you try can just copying and pasting the logs on ChatGPT/Gemini/Copilot and ask for a simplified explanation of what's going on (just make sure to remove any sensitive information from the logs before doing this).
+I think even experienced Airflow users would agree that these logs are not the most user-friendly thing in the world. Still, they are essential to figuring out what went wrong. If you're having trouble debugging your DAG, consider adding `print` statements to your Python functions. Their output will be displayed here. Alternatively, you can just try copying and pasting the logs on ChatGPT/Gemini/Copilot and ask for a simplified explanation of what's going on (just make sure to remove any sensitive information from the logs before doing this).
 
-As an extra tip, take into account that Airflow logs are quite verbose (i.e. they love to show a bunch of stuff we don't really care about), but the essential information for understanding our problem usually corresponds to a handful of lines. So, don't get overwhelmed by the amount of information you see and CTRL+F (or ⌘+F) for keywords like "error", "exception", "failed", "trackeback" and the name of your task.
+As an extra tip, Airflow logs are quite verbose (i.e. they love to show a bunch of stuff we don't really care about) but the essential information for understanding our problem usually corresponds to a handful of lines. So, don't get overwhelmed by the amount of information you see and CTRL+F (or ⌘+F) for keywords like "error", "exception", "failed", "traceback" and the name of your task.
 
 For example, when read_combines_new_files_from_s3 failed while I was writing this article, I looked for "ERROR" and found hints that the problem was related to accessing the 'Contents' of the dictionary returned by the `s3.list_objects_v2`:
 
 ![](images/s3_error_dag.png){width="1000"}
 
-In the end, it turned out that the problem was that I was passing the wrong Prefix (inputs/ instead of input_data/), which is something that can't be inferred from the log themselves, but at least **they pointed me in the right direction** and helped me to narrow down the problem. That's their role.
+In the end, it turned out that the problem was that I was passing the wrong Prefix (inputs/ instead of input_data/), which is something that can't be inferred from the logs themselves, but at least **they pointed me in the right direction** and helped me to narrow down the problem. That's their role.
 
 ## Wrapping Up
 
@@ -918,3 +922,9 @@ If you want to learn more and continue improving your Airflow skills, I strongly
 His [*Complete Hands-On Introduction* course in Udemy](https://www.udemy.com/course/the-complete-hands-on-course-to-master-apache-airflow/) was the stepping stone that allowed me to go from knowing nothing about Airflow to using it in my job for various projects and creating this series of blog posts. So, yeah, 100% recommended!
 
 *Thanks for reading!*
+
+::: {style="display: flex; justify-content: center;"}
+
+<iframe width="640px" height="540px" src="https://forms.office.com/Pages/ResponsePage.aspx?id=DQSIkWdsW0yxEjajBLZtrQAAAAAAAAAAAAO__a4Ml6hUM1QyU0I1WU9ESkZaUEU3SkpNRERJOUxDSy4u&embed=true" frameborder="0" marginwidth="0" marginheight="0" style="border: none; max-width:100%; max-height:100vh" allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen> </iframe>
+:::
+
