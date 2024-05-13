@@ -1,8 +1,8 @@
 ---
-title: 'Using Amazon Web Services with the Command Line — Data Pipelines in the Cloud (II)'
+title: 'Using Amazon Web Services (AWS) with the Command Line — Data Pipelines in the Cloud (II)'
 author: Francisco Yirá
 date: '2024-05-12'
-description: Welcome back to the Data Pipelines in the Cloud series! In the first part, I introduced Airflow as a tool for orchestrating data pipelines, explained why and when to use it, and provided a brief tutorial on how to code and execute a minimal Airflow pipeline on your local environment. In this second part, we'll get closer to what an actual Airflow pipeline in production may look like. For this, well work with AWS through the Command Line to set up a cloud relational database along with a bucket for object storage and upload a sample CSV to it.
+description: Welcome back to the 'Data Pipelines in the Cloud' series! In the first part, I introduced Airflow as a tool for orchestrating data pipelines and demonstrated how to code and execute a minimal Airflow pipeline (DAG) on your local environment. In this second part, we'll lay the ground to build a more functional Airflow DAG by using the AWS Command Line Interface to set up a relational database in the cloud (PostgreSQL), along with a bucket for object storage (S3). We'll then upload a sample CSV file to the bucket, which we'll later use as input for an Airflow DAG that performs a meaningful transformation on this data.
 useRelativeCover: true
 cover: "images/airflow2_resized.png"
 slug: aws-command-line-data-pipelines-cloud-part-2
