@@ -1,5 +1,5 @@
 ---
-title: "Data Pipelines in the Cloud (I): A Beginner's Introduction  to Airflow"
+title: "A Beginner's Introduction to Airflow — Data Pipelines in the Cloud (I)"
 author: Francisco Yirá
 date: '2023-08-13'
 slug: data-pipelines-cloud-intro-airflow-docker
@@ -36,6 +36,14 @@ By the end of this post, you will:
 -   Have some familiarity with the core components of the Airflow UI, including how to monitor the status of your DAGs.
 
 One thing that I'll have to assume, though, is that you have some basic familiarity with the Python and Docker, but I'll also provide links to introductory resources on them that you can refer to if you feel lost at some point 🙂.
+
+> ***Data Pipelines in the Cloud Series***
+>
+> -   **Part I: You're here.**
+>
+> -   [Part II: Using Amazon Web Services with the Command Line](/post/aws-command-line-data-pipelines-cloud-part-2/)
+>
+> -   *Part III: Building an Airflow Pipeline That Talks to AWS. (Coming soon! [Subscribe to get notified](/subscribe))*
 
 ## What problem does Airflow solve?
 
