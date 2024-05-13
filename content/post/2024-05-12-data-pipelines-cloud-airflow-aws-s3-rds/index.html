@@ -1,0 +1,332 @@
+---
+title: 'Using Amazon Web Services with the Command Line — Data Pipelines in the Cloud (II)'
+author: Francisco Yirá
+date: '2024-05-12'
+description: Welcome back to the Data Pipelines in the Cloud series! In the first part, I introduced Airflow as a tool for orchestrating data pipelines, explained why and when to use it, and provided a brief tutorial on how to code and execute a minimal Airflow pipeline on your local environment. In this second part, we'll get closer to what an actual Airflow pipeline in production may look like. For this, well work with AWS through the Command Line to set up a cloud relational database along with a bucket for object storage and upload a sample CSV to it.
+useRelativeCover: true
+cover: "images/airflow2_resized.png"
+slug: aws-command-line-data-pipelines-cloud-part-2
+categories:
+  - data-science
+  - cloud
+  - data-engineering
+  - tutorial
+tags:
+  - airflow
+  - data-pipelines
+  - data-wrangling
+  - rds
+  - aws
+  - s3
+---
+
+
+
+<p>Welcome back to the <a href="/categories/data-engineering/">Data Pipelines in the Cloud series</a>! On the <a href="/post/data-pipelines-cloud-intro-airflow-docker/">first part</a>, I introduced Airflow as a tool for <strong>orchestrating data pipelines</strong>, explained <a href="/post/data-pipelines-cloud-intro-airflow-docker/#what-problem-does-airflow-solve">why and when to use it</a>, and provided a brief tutorial on <a href="/post/data-pipelines-cloud-intro-airflow-docker/#how-to-declare-our-pipelines-in-airflow-introducing-dag.py">how to code and execute a minimal Airflow pipeline</a> on your local environment using the <a href="/post/data-pipelines-cloud-intro-airflow-docker/#installing-airflow-on-the-windows-subsystem-for-linux">Linux subsystem for Windows</a>.</p>
+<p>In this second part, we’ll get closer to what an actual Airflow pipeline in production may look like. For this, we’ll learn how to use Amazon’s cloud services (AWS) through the Command Line and set up a <a href="https://youtu.be/OqjJjpjDRLc" title="Explanation of what a Relational Database is"><strong>relational database</strong></a> in the cloud and a <strong>bucket for object storage</strong><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>. I’ll guide you through uploading a sample CSV file to the bucket, which we’ll later use as input for a simple Airflow DAG that performs a meaningful transformation on this data.</p>
+<blockquote>
+<p><strong><em>Data Pipelines in the Cloud Series</em></strong></p>
+<ul>
+<li><p><a href="post/data-pipelines-cloud-intro-airflow-docker/">Part I: A Beginner’s Introduction to Airflow</a></p></li>
+<li><p><strong>Part II: You’re here.</strong></p></li>
+<li><p><em>Part III: Building an Airflow Pipeline That Talks to AWS. (Coming soon! <a href="/subscribe">Subscribe to get notified</a>)</em></p></li>
+</ul>
+</blockquote>
+<div id="first-things-first-setting-up-your-aws-environment" class="section level2">
+<h2>First Things First: Setting Up Your AWS Environment</h2>
+<p>If you’re reading this, there is some chance you already have an AWS account up and running. In that case, just jump to <a href="#introducing-our-data-pipeline-or-what-are-we-trying-to-do-anyway">the next section</a>. If not, just follow these steps:</p>
+<div id="creating-an-aws-account" class="section level3">
+<h3>Creating an AWS account</h3>
+<p>You can do this by going to <a href="https://aws.amazon.com/">the AWS homepage</a>, clicking the “<strong>Create an AWS Account</strong>” button on the top-right corner, and then following the instructions on screen. You’ll need to provide a payment method, although almost everything in this tutorial should be covered by the free credits given to new users. If everything went well you should see the following screen at the end of the process.</p>
+<p><img src="images/AWS_success_account_creation.png" alt="Screenshot of AWS confirmation page with a ‘Congratulations!’ message, indicating successful sign-up and account activation in progress, featuring a cloud and rocket ship graphic" width="1000" /></p>
+</div>
+<div id="creating-a-regular-user-account-to-avoid-using-the-root-user" class="section level3">
+<h3>Creating a regular user account (to avoid using the root user)</h3>
+<p>The username and password you just set up will give you <strong>root user access</strong>, that means <strong>unrestricted permissions to do anything on AWS</strong>. It’s considered good practice to use these credentials only for creating a new, more limited, regular user account within your AWS environment. You should then use <em>this</em> new account to carry out your everyday operations (and, of course, set up two-factor authentication). Here is how you can do that:</p>
+<ul>
+<li><p>Go to <a href="https://console.aws.amazon.com/" class="uri">console.aws.amazon.com</a>, select <strong>root user</strong> and log in with your current credentials.</p></li>
+<li><p>Once in the AWS Management Console, type “IAM” in the search box on the top and select the first result. From here, click on the button <strong>Add MFA</strong> (MFA=Multi-factor authentication) and follow the instructions.</p></li>
+</ul>
+<p><img src="images/aws_mfa_root.png" alt="Screenshot of AWS IAM Dashboard displaying security recommendations, including a prompt to ‘Add MFA for root user’ and a note on the absence of active access keys for the root user, with navigation options for user groups, users, roles, and policies" width="1000" /></p>
+<ul>
+<li>After setting up MFA for the root user, <strong>go back to the IAM dashboard</strong> (you can do that using Search box just like before) and then <strong>click on the ‘Users’ link</strong> located in the left sidebar, just below ‘Access management’ and ‘User groups’. Once in the <em>Users</em> section, press the button <strong>“Create user”</strong>.</li>
+</ul>
+<p><img src="images/aws_new_user.png" alt="Screenshot of AWS IAM dashboard with a focus on the ‘Users’ section, indicating zero users created and highlighting the ‘Create user’ button" width="1000" /></p>
+<ul>
+<li>In the <strong>Specify user details</strong> page, write a user name for your admin account (you’ll use this name to log in) and mark the check-box ✅ <em>Provide user access to the AWS Management Console</em>. Then pick the option <em>I want to create an IAM user</em> in the blue box below<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.</li>
+</ul>
+<p><img src="images/aws_new_user_iam.png" alt="Screenshot of AWS Management Console interface for specifying user details, highlighting the ‘User name’ input field, console access options, and user type selection with radio buttons and informational icons" width="1000" /></p>
+<ul>
+<li>Next, on the <strong>Set Permissions</strong> page, choose the option “<strong>Attach policies directly</strong>”, then write <em>AdministratorAccess</em> into the search box located just below “Permissions policies” and select the policy named <em>AdministratorAccess</em>.</li>
+</ul>
+<p><img src="images/aws_attach_policies.png" alt="A screenshot of a permissions setting page for a new user. The page shows options to add the user to a group, copy permissions from an existing user, or directly attach permissions policies to the user. The &#39;Attach policies directly&#39; option is selected, and a list of permissions policies is displayed, filtered by the search term AdministratorAccess" width="1000" /></p>
+<ul>
+<li>If all goes well, the details of the new user account will appear on the next page. <strong>Save all this information (including the <em>console sign-in URL</em>) in a secure location</strong>, like a password manager<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</li>
+</ul>
+<p><img src="images/aws_details_new_account.png" alt="Screenshot of a password retrieval page for an AWS user. It shows the sign-in URL, username, and a concealed password field, along with options to download the information, email sign-in instructions, or return to the user list." width="1000" /></p>
+<ul>
+<li>Finally, go to the <strong>console sign-in URL</strong> and enter the username and console password provided in the previous step. Once you’re in the Management Console of the admin user, you should go to IAM again and set up MFA for this account as well.</li>
+</ul>
+<p>Now we’re done with the account set up! Let’s move on to setting up AWS’s Command Line Interface so we can do stuff on the cloud directly from the terminal.</p>
+</div>
+</div>
+<div id="setting-up-the-aws-command-line-interface-cli" class="section level2">
+<h2>Setting up the AWS Command Line Interface (CLI)</h2>
+<p>One cool thing about AWS is that everything we do there (like every button you click) is just an <strong>API call under the hood</strong><a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>. These API calls or requests can be sent to AWS either through the web UI we’ve been using until now or programmatically through commands sent from a terminal.</p>
+<p>This is important because, using the Terminal, we can spare all the button-pressing and text-box-filling on the web UI and instead just paste text commands, hit Enter, and execute the same actions more quickly and with less chance of human error. <strong>We can even use <em>full scripts</em> that automatically perform many actions on AWS based on some schedule or custom triggers</strong>.</p>
+<p><em>Let sink for one moment how ridiculously cool and futuristic it is to live in an era where you can literally turn on and use massive servers that 1) are not yours, 2) are prohibitively expensive to buy, and 3) may be located on the other end of the world – all for a cheap hourly rate and by just typing some words on your machine, as if they were in your own room 🤯.</em></p>
+<div class="figure">
+<img src="images/prequel_meme.jpg" alt="His name was Darth Plagueis. He was able to harness the power of distant servers with a few keystrokes." alt="Meme image of Anakin Skywalker saying &#39;Is it possible to learn this power?&#39; from the Episode III of Star Wars" />
+<p class="caption"><em>His name was Darth Plagueis. He was able to harness the power of distant servers with a few keystrokes.</em></p>
+</div>
+<p>Yes, it is possible to learn this power. I’ll now walk you through the whole process, from installing the <strong>AWS Command Line Interface</strong>, which is the tool required to send commands to AWS from the Terminal, to setting up the AWS services we need, like the S3 bucket and the relational database. I’ll explain each command so you can learn what they do instead of just copying and pasting them.</p>
+<p><em>Note: I’ll assume you’re using Ubuntu Bash, but most commands should be the same for other Linux distros and macOS. If you’re a Windows user, please <a href="/post/data-pipelines-cloud-intro-airflow-docker/#installing-airflow-on-the-windows-subsystem-for-linux">check the instructions in Part 1</a> on how to set up and access Ubuntu through the Windows Subsystem for Linux.</em></p>
+<p>Let’s start by downloading and installing the latest version of the AWS CLI. To do this, open your bash and enter the following commands:</p>
+<pre class="language-bash"><code>curl &quot;https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip&quot; -o &quot;awscliv2.zip&quot;
+
+unzip awscliv2.zip
+
+sudo ./aws/install</code></pre>
+<p>Here:</p>
+<ul>
+<li><p><code>curl</code> is a tool for downloading (or sending) files through URLs (curl = cURL = Client for URL). The first argument we pass is the URL of the file we want to download. The <code>-o</code>, which is an alias for <code>—output</code>, allows us to specify the name of the file in our system after downloading it.</p></li>
+<li><p><code>unzip</code> uncompresses the awscliv2.zip file we just downloaded, and <code>sudo ./aws/install</code> uses administrator (<em>super user</em>) rights to execute the AWS CLI installer from the resulting uncompressed folder.</p></li>
+</ul>
+<p>Then, we can check we correctly installed the AWS CLI by executing the following:</p>
+<pre class="language-bash"><code>aws --version</code></pre>
+<p>Which should return something like <code>aws-cli/2.XX.XX</code><a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>.</p>
+<div id="configuring-the-aws-cli-with-an-aws-account" class="section level3">
+<h3>Configuring the AWS CLI with an AWS Account</h3>
+<p>After installing this tool, let’s <strong>set it up with our AWS account</strong>. For this, we first need to obtain <strong>access keys</strong> that enable programmatic access to AWS.</p>
+<p>Access keys have two components: an <strong>Access Key ID</strong> (which looks like this <code>AKIAIOSFODNN7EXAMPLE</code>) and a <strong>Secret Access Key</strong> (which looks like this <code>wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY</code>). The Secret Access Key, being extremely sensitive, is only visible <em>once</em> on the AWS website during key creation. It’s crucial to store this key immediately in a secure location, such as a good password manager.</p>
+<p>Here is how we obtain these keys:</p>
+<ul>
+<li><p>Go to the IAM console located at <a href="https://console.aws.amazon.com/iam/" class="uri">console.aws.amazon.com/iam</a>.</p></li>
+<li><p>Click on “<em>Users</em>” on the left sidebar and then click on your user name within the table of users that will appear.</p></li>
+<li><p>Select the “<em>Security credentials</em>” tab and then scroll down until you see the section “<em>Access keys</em>”. There, click on “<em>Create access key</em>”.</p></li>
+<li><p>You’ll then be asked for your use case. Choose <strong>Command Line Interface (CLI)</strong>.</p></li>
+<li><p>You’ll be asked for an <em>optional tag</em>. You can leave this blank or write something like <em>tutorial-airflow</em>. It really doesn’t matter<a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a>.</p></li>
+</ul>
+<p>Finally, your <strong>Access Key ID</strong> and <strong>Secret Access Key</strong> will be displayed. You’ll have the option to download the keys as a CSV, but I recommend that you save them immediatly in a password manager<strong>. <span class="underline">Whatever you do, don’t share your secret access key with anyone and never put it in a file that could be committed to Git</span></strong><span class="underline">.</span></p>
+<p>Once you have your keys, it’s time to use it to configure the AWS CLI to work with your account. For this, go back to the terminal and execute:</p>
+<pre class="language-bash"><code>aws configure</code></pre>
+<p>You’ll be prompted to write the Access Key ID and Secret Access Key you got previously. Additionally, AWS will ask for your <strong>Default region name</strong> (<code>us-east-1</code> is OK) and <strong>Default output format</strong> (<code>json</code> is fine too).</p>
+<p>You can verify your account was correctly configured by running these commands:</p>
+<pre class="language-bash"><code>cat ~/.aws/config
+
+cat ~/.aws/credentials</code></pre>
+<p>Which will show the contents of the <code>config</code> and <code>credentials</code> files that AWS edits each time it configures an account.</p>
+<p>The output should display the same values (access keys and options) that you just passed to <code>aws configure</code> under a section named <code>[default]</code>. That means <strong>your account is configured as the default profile</strong> (good!). The default profile is important because it’s the one used to execute the AWS CLI commands, well, by default <a href="#fn7" class="footnote-ref" id="fnref7"><sup>7</sup></a>.</p>
+<p>Finally, test the AWS connection with this command:</p>
+<pre class="language-bash"><code>aws sts get-caller-identity</code></pre>
+<p>If everything is set up correctly, you should see a JSON with your account’s details as output.</p>
+<p>By the way, if you made it to this point, congratulations! <strong>You’re now able to connect to and interact with AWS directly from your command line!</strong> (i.e., <em>you can harness the power of distant servers just by typing on your computer!</em>).</p>
+<p><img src="images/aws_art_deco.png" title="Using AWS, Art-Deco style." alt="Art deco-style illustration of a person interacting with an ‘AWS’ labelled device, surrounded by geometric patterns and cloud computing icons, in black, white, and beige tones." /></p>
+</div>
+</div>
+<div id="avoiding-bill-surprises-the-importance-of-turning-off-what-we-dont-use" class="section level2">
+<h2>Avoiding Bill Surprises: The Importance of Turning Off What We Don’t Use</h2>
+<p>Before we continue, a cautionary note. As I’ve been mentioning, having control over cloud resources is a <em>great power</em>, so it comes with a <em>great responsibility</em>. A great <strong><em>financial</em></strong> responsibility, to be specific: cloud services are like utilities where you pay for what you use (the famous <em>pay-as-you-go</em> model). This is usually regarded as a <a href="https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html">big advantage of the cloud</a>: it eliminates the need for a huge upfront cost of purchasing servers and other hardware just to get your project up and running. And this is especially true when there is uncertainty about the amount and type of computing and storage needed in the future (i.e. almost always).</p>
+<p>However, since AWS (intriguingly) doesn’t allow users to set hard limits on their spending, there is always the risk of leaving stuff turned on by mistake and then getting an astronomic bill at the end of the month<a href="#fn8" class="footnote-ref" id="fnref8"><sup>8</sup></a>. So, yes, it’s <strong>extremely important to avoid <em>oopsies</em> on this front</strong><a href="#fn9" class="footnote-ref" id="fnref9"><sup>9</sup></a>.</p>
+<div class="figure">
+<img src="images/bankrupcy_meme.jpg" alt="When you forgot to turn off your AWS instances." alt="Meme from The Office TV show with Michael Scott screaming &#39;I declare bankruptcy!&#39;" />
+<p class="caption"><em>When you forgot to turn off your AWS instances.</em></p>
+</div>
+<p>Fortunately, this is another area where <em>programmatic control</em> of AWS (using AWS through the command line or SDK) comes in handy. If scripts and CLI commands were used to turn on cloud resources, similar scripts could be employed to shut them down once they’re no longer needed, effectively minimizing the risk of expensive human slips.</p>
+</div>
+<div id="how-much-will-i-have-to-pay-to-follow-this-tutorial" class="section level2">
+<h2>How Much Will I Have to Pay to Follow This Tutorial?</h2>
+<p>If your heart skips a beat when reading words like <em>astronomic bill</em>, you may also be wondering exactly how much money you will have to pay to follow the upcoming part of this tutorial. The answer is <strong>less than 1 cent (0.01 USD)</strong> under two assumptions: 1) your AWS Account is new, and 2) you turn off everything we use after completing the tutorial.</p>
+<p>The cost is very low because <em>almost</em> everything we’re going to do is covered by the <a href="#0">AWS Free Tier</a>, which allows new users to practice and learn how to use many AWS services at no charge. The cost is not <em>exactly zero</em> because, at some point, we have to do <em>something</em><a href="#fn10" class="footnote-ref" id="fnref10"><sup>10</sup></a> that is not covered by the free tier. The cost of doing this is 0.005 USD per hour (<em>half a cent per hour</em>)<a href="#fn11" class="footnote-ref" id="fnref11"><sup>11</sup></a>.</p>
+<p>If you’re okay with this, let’s go ahead implementing our cloud data pipeline!</p>
+</div>
+<div id="introducing-our-data-pipeline-or-what-are-we-trying-to-do-anyway" class="section level2">
+<h2>Introducing Our Data Pipeline (or <em>What Are We Trying to Do Anyway?</em>)</h2>
+<p>Now, it’s time to examine our pipeline’s input data and the <strong>transformations we’ll apply to it</strong>. The details of all of this will be covered in the next post, but for now, suffice to say that our input is a sample of <a href="https://en.wikipedia.org/wiki/Pomodoro_Technique"><em>focused work</em></a> sessions that have a Start and End datetime and the pipeline will perform the following transformations:</p>
+<ul>
+<li>Read the source data.</li>
+<li>Aggregate it at a daily level and pivot it.</li>
+<li>Add the new transformed records to a database table, handling possible duplicates.</li>
+</ul>
+<p><img src="images/diagram_pipeline.png" alt="A LucidChart  diagram of a data pipeline using Apache Airflow, showing the flow from raw data with columns like project, duration, start and end dates, through an S3 bucket, processed by a data pipeline, to a final table in an Amazon RDS Database with columns like date, work_minutes, and learning_minutes." width="1000" /></p>
+<p>As you can see, the data is rather simple, and the transformations are straightforward (akin to a short <code>pandas</code> or <code>dplyr</code> data wrangling script), but the challenge is to perform them in an <strong>automated and unsupervised way under Airflow’s orchestration</strong> while also interacting with cloud APIs and services.</p>
+</div>
+<div id="our-aws-architecture" class="section level2">
+<h2>Our AWS architecture</h2>
+<p>Let’s explore the AWS services we can use to implement this pipeline.</p>
+<div id="an-s3-bucket-to-store-the-raw-data" class="section level3">
+<h3>An S3 Bucket to Store the Raw Data</h3>
+<p>We need a place to <strong>upload and store the raw input data</strong> (.csv files). AWS S3 (<em><strong>S</strong>imple <strong>S</strong>torage <strong>S</strong>ervice</em>) is commonly used for storing unstructured or raw data like this due to its cost-effectiveness, ease of use and seamless integration with other services. S3 is actually <em>simple</em> because it is a <em>managed</em> service. This means all of the underlying computing and networking required to actually store and retrieve the files is abstracted away from us (🥳). We don’t need to send instructions to turn on machines and configure their networking properties or manage the underlying storage infrastructure. S3 does it all for us.</p>
+<p><img src="images/simple_storage.png" title="Really digging into these Art Deco illustrations of AWS Services" alt="Artistic Art-Deco illustration of a ‘SIMPLE STORAGE’ cylindrical device surrounded by celestial clouds, stars, and mechanical elements, with a symmetrical design in orange, teal, black, and white tones." /></p>
+<p>So, let’s get started by creating a <strong>bucket</strong> (a container for objects in S3) and uploading the input data to it.</p>
+<p>First, we must define a <strong>name</strong> for the bucket. This name must be unique across ALL the S3 buckets in the world (yes, really). To ensure we don’t run into any naming conflicts, we’ll use a <strong>dynamically generated name</strong>. This way, many people can run the commands without causing name collisions.</p>
+<p>Here is how to do it:</p>
+<pre class="language-bash"><code>bucket_name=&quot;tutorial-airflow-$(date +%Y-%m-%d-%H-%M-%S)&quot;
+aws s3 mb s3://$bucket_name
+echo &quot;Bucket created: $bucket_name&quot;</code></pre>
+<p>Explanation of each command:</p>
+<ul>
+<li><p><code>bucket_name=...</code> creates a variable in the Terminal that appends the current datetime to the prefix <code>tutorial-airflow-</code>. This ensures uniqueness in <code>bucket_name</code> as long as no two people execute the code at precisely the same time (very unlikely).</p></li>
+<li><p><code>aws s3 mb s3://$bucket_name</code> uses the <code>s3 mb</code> (mb = <strong>m</strong>ake <strong>b</strong>ucket) command of the AWS CLI to create a bucket named as the previously defined variable.</p></li>
+<li><p><code>echo...</code> displays the bucket’s name as defined by the variable <code>$bucket_name</code>. This step is not mandatory, but it helps us verify the bucket name (I also recommend writing down the bucket name elsewhere, just in case).</p></li>
+</ul>
+<p>A way to verify that the bucket was created successfully is to run the following command, which will show you a list of all the buckets in your account:</p>
+<pre class="language-bash"><code>aws s3 ls</code></pre>
+<p>Let’s move on to uploading the data:</p>
+<pre class="language-bash"><code>curl -o input_data.csv https://raw.githubusercontent.com/franciscoyira/aws_airflow_tutorial/master/raw_data/input_data.csv
+
+aws s3 cp input_data.csv s3://$bucket_name/input_data/input_data.csv</code></pre>
+<p>Explanation of each command:</p>
+<ul>
+<li><p>The first line <strong>downloads the input data</strong> from my GitHub to your local file system using the <code>curl</code> command we have already seen.</p></li>
+<li><p>The second line uses the <code>cp</code> (copy) command of the AWS CLI to copy the <code>input_data.csv</code> we just downloaded to our S3 bucket. It’s worth mentioning that everything that comes after <code>$bucket_name</code> is the <strong>unique identifier</strong> of the object we’re uploading (in this case, the identifier is <code>input_data/input_data.csv</code>).</p></li>
+</ul>
+<p>You can verify that the file was correctly uploaded in two ways:</p>
+<ul>
+<li><p>You should see a <strong>confirmation message</strong> that starts with <code>upload: ./input_data.csv to s3://...</code>) after executing the <code>aws s3 cp</code> command.</p></li>
+<li><p>You can run the <code>ls</code> command on <code>s3://$bucket_name/input_data/</code> and the output should display the <code>input_data.csv</code> file.</p></li>
+</ul>
+<pre class="language-bash"><code>aws s3 ls s3://$bucket_name/input_data/</code></pre>
+</div>
+<div id="a-postgresql-database-on-amazon-rds-to-store-the-output" class="section level3">
+<h3>A PostgreSQL Database on Amazon RDS to Store the Output</h3>
+<p>Our pipeline will store its output in a <strong>PostgreSQL relational database</strong>, similar to many real-world data pipelines where the final users of the data consume the processed information using SQL and similar tools.</p>
+<p>To set up a PostgreSQL database in the cloud, we’ll use <strong>AWS RDS</strong> (<strong>R</strong>elational <strong>D</strong>atabase <strong>S</strong>ervice). This managed service facilitates deploying and operating SQL-based databases like MySQL, MariaDB, Oracle, and Microsoft SQL Server. We’ll use PostgreSQL mainly because it is a widely used database included on the <a href="https://aws.amazon.com/rds/free/">AWS Free Tier</a>.</p>
+<p><embed src="images/postgresql_rds.webp" alt="Amazon RDS and PostgreSQL logos side-by-side, featuring the blue hexagonal Amazon RDS icon and the blue outlined elephant head of the PostgreSQL logo on a white background" /></p>
+<p>As in S3, here <em>managed</em> means that many low-level procedures that are necessary for getting the database up and running are abstracted away from us. Unfortunately, RDS is <em>not as managed as S3</em>, in the sense we still have to tinker with some technical details. At a minimum, we have to pick the following:</p>
+<ul>
+<li><p>A <strong>database engine</strong> (PostgreSQL, MariaDB, Oracle, etc) and its <strong>version</strong>.</p></li>
+<li><p><strong>Type and size of the compute instance</strong>. This refers to the <em>hardware</em> (literally the physical machine) where the database software will run. AWS offers <a href="https://instances.vantage.sh/rds/">a gazillion different compute instances for RDS</a>, differentiated mainly by memory, processor, network performance, and price. Since we want to stick to the Free Tier, the choice is simpler for us: we’ll go with db.t3.micro, a basic instance with 1GB of RAM, 2 vCPUs (virtual processors), and low network performance.</p></li>
+<li><p><strong>Security groups and network configuration</strong>. We have to assign the computer on which the database runs to some sort of firewall named <em>security group</em> and add rules to allow traffic from our IP to go through this firewall.</p></li>
+</ul>
+</div>
+<div id="provisioning-the-database" class="section level3">
+<h3>Provisioning the Database</h3>
+<p>Here are the Bash commands that set up the PostgreSQL database we want:</p>
+<pre class="language-bash"><code>GROUP_ID=$(aws ec2 create-security-group --group-name airflow-rds-sg --description &quot;Security group for RDS accessible by Airflow&quot; --query &#39;GroupId&#39; --output text)
+
+MY_IP=$(curl ipinfo.io/ip)
+
+aws ec2 authorize-security-group-ingress --group-id ${GROUP_ID} --protocol tcp --port 5432 --cidr ${MY_IP}/32
+
+MY_PASSWORD=$(openssl rand -base64 24 | tr -dc &#39;a-zA-Z0-9&#39; | fold -w 12 | head -n 1)
+
+echo $MY_PASSWORD
+
+aws rds create-db-instance \
+    --db-instance-identifier airflow-postgres \
+    --db-instance-class db.t3.micro \
+    --engine postgres \
+    --publicly-accessible \
+    --allocated-storage 20 \
+    --db-name airflow_tutorial \
+    --master-username postgres \
+    --master-user-password ${MY_PASSWORD} \
+    --vpc-security-group-ids ${GROUP_ID}</code></pre>
+<p>Here’s a breakdown of what each line does:</p>
+<ul>
+<li><p>In the first line, the command between the parentheses (<code>aws ec2...</code>) creates our <strong>security group or firewall</strong>. The option <code>--group-name airflow-rds-sg</code> specifies “a<em>irflow-rds-sg</em>” as the name of the security group. The flags <code>--query 'GroupId' --output text</code> ensure the command returns the <strong>Security Group ID</strong> as output in the terminal. Then, everything is wrapped in <code>GROUP_ID=$(...)</code> to <strong>save that ID as a variable</strong>. We need to specify the Group ID when creating the database, so it’s better to pass it as a variable than to copy and paste manually.</p></li>
+<li><p>The second line retrieves our own IP address with the command <code>curl ipinfo.io/ip</code><a href="#fn12" class="footnote-ref" id="fnref12"><sup>12</sup></a> and saves it as a Bash variable named <code>MY_IP</code>.</p></li>
+<li><p>The next line (<code>aws ec2 authorize...</code>) modifies our security group to <strong>allow incoming traffic from our own IP</strong> through the port 5432, which is the port used by PostgreSQL. Note the use of the previously defined variables <code>${GROUP_ID}</code> and <code>${MY_IP}</code>. Without them, we would have to manually copy and paste the Group ID and IP to run this line (cumbersome and error-prone).</p></li>
+<li><p>Then, we execute <code>MY_PASSWORD=$(openssl rand -base64 12)</code> to <strong>randomly generate a password and store it as a variable</strong>. We’ll need this password to access the database, so we display it on the screen using <code>echo $MY_PASSWORD</code>. Copy and save it in a secure location.</p></li>
+<li><p>The last command (<code>aws rds create-db-instance...</code>) is the one that provisions the database itself. Although it appears to be composed of several instructions, it is actually a single command split into multiple lines with <code>\</code> for enhanced readability (the backslash concatenates the lines before sending the instruction to the terminal). Let’s break down the parameters of <code>aws rds create-db-instance</code> to understand what they do:</p>
+<ul>
+<li><p><code>db-instance-identifier</code> is the name of the <strong>computer</strong> (“compute instance”) on which the database software will run. We set “<em>airflow-postgres</em>” but you can choose any name as long as it doesn’t contain special characters<a href="#fn13" class="footnote-ref" id="fnref13"><sup>13</sup></a>.</p></li>
+<li><p><code>db-instance-class</code> is the type of compute instance we’ll use. To avoid charges, we choose a basic instance called <code>db.t3.micro</code>, which is available on the ✨Free Tier✨.</p></li>
+<li><p><code>engine</code> allows us to choose between database engines like MySQL, MariaDB, Oracle, and so on. As mentioned before, we’ll use <code>postgres</code>.</p></li>
+<li><p><code>publicly-accessible</code> assigns a <strong>public IP address</strong> to our database, allowing us to reach it from our own computer<a href="#fn14" class="footnote-ref" id="fnref14"><sup>14</sup></a>.</p></li>
+<li><p><code>allocated-storage</code>. How many GB of storage will our database have? We have chosen <strong>20 GB</strong>, which is the lowest value that our <code>db-instance-class</code> supports.</p></li>
+<li><p><code>db-name</code> is the name of the database itself (not the compute instance). It can be any name adhering to some basic guidelines<a href="#fn15" class="footnote-ref" id="fnref15"><sup>15</sup></a> or even be omitted altogether (then it will default to “<em>postgres</em>”). We’ll use “<em>airflow_tutorial</em>” for now.</p></li>
+<li><p><code>master-username</code> and <code>master-user-password</code> are the credentials used to access the database after it’s launched. We’re setting the username to “<em>postgres</em>” and the password to the random string we created earlier with <code>MY_PASSWORD=$(openssl rand -base64 12)</code>.</p></li>
+<li><p><code>vpc-security-group-ids</code> links the <strong>database compute instance</strong> to a specific <strong>security group</strong>, which controls who can reach the instance at all. We link the instance to the ID of the security group we created earlier with <code>GROUP_ID=$(aws ec2 create-security-group...</code>. This group is already configured to allow incoming traffic from our local IP.</p></li>
+</ul></li>
+</ul>
+<p>You can run the following command to check that the database instance was successfully created:</p>
+<pre class="language-bash"><code>aws rds describe-db-instances --db-instance-identifier airflow-postgres</code></pre>
+<p>The output should be a rather large JSON describing the properties and state of the instance we just created.</p>
+</div>
+<div id="testing-the-connection" class="section level3">
+<h3>Testing the Connection</h3>
+<p><em>Can we connect to the database already?</em> Not yet! There are still a couple of steps left.</p>
+<p>First, download the <strong>Certificate Authority (CA)</strong> that is required to establish a <strong>secure connection</strong> to the server.</p>
+<pre class="language-bash"><code>curl -o us-east-1-bundle.pem https://truststore.pki.rds.amazonaws.com/us-east-1/us-east-1-bundle.pem</code></pre>
+<p>Second, install two more packages: the PostgreSQL client (<code>postgresql-client</code>), which allows us to run queries on our database, and a command-line tool called <code>jq</code> which can extract values from a JSON output. This latter package is optional but recommended as it allows us to store database parameters as variables, so we don’t have to copy and paste them manually.</p>
+<pre class="language-bash"><code>sudo apt install jq postgresql-client</code></pre>
+<p>We can now turn on the database instance and connect to it:</p>
+<pre class="language-bash"><code>output=$(aws rds describe-db-instances --db-instance-identifier airflow-postgres --query &#39;DBInstances[*].Endpoint.[Address,Port]&#39;)
+
+ENDPOINT_URL=$(echo $output | jq -r &#39;.[0][0]&#39;)
+
+PORT=$(echo $output | jq -r &#39;.[0][1]&#39;)
+
+psql &quot;host=${ENDPOINT_URL} port=${PORT} dbname=airflow_tutorial user=postgres password=${MY_PASSWORD} sslmode=verify-ca sslrootcert=us-east-1-bundle.pem&quot;</code></pre>
+<p>Here is a breakdown of each of the commands above:</p>
+<ul>
+<li><p>In the first line, <code>aws rds describe-db-instances...</code> returns a JSON with a lot of information about our instance. We use <code>--query 'DBInstances[*].Endpoint.[Address,Port]'</code> to filter this JSON and keep only the <strong>Address</strong> or <strong>Endpoint</strong> (the URL we’ll use to reach the database) and the <strong>Port</strong>. The filtered JSON is then saved in the <code>output</code> variable.</p></li>
+<li><p>In the following two lines, we use the <code>jq</code> tool we just installed to parse the <code>output</code> JSON and extract the Endpoint and Port as separate variables.</p>
+<ul>
+<li><code>echo $output</code> prints the whole JSON, which looks like this.</li>
+</ul>
+<pre class="language-bash"><code>[
+    [
+        &quot;airflow-postgres.qrwgo0b3axh0.us-east-1.rds.amazonaws.com&quot;,
+        5432
+    ]
+]</code></pre>
+<ul>
+<li>Then <code>jq</code> extracts the <em>first</em> element of the innermost level of brackets (<code>'.[0][0]'</code>) to get the <code>ENDPOINT_URL</code> (<em>airflow-postgres.qrwgo0b3axh0.us-east-1.rds.amazonaws.com</em>), and the second element (<code>'.[0][1]'</code>) to get the port (<em>5432</em>). The option <code>-r</code> makes <code>jq</code> to return <strong>raw</strong> text instead of more JSONs.</li>
+</ul></li>
+</ul>
+<p><img src="images/using_jq.png" alt="JSON array showing two elements highlighted. The first element is a URL string ‘airflow-postgres.qrwgo@b3axh0.us-east-1.rds.amazonaws.com’ in pink, indicating a database connection string for an AWS RDS instance. The second element is the port number ‘5432’, commonly used for PostgreSQL databases, highlighted in blue." width="1000" /></p>
+<ul>
+<li>Lastly, in the last line we finally connect to the database by invoking the PostgreSQL client (<code>psql</code>) and passing it a connection string with variables we defined earlier, <code>sslmode</code> for secure communication, and the path to the downloaded certificate for server identity verification.</li>
+</ul>
+<p>If you successfully connected to the database, you should see <code>airflow_tutorial =&gt;</code> on the Terminal after executing the last command. <strong>This means the database is ready to accept SQL queries 🎉🎉🎉🎉🎉.</strong></p>
+<p>You can then go ahead and test it with a simple query like <code>SELECT 'HELLO WORLD' AS test;</code></p>
+<p><img src="images/hello_world_postgres_optimized.png" title="SQL Command Execution in PostgreSQL on AWS RDS" alt="Screenshot of a SQL command &#39;SELECT HELLO WORLD AS test;&#39; executed in an Ubuntu terminal with a prompt named &#39;airflow_tutorial&#39;" /></p>
+<p><strong>Congratulations! You’ve successfully provisioned and connected to a relational database in the cloud.</strong></p>
+<p>This is a big step towards implementing our data pipeline, as the database is the final destination of the data we’ll process.</p>
+</div>
+</div>
+<div id="wrap-up-shutting-down-resources-to-minimize-costs" class="section level2">
+<h2>Wrap Up: Shutting Down Resources to Minimize Costs</h2>
+<p>We’re done setting up the AWS services required for our Airflow pipeline to work.</p>
+<p>In <strong>Part 3</strong> of this series, I’ll show you how to set up the pipeline itself, assuming you already have Airflow and Docker installed and running on your local machine. If you haven’t set them up yet, follow the instructions in <a href="/post/data-pipelines-cloud-intro-airflow-docker/">Part 1</a> to do so. Also make sure to <a href="/subscribe"><strong>subscribe to the blog</strong></a> so you get notified when Part 3 is published.</p>
+<p>Before wrapping up, though, let’s make sure to <strong>turn off and delete the resources we’ve just created</strong> to avoid unnecessary costs.</p>
+<p>To do that, first exit the Postgres client with <code>\q</code>.</p>
+<p>Then delete the RDS instance and the S3 bucket:</p>
+<pre class="language-bash"><code>aws rds delete-db-instance --db-instance-identifier airflow-postgres --skip-final-snapshot
+
+aws s3 rb s3://$bucket_name --force</code></pre>
+<p>Wait a couple minutes for the deletion of the instance to complete and then delete the security group:</p>
+<pre class="language-bash"><code>aws ec2 delete-security-group --group-id $GROUP_ID</code></pre>
+</div>
+<div id="feedback-survey" class="section level2">
+<h2>Feedback Survey</h2>
+<p>I hope you enjoyed this post and found it useful. If you have any feedback, please let me know by filling out the survey below. It will take less than 2 minutes, and it will help me improve the content of this blog. Thank you!</p>
+<div style="display: flex; justify-content: center;">
+<iframe width="640px" height="530px" src="https://forms.office.com/Pages/ResponsePage.aspx?id=DQSIkWdsW0yxEjajBLZtrQAAAAAAAAAAAAO__a4Ml6hUMUYyTDJLMTIzUVlINjIyT0dXU0oxMko0WC4u&amp;embed=true" frameborder="0" marginwidth="0" marginheight="0" style="border: none; max-width:100%; max-height:100vh" allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen>
+</iframe>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>If you’re not familiar with object storage buckets, you can think of them, for the effects of this post, as just folders where you can store any kind of data and allow access to it from the Internet in a very efficient way. They’re often used for storing large amounts of unstructured data (e.g. photos, videos, pages of a static website) that doesn’t change very often. <a href="https://youtu.be/ZfTOQJlLsAs?feature=shared">Here is a video</a> with a more detailed explanation.<a href="#fnref1" class="footnote-back">↩</a></p></li>
+<li id="fn2"><p>AWS will strongly encourage you to use the ‘Identity Centre’ option, but that feature is primarily designed for organizations, making it a bit of an overkill for this tutorial. If you decide to go with that option, you’ll have to go through a bunch of extra steps that are outside the scope of this post and provide little benefit for a “playground” account.<a href="#fnref2" class="footnote-back">↩</a></p></li>
+<li id="fn3"><p>As an extra tip, note that using the sign-in URL is just a short-cut to avoid having to write the <strong><em>Account ID</em></strong> each time you log in. The account ID is the 12-digit number you see right before <em>.signin.aws.amazon.com.</em> You may as well just go to signin.aws.amazon.com and then manually type the Account ID, along with the User name and Password.<a href="#fnref3" class="footnote-back">↩</a></p></li>
+<li id="fn4"><p>An API call is a request sent by a computer program to a server to access a specific service or data. These requests must adhere to specific protocols in order to be understood by the server.<a href="#fnref4" class="footnote-back">↩</a></p></li>
+<li id="fn5"><p>The latest stable version is 2.15.41. Your version should be equal to or higher than that if you’re installing AWS CLI now. As long as your version starts with 2, you should be fine.<a href="#fnref5" class="footnote-back">↩</a></p></li>
+<li id="fn6"><p>Tags are only relevant when you become a heavy user of AWS and have so many resources created that you need tags to remember what each one was for. If you’re following these steps for the first time, that’s not your case. Also, you can always go back and add tags to previously untagged resources. So, yeah, it really doesn’t hurt to leave this blank.<a href="#fnref6" class="footnote-back">↩</a></p></li>
+<li id="fn7"><p>You can also add <strong>multiple AWS accounts</strong> with <strong>distinct profile names</strong>, or even create several profiles linked to the same account but configured with <em>different options</em>, like different regions. For this, you would run <code>aws configure –profile YOUR_PROFILE_NAME</code>. This profile information would also be stored in the <code>config</code> and <code>credentials</code> files but under another section delimited by <code>[YOUR_PROFILE_NAME]</code>. Then, you can append <code>–profile YOUR_PROFILE_NAME</code> to the <code>aws</code> commands to tell the AWS CLI to execute them using <em>that</em> profile and not the default profile. That is, you would write <code>aws [COMMAND] –profile YOUR_PROFILE_NAME</code> instead of just <code>aws [COMMAND]</code>.</p>
+<p>Also, if you want to rename an existing profile for any reason, you can just change the names between squared brackets […] in the <code>config</code> and <code>credentials</code> files.<a href="#fnref7" class="footnote-back">↩</a></p></li>
+<li id="fn8"><p>I was curious about whether there is another explanation to this besides just <em>bad faith</em> on AWS’ side, and, allegedly, the problem is that calculating cloud spending in real-time is a very complex problem that would require a disproportionate amount of compute resources and that faces other non-trivial implementation challenges. I don’t know enough to take sides on whether that’s true or not, but here are some interesting threads on HackerNews about the topic if you want to dig deeper: <a href="https://news.ycombinator.com/item?id=27044371">1</a> and <a href="#0">2</a>.<a href="#fnref8" class="footnote-back">↩</a></p></li>
+<li id="fn9"><p>The pay-as-you-go model also means that it is crucial to become familiar with cost management tools and cost optimization concepts. For many cloud projects, there are several ways to architect and implement a solution that provides the same functionality, but the final costs differ widely between these options. And then there is the aspect of monitoring. More could be written about these topics, but it exceeds the scope of this post.<a href="#fnref9" class="footnote-back">↩</a></p></li>
+<li id="fn10"><p>Spoiler: we have expose a Public IP address in order to query our cloud relational database from our local Airflow instance.<a href="#fnref10" class="footnote-back">↩</a></p></li>
+<li id="fn11"><p>I’m fully aware that going from 0 USD to 0.001 USD crosses some psychological threshold, and I spent A LOT of time looking for ways to tweak the tutorial, so its cost was <em>precisely zero</em>. The best I could come up with is having the public IP address turned off most of the time and turning it on programmatically by the Airflow pipeline itself (and then turning it off automatically by the same pipeline). Technically, the AWS Free Tier provides one free Public IP address for an EC2 (compute) instance, but I couldn’t find a way to make the relational database use <em>that</em> IP address instead of provisioning a new one (if you know a way to do this, please <a href="https://cv.franciscoyira.com/#contact">let me know</a>!).<a href="#fnref11" class="footnote-back">↩</a></p></li>
+<li id="fn12"><p><a href="https://ipinfo.io/ip">ipinfo.io/ip</a> is not a special command but literally just a public website that returns your IP as plain text. It works on your web browser too.<a href="#fnref12" class="footnote-back">↩</a></p></li>
+<li id="fn13"><p>From the <a href="https://awscli.amazonaws.com/v2/documentation/api/latest/reference/rds/create-db-instance.html">AWS documentation</a>: <em><code>db-instance-identifier</code> must contain from 1 to 63 letters, numbers, or hyphens. First character must be a letter. Can’t end with a hyphen or contain two consecutive hyphens.</em><a href="#fnref13" class="footnote-back">↩</a></p></li>
+<li id="fn14"><p>This will work as long as the security group is configured to allow incoming traffic from our computer too.<a href="#fnref14" class="footnote-back">↩</a></p></li>
+<li id="fn15"><p>For PostgreSQL, <code>db-name</code> has the same constrains as the <code>db-instance-identifier</code>: <em>Must contain 1 to 63 letters, numbers, or underscores. Must begin with a letter. Subsequent characters can be letters, underscores, or digits (0-9). Can’t be a word reserved by the specified database engine.</em><a href="#fnref15" class="footnote-back">↩</a></p></li>
+</ol>
+</div>
