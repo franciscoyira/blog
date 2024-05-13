@@ -34,9 +34,9 @@ Welcome back everyone to the third part of this series on Data Pipelines in the 
 
 > ***Data Pipelines in the Cloud Series***
 >
-> -   [Part I: A Beginner’s Introduction to Airflow](post/data-pipelines-cloud-intro-airflow-docker/)
+> -   [Part I: A Beginner’s Introduction to Airflow](/post/data-pipelines-cloud-intro-airflow-docker/)
 >
-> -   [Part II: Using Amazon Web Services with the Command Line](post/aws-command-line-data-pipelines-cloud-part-2/)
+> -   [Part II: Using Amazon Web Services with the Command Line](/post/aws-command-line-data-pipelines-cloud-part-2/)
 >
 > -   **Part III: You're here.**
 
