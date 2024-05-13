@@ -37,7 +37,7 @@ In this second part, we'll get closer to what an actual Airflow pipeline in prod
 
 > ***Data Pipelines in the Cloud Series***
 >
-> -   [Part I: A Beginner’s Introduction to Airflow](post/data-pipelines-cloud-intro-airflow-docker/)
+> -   [Part I: A Beginner’s Introduction to Airflow](/post/data-pipelines-cloud-intro-airflow-docker/)
 >
 > -   **Part II: You're here.**
 >
