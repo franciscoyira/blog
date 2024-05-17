@@ -1,5 +1,5 @@
 ---
-title: "A Beginner's Introduction to Airflow — Data Pipelines in the Cloud (I)"
+title: "A Beginner's Introduction to Airflow with Docker — Data Pipelines in the Cloud (I)"
 author: Francisco Yirá
 date: '2023-08-13'
 slug: data-pipelines-cloud-intro-airflow-docker

@@ -76,7 +76,7 @@ paginate = 5
       [[languages.en.menu.main]]
         identifier = "cv"
         name = "About Me+Portfolio"
-        url = "https://cv.franciscoyira.com/#projects"
+        url = "https://cv.franciscoyira.com/"
         weight = 2
 
         
