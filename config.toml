@@ -46,21 +46,25 @@ paginate = 5
     [languages.en.menu]
       [[languages.en.menu.main]]
         identifier = "archive"
-        name = "️Archive"
+        name = "️🗃️ Archive"
         url = "/archive"
       [[languages.en.menu.main]]
         identifier = "subscribe"
-        name = "📩 Subscribe"
+        name = "🔔 Subscribe"
         url = "/subscribe"
         weight = 1
       [[languages.en.menu.main]]
         identifier = "mastodon"
-        name = "🐘 Mastodon"
-        url = "https://techhub.social/@franciscoyira"
+        name = "🌀 Threads"
+        url = "https://www.threads.net/@francisco_yira"
       [[languages.en.menu.main]]
         identifier = "linkedin"
         name = "💼 LinkedIn"
         url = "https://www.linkedin.com/in/franciscoyira/"
+      [[languages.en.menu.main]]
+        identifier = "github"
+        name = "🐙 GitHub"
+        url = "https://github.com/franciscoyira"
       #[[languages.en.menu.main]]
       #  identifier = "about"
       #  name = "About"
@@ -71,7 +75,7 @@ paginate = 5
       #  url = "/es"
       [[languages.en.menu.main]]
         identifier = "cv"
-        name = "CV/Portfolio"
+        name = "About Me+Portfolio"
         url = "https://cv.franciscoyira.com/#projects"
         weight = 2
 
