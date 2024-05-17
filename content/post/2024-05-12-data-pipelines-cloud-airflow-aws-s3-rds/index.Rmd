@@ -237,7 +237,9 @@ We need a place to **upload and store the raw input data** (.csv files). AWS S3 
 
 So, let's get started by creating a **bucket** (a container for objects in S3) and uploading the input data to it.
 
-First, we must define a **name** for the bucket. This name must be unique across ALL the S3 buckets in the world (yes, really). To ensure we don't run into any naming conflicts, we'll use a **dynamically generated name**. This way, many people can run the commands without causing name collisions.
+First, we must define a **name** for the bucket. This name must be unique across ALL the S3 buckets in the world (yes, really). Also, in real-world scenarios, it is important to use a name that is extremely difficult to guess in order to minimize the risk of unauthorized access to your bucket.
+
+For this tutorial, we'll settle for meeting the uniqueness requirement. To ensure we don't run into any naming conflicts, we'll use a **dynamically generated name**. This way, many people can run the commands without causing name collisions.
 
 Here is how to do it:
 
