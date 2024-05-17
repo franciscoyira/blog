@@ -178,6 +178,10 @@ We can see that the balance is maximised somewhere below the 2000th iteration. T
 head(ps_lalonde_gbm$ps)
 ```
 
+```{r, echo=FALSE}
+blogdown::shortcode("linkedin_follow")
+```
+
 ## Inverse Probability of Treatment Weighting (IPTW)
 
 Great! [We did it!](https://www.youtube.com/watch?v=SBCw4_XgouA) We estimated the propensity scores! But how do we use them? A common sense and actually popular answer would be to do *matching* based on them: match each observation with the unit in the donor pool that has the closest propensity score.
@@ -506,6 +510,9 @@ Sadly, bootstrapping can't be used with the Matching estimators, only with IPTW.
 
 Because of that, **we have to use analytical formulas to compute the standard errors of our estimates when doing Matching**. These expressions can be quite complex and, what's more, they have different formulations depending on the choices we made regarding the estimation process. Fortunately, most R packages designed for Matching (such as `MatchIt`) already implement appropriate standard error formulas and report the corresponding SEs in their output. So, if you're a practitioner like me, it's better to just stick to these "package-generated" standard errors instead of attempting to compute them manually.
 
+```{r, echo=FALSE}
+blogdown::shortcode("subscribe")
+```
 ## Double Robust Estimator
 
 In [Part 2](https://www.franciscoyira.com/post/matching-in-r-2-differences-regression), we saw the strengths and weaknesses of Matching and Regression when adjusting for confounders, along with examples of one of them succeeding in estimating the true causal effect while the other method failed.
