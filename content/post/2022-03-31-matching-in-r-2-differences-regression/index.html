@@ -92,10 +92,10 @@ ggplot(df,
 <pre class="r language-r"><code>linear_model1 &lt;- lm(y ~ d + x, data = df)
 
 confint(linear_model1)</code></pre>
-<pre class="language-r"><code>##                  2.5 %     97.5 %
-## (Intercept) 0.57188305 0.67933962
-## d           0.16432897 0.28147788
-## x           0.02463232 0.06489707</code></pre>
+<pre class="language-r"><code>##                    2.5 %     97.5 %
+## (Intercept)  0.623179973 0.72501401
+## d            0.161054294 0.27098305
+## x           -0.002115765 0.03676324</code></pre>
 <p>Here <code>x</code> is a confounder because it affects both the outcome (<code>y</code>) and the probability of receiving the treatment (<code>d</code>). But simple linear regression can’t help us, even if we include the confounder as control, because both relationships (X-&gt;D and X-&gt;Y) are highly non-linear. Therefore, the final estimate is so biased that the true value is outside the confidence interval. Sad!</p>
 <p><img src="images/your-regression-is-bad-and-you-should-feel-bad.jpg" /></p>
 <p>Now let’s use Matching with the same data. Here we’re going to use a Matching estimator implemented by a CRAN R package instead of coding it ourselves<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>:</p>
@@ -103,18 +103,18 @@ confint(linear_model1)</code></pre>
 M &lt;- Match(df$y, df$d, df$x, M = 5, Weight = 2, caliper = 0.05)
 summary(M)</code></pre>
 <pre class="language-r"><code>## 
-## Estimate...  1.0107 
-## AI SE......  0.036425 
-## T-stat.....  27.748 
+## Estimate...  0.99426 
+## AI SE......  0.037263 
+## T-stat.....  26.682 
 ## p.val......  &lt; 2.22e-16 
 ## 
 ## Original number of observations..............  1000 
-## Original number of treated obs...............  573 
-## Matched number of observations...............  151 
-## Matched number of observations  (unweighted).  766 
+## Original number of treated obs...............  546 
+## Matched number of observations...............  130 
+## Matched number of observations  (unweighted).  662 
 ## 
 ## Caliper (SDs)........................................   0.05 
-## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  422</code></pre>
+## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  416</code></pre>
 <p>As expected, the Matching estimate is much closer to the true treatment effect (and its confidence interval includes the true value) because it’s not relying on false linearity assumptions<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>.</p>
 <p>Here is an illustration that makes it clearer what each of the estimators is doing and why the linear regression estimate is so off<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>:</p>
 <pre class="r language-r"><code># Matching 
@@ -168,7 +168,7 @@ library(patchwork)
 <p>Up to this point, it seems that Matching is winning. Why would we want to assume a specific functional form when we can just… not?</p>
 <p><img src="images/stop_linear_regression.jpg" /></p>
 <p>Sadly, there is no free lunch, and the flexibility of Matching comes at a price: <strong>the common support assumption</strong>. In order to get a counterfactual estimate without a parametric model, we need to have observations with the same (or similar) covariate values and opposite treatment status for each of the original units. If we don’t, Matching will fail.</p>
-{{% subscribe %}}
+{{% linkedin_follow %}}
 <p>However, Regression doesn’t have such a requisite. Instead, it leverages the parametric specification to get estimates by “extrapolation” in the areas without common support. And, if our parametric specification appropriately reflects the data generating process, such extrapolation is a reasonable way to handle these cases<a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a>.</p>
 <blockquote>
 <p><strong>Regression leverages the parametric specification to get estimates by “extrapolation” in the areas without common support.</strong></p>
@@ -207,10 +207,10 @@ ggplot(df_wo_common_support,
 <pre class="r language-r"><code>reg_wo_common_support &lt;- lm(y ~ d + sin(x), data = df_wo_common_support)
 
 confint(reg_wo_common_support)</code></pre>
-<pre class="language-r"><code>##                  2.5 %     97.5 %
-## (Intercept) -0.0086321 0.02771434
-## d            0.9619032 1.00707166
-## sin(x)       0.9649371 1.00169287</code></pre>
+<pre class="language-r"><code>##                   2.5 %      97.5 %
+## (Intercept) -0.03081889 0.007128505
+## d            0.99222246 1.039402082
+## sin(x)       0.99361783 1.032342404</code></pre>
 <p>You could argue that this dataset is more challenging than the previous one. Nevertheless, regression is able to handle it because it now extrapolates using an appropriate specification.</p>
 <p>Here is a visualisation of what regression is doing under the hood:</p>
 <pre class="r language-r"><code># Hacky data manipulation to avoid the plot looking weird
@@ -335,18 +335,18 @@ plot_matching_wo_cs</code></pre>
                  caliper = 0.05)
 summary(M_wo_cs)</code></pre>
 <pre class="language-r"><code>## 
-## Estimate...  0.98531 
-## AI SE......  0.038999 
-## T-stat.....  25.265 
+## Estimate...  1.0708 
+## AI SE......  0.043001 
+## T-stat.....  24.902 
 ## p.val......  &lt; 2.22e-16 
 ## 
 ## Original number of observations..............  1000 
-## Original number of treated obs...............  617 
-## Matched number of observations...............  21 
-## Matched number of observations  (unweighted).  105 
+## Original number of treated obs...............  606 
+## Matched number of observations...............  14 
+## Matched number of observations  (unweighted).  78 
 ## 
 ## Caliper (SDs)........................................   0.05 
-## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  596</code></pre>
+## Number of obs dropped by &#39;exact&#39; or &#39;caliper&#39;  592</code></pre>
 <p>Here our alarms should ring after seeing the number of dropped observations (588 of 604) and the number of matched units (only 16). This should be enough to convince yourself that there is no common support, even if you can’t see it visually<a href="#fn9" class="footnote-ref" id="fnref9"><sup>9</sup></a>.</p>
 <p><img src="images/minion_matching.jpg" width="400" /></p>
 </div>

@@ -111,6 +111,10 @@ Something problematic here is that the ATE and ATT are still functions of counte
 
 To explain it, we must introduce a new expression that *can* be calculated: the **simple difference in outcomes**.
 
+```{r, echo=FALSE}
+blogdown::shortcode("linkedin_follow")
+```
+
 ## Simple difference in outcomes (SDO)
 
 Despite the relevance of potential outcomes, the only values we can truly observe in the real world are:
@@ -183,6 +187,10 @@ As a general rule, whenever the variable $D$ is being freely chosen by human bei
 Although we are not [*homo economicus*](https://en.wikipedia.org/wiki/Homo_economicus) who make their decisions with perfect information (we don't know the exact value of the potential outcomes), we do collect information about the available options and their expected outcomes, and we make decisions that we believe will benefit us based on that limited information. This is enough so that such decisions (that is, the $D$ values) are not independent of the potential outcomes.
 
 In the words of Scott Cunningham: "*Rational choice is always pushing against the independence assumption*".
+
+```{r, echo=FALSE}
+blogdown::shortcode("subscribe")
+```
 
 One of the exceptions to this is **randomization**, precisely because there is no free choice by agents on it. Since we assign values of $D$ randomly to each unit, we impose independence between those values and the potential outcomes. Thus, **the SDO in randomized trials is usually enough to estimate unbiased causal effects**[^5].
 

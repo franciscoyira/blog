@@ -295,7 +295,7 @@ declaration</code></pre>
 ## prob_0 prob_1 
 ##    0.5    0.5</code></pre>
 <p>The output is stored in an R object that later we can pass to the function <code>ri2::conduct_ri</code>, which is the function that performs the RI procedure itself.</p>
-{{% subscribe %}}
+{{% linkedin_follow %}}
 <p>To declare the <strong>test statistic</strong> we have two options.</p>
 <p>The first is to use the <code>formula</code> argument in the <code>conduct_ri</code> function. If our test statistic is just the SDO, then the formula will be something like <code>y ~ d</code>, where <code>y</code> is the outcome variable and <code>d</code> is the treatment assignment variable.</p>
 <p>Alternatively, we can specify the statistic through the argument <code>test_function</code> (also in the function <code>conduct_ri</code>), which admits any R function capable of receiving a dataframe and returning a scalar (i.e., the statistic value).</p>

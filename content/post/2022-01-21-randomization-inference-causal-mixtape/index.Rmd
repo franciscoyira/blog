@@ -298,7 +298,7 @@ declaration
 The output is stored in an R object that later we can pass to the function `ri2::conduct_ri`, which is the function that performs the RI procedure itself.
 
 ```{r, echo=FALSE}
-blogdown::shortcode("subscribe")
+blogdown::shortcode("linkedin_follow")
 ```
 
 To declare the **test statistic** we have two options.

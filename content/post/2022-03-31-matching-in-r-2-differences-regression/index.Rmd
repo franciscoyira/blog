@@ -186,7 +186,7 @@ Up to this point, it seems that Matching is winning. Why would we want to assume
 Sadly, there is no free lunch, and the flexibility of Matching comes at a price: **the common support assumption**. In order to get a counterfactual estimate without a parametric model, we need to have observations with the same (or similar) covariate values and opposite treatment status for each of the original units. If we don't, Matching will fail.
 
 ```{r, echo=FALSE}
-blogdown::shortcode("subscribe")
+blogdown::shortcode("linkedin_follow")
 ```
 
 However, Regression doesn't have such a requisite. Instead, it leverages the parametric specification to get estimates by "extrapolation" in the areas without common support. And, if our parametric specification appropriately reflects the data generating process, such extrapolation is a reasonable way to handle these cases[^6].
