@@ -41,7 +41,7 @@ In this second part, we'll get closer to what an actual Airflow pipeline in prod
 >
 > -   **Part II: You're here.**
 >
-> -   *Part III: Building an Airflow Pipeline That Talks to AWS. (Coming soon! [Subscribe to get notified](/subscribe))*
+> -   [Part III: Building an Airflow Pipeline That Talks to AWS.](/post/airflow-pipeline-with-aws-data-cloud-part-3/)
 
 ## First Things First: Setting Up Your AWS Environment
 
@@ -97,7 +97,7 @@ This is important because, using the Terminal, we can spare all the button-press
 
 *Let sink for one moment how ridiculously cool and futuristic it is to live in an era where you can literally turn on and use massive servers that 1) are not yours, 2) are prohibitively expensive to buy, and 3) may be located on the other end of the world – all for a cheap hourly rate and by just typing some words on your machine, as if they were in your own room 🤯.*
 
-![*His name was Darth Plagueis. He was able to harness the power of distant servers with a few keystrokes.*](images/prequel_meme.jpg){alt="Meme image of Anakin Skywalker saying 'Is it possible to learn this power?' from the Episode III of Star Wars"}
+![Meme image of Anakin Skywalker saying 'Is it possible to learn this power?' from the Episode III of Star Wars](images/prequel_meme.jpg)
 
 Yes, it is possible to learn this power. I'll now walk you through the whole process, from installing the **AWS Command Line Interface**, which is the tool required to send commands to AWS from the Terminal, to setting up the AWS services we need, like the S3 bucket and the relational database. I'll explain each command so you can learn what they do instead of just copying and pasting them.
 
@@ -197,7 +197,7 @@ However, since AWS (intriguingly) doesn't allow users to set hard limits on thei
 
 [^9]: The pay-as-you-go model also means that it is crucial to become familiar with cost management tools and cost optimization concepts. For many cloud projects, there are several ways to architect and implement a solution that provides the same functionality, but the final costs differ widely between these options. And then there is the aspect of monitoring. More could be written about these topics, but it exceeds the scope of this post.
 
-![*When you forgot to turn off your AWS instances.*](images/bankrupcy_meme.jpg){alt="Meme from The Office TV show with Michael Scott screaming 'I declare bankruptcy!'"}
+![Meme from The Office TV show with Michael Scott screaming 'I declare bankruptcy!'](images/bankrupcy_meme.jpg)
 
 Fortunately, this is another area where *programmatic control* of AWS (using AWS through the command line or SDK) comes in handy. If scripts and CLI commands were used to turn on cloud resources, similar scripts could be employed to shut them down once they're no longer needed, effectively minimizing the risk of expensive human slips.
 
@@ -213,7 +213,7 @@ The cost is very low because *almost* everything we're going to do is covered by
 
 If you're okay with this, let's go ahead implementing our cloud data pipeline!
 
-## Introducing Our Data Pipeline (or *What Are We Trying to Do Anyway?*)
+## Introducing Our Data Pipeline (or *What Are We Trying to Do Anyway?*) {#introducing-our-data-pipeline-or-what-are-we-trying-to-do-anyway}
 
 Now, it's time to examine our pipeline's input data and the **transformations we'll apply to it**. The details of all of this will be covered in the next post, but for now, suffice to say that our input is a sample of [*focused work*](https://en.wikipedia.org/wiki/Pomodoro_Technique) sessions that have a Start and End datetime and the pipeline will perform the following transformations:
 
@@ -467,7 +467,8 @@ aws ec2 delete-security-group --group-id $GROUP_ID
 
 I hope you enjoyed this post and found it useful. If you have any feedback, please let me know by filling out the survey below. It will take less than 2 minutes, and it will help me improve the content of this blog. Thank you!
 
-<div style="display: flex; justify-content: center;">
+::: {style="display: flex; justify-content: center;"}
 <iframe width="640px" height="530px" src="https://forms.office.com/Pages/ResponsePage.aspx?id=DQSIkWdsW0yxEjajBLZtrQAAAAAAAAAAAAO__a4Ml6hUMUYyTDJLMTIzUVlINjIyT0dXU0oxMko0WC4u&amp;embed=true" frameborder="0" marginwidth="0" marginheight="0" style="border: none; max-width:100%; max-height:100vh" allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen>
+
 </iframe>
-</div>
+:::

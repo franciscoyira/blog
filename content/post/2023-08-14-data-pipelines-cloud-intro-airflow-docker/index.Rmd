@@ -44,7 +44,7 @@ One thing that I'll have to assume, though, is that you have some basic familiar
 >
 > -   [Part II: Using Amazon Web Services with the Command Line](/post/aws-command-line-data-pipelines-cloud-part-2/)
 >
-> -   *Part III: Building an Airflow Pipeline That Talks to AWS. (Coming soon! [Subscribe to get notified](/subscribe))*
+> -   [Part III: Building an Airflow Pipeline That Talks to AWS.](/post/airflow-pipeline-with-aws-data-cloud-part-3/)
 
 ## What problem does Airflow solve?
 
