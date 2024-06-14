@@ -2,11 +2,16 @@
 title: 'Building an Airflow Pipeline That Talks
   to AWS — Data Pipelines in the Cloud (III)'
 author: Francisco Yirá
-date: '2024-06-12'
+date: '2024-06-14'
 description: "After covering the basics of Apache Airflow and learning how to interact with Amazon Web Services (AWS) through the command line, this third and last part of the Data Pipelines in the Cloud series puts all the pieces together to build a complete Airflow pipeline that communicates with AWS services such as RDS and S3."
 useRelativeCover: true
 cover: "images/airflow3.png"
 slug: airflow-pipeline-with-aws-data-cloud-part-3
+output:
+  blogdown::html_page:
+    toc: true
+    toc_depth: 2
+toc: true
 categories:
   - data-science
   - cloud
@@ -22,6 +27,18 @@ tags:
 ---
 
 
+<div id="TOC">
+<ul>
+<li><a href="#pre-requisites">Pre-requisites 📝</a></li>
+<li><a href="#the-data-pipeline">The Data Pipeline 🏗️</a></li>
+<li><a href="#the-input-data">The Input Data 📥</a></li>
+<li><a href="#getting-things-ready">Getting Things Ready 🛠️</a></li>
+<li><a href="#building-our-pipeline-on-airflow">Building Our Pipeline on Airflow 🪂</a></li>
+<li><a href="#triggering-the-dag-for-testing">Triggering the DAG for Testing 🚀</a></li>
+<li><a href="#wrapping-up">Wrapping Up 🎀</a></li>
+<li><a href="#where-to-learn-more">Where To Learn More 📚</a></li>
+</ul>
+</div>
 
 <p>Welcome back, everyone, to the third part of this series on Data Pipelines in the Cloud! In the <a href="post/data-pipelines-cloud-intro-airflow-docker/">first part</a>, I introduced Apache Airflow, a powerful tool for orchestrating data pipelines. In the <a href="post/aws-command-line-data-pipelines-cloud-part-2/">second part</a>, we learned how to interact with Amazon Web Services (AWS) using the command line. And today, <strong>we will put all the pieces together and build an Airflow pipeline that talks to AWS</strong> 🥳.</p>
 <blockquote>
@@ -33,7 +50,7 @@ tags:
 </ul>
 </blockquote>
 <div id="pre-requisites" class="section level2">
-<h2>Pre-requisites</h2>
+<h2>Pre-requisites 📝</h2>
 <p>Before moving on, keep in mind that what comes next assumes:</p>
 <ul>
 <li><strong>You are familiar with Airflow’s fundamentals</strong>. If you are 100% new to this tool, consider reading <a href="/post/data-pipelines-cloud-intro-airflow-docker/">the guide for beginners provided in the first part of this series</a>.</li>
@@ -44,7 +61,7 @@ tags:
 <p>Without further ado, let’s go through the data pipeline we’ll build today.</p>
 </div>
 <div id="the-data-pipeline" class="section level2">
-<h2>The Data Pipeline</h2>
+<h2>The Data Pipeline 🏗️</h2>
 <p><img src="images/diagram_pipeline.png" alt="Flowchart depicting a data processing workflow with Apache Airflow, AWS S3, and AWS RDS. It starts with a red S3 bucket icon labeled ‘Raw Data’ containing project details, followed by Apache Airflow for data processing. The steps include reading raw CSV from S3, data transformation through pivoting, and upserting transformed data to AWS RDS. The final output is shown as a blue database icon labeled ‘Amazon RDS Database’ with a ‘Final Table’ that has columns for date, work_minutes, and learning_minutes" width="1000" /></p>
 <p>Our goal is to implement an Airflow DAG that:</p>
 <ul>
@@ -54,7 +71,7 @@ tags:
 </ul>
 </div>
 <div id="the-input-data" class="section level2">
-<h2>The Input Data</h2>
+<h2>The Input Data 📥</h2>
 <p><img src="images/sandglass.jpeg" title="Focused work session" alt="A digital painting of an hourglass with galaxies and celestial bodies contained within, set against a backdrop of swirling cosmic clouds and stars. The hourglass, with its wooden frame and detailed carvings, symbolizes the intertwining of time and space. The scene is mystical and awe-inspiring, with dynamic swirls of orange, yellow, blue, and white clouds, and a bright star shining prominently to the right" width="1000" /></p>
 <p>Our source data consists of a sample of <a href="https://en.wikipedia.org/wiki/Pomodoro_Technique">Pomodoro sessions</a>: short periods in which a person performed <strong>focused work</strong> on some project. The data is at the <strong>Session</strong> level of detail, so the columns contain attributes about each session:</p>
 <ul>
@@ -139,14 +156,14 @@ df_pivoted.sample(5, random_state=1989)</code></pre>
 </ul>
 <p>The goal is to end up with a table that contains up-to-date information for each <code>Start Date</code> but no duplicate records.</p></li>
 </ul>
-<div class="float">
-<img src="images/upsert.png" width="900" alt="A flowchart with an oval in the center containing the question ‘Key Exists?’ inside the oval. Two arrows emerge from the oval, labeled ‘Yes’ and ‘No’. The ‘Yes’ arrow points to a rectangle labeled ‘UPDATE’, indicating that if the key exists, it should be updated. The ‘No’ arrow points to another rectangle labeled ‘INSERT’, indicating that if the key does not exist, a new one should be inserted." />
-<div class="figcaption">A flowchart with an oval in the center containing the question ‘Key Exists?’ inside the oval. Two arrows emerge from the oval, labeled ‘Yes’ and ‘No’. The ‘Yes’ arrow points to a rectangle labeled ‘UPDATE’, indicating that if the key exists, it should be updated. The ‘No’ arrow points to another rectangle labeled ‘INSERT’, indicating that if the key does not exist, a new one should be inserted.</div>
+<div class="figure">
+<img src="images/upsert.png" width="900" alt="" />
+<p class="caption">A flowchart with an oval in the center containing the question ‘Key Exists?’ inside the oval. Two arrows emerge from the oval, labeled ‘Yes’ and ‘No’. The ‘Yes’ arrow points to a rectangle labeled ‘UPDATE’, indicating that if the key exists, it should be updated. The ‘No’ arrow points to another rectangle labeled ‘INSERT’, indicating that if the key does not exist, a new one should be inserted.</p>
 </div>
 <p>As you can see, the whole pipeline (except the UPSERT part, which we still need to write) can be expressed as a few lines of Python code. Still, it performs a meaningful transformation on the data (it isn’t just a <code>print('Hello world')</code>, <a href="/post/data-pipelines-cloud-intro-airflow-docker/">like the dummy DAG we implemented in the first part</a>) and outputs a table in a format that may be suitable for dashboards or reports. The main challenge is to perform these transformations in an automated way, under Airflow orchestration, while also interacting with AWS cloud services like S3 and RDS.</p>
 </div>
 <div id="getting-things-ready" class="section level2">
-<h2>Getting Things Ready</h2>
+<h2>Getting Things Ready 🛠️</h2>
 <div id="cloning-the-repo" class="section level3">
 <h3>Cloning The Repo</h3>
 <p>To get started, clone this repo that contains all the code we’ll be working with, and then open it in your favourite IDE: <a href="https://github.com/franciscoyira/aws_airflow_tutorial.git" class="uri">https://github.com/franciscoyira/aws_airflow_tutorial.git</a></p>
@@ -237,9 +254,9 @@ docker compose up airflow-init
 docker compose up -d
 docker ps</code></pre>
 <p>Some commands may take a while, but after they’re finished you should be able to access the Airflow Web UI through <a href="http://localhost:8080/">localhost:8080</a> on your web browser:</p>
-<div class="float">
-<img src="images/airflow_login.png" width="1000" alt="Login interface for Airflow on a web browser. The URL indicates it’s hosted on localhost. The ‘Sign In’ section has fields for entering ‘Username’ and ‘Password’." />
-<div class="figcaption">Login interface for Airflow on a web browser. The URL indicates it’s hosted on localhost. The ‘Sign In’ section has fields for entering ‘Username’ and ‘Password’.</div>
+<div class="figure">
+<img src="images/airflow_login.png" width="1000" alt="" />
+<p class="caption">Login interface for Airflow on a web browser. The URL indicates it’s hosted on localhost. The ‘Sign In’ section has fields for entering ‘Username’ and ‘Password’.</p>
 </div>
 <p>Here you can log in using <code>airflow</code> as username and <code>airflow</code> as a password.</p>
 <p>Lastly, we must add a variable to the Airflow environment indicating the name of our S3 bucket. You can do that directly from the Airflow Web UI by <strong>going to the Admin menu &gt; Variables &gt; ‘+’ button.</strong></p>
@@ -251,7 +268,7 @@ docker ps</code></pre>
 </div>
 </div>
 <div id="building-our-pipeline-on-airflow" class="section level2">
-<h2>Building Our Pipeline on Airflow</h2>
+<h2>Building Our Pipeline on Airflow 🪂</h2>
 <p>This section is all about taking a deep dive into the Airflow code that declares our pipeline. This code lives inside the <code>dags/</code> folder in a file named <code>transform_and_upsert.py</code>.</p>
 <p><img src="images/dag_in_vscode.png" alt="Screenshot of Visual Studio Code with the file &#39;transform_and_upsert.py&#39; open in the editor. The file contains Python code for an Apache Airflow DAG." width="1000" /></p>
 <p>You can also access this code through the Airflow Web UI by clicking on <code>transform_and_upsert</code> from the “DAGs” tab and then selecting the “<em>Code</em>” tab. Airflow automatically monitors the <code>dags/</code> folder and parses its contents as proper DAGs that can be managed and monitored on the Web UI. As a result, the <em>Code</em> tab is extremely useful for checking if Airflow has already parsed any changes you’ve made to your DAG files.</p>
@@ -634,7 +651,7 @@ branch_task &gt;&gt; end_task</code></pre>
 </div>
 </div>
 <div id="triggering-the-dag-for-testing" class="section level2">
-<h2>Triggering the DAG for Testing</h2>
+<h2>Triggering the DAG for Testing 🚀</h2>
 <p>Given that our <code>dag</code> was set up with <code>schedule="@monthly"</code> and <code>catchup=False</code>, it will automatically run for the first time on the first day of the next month. However, since we’re already on the Airflow UI, we can take the chance to manually trigger it to test if everything is working as expected.</p>
 <p>To do this, go to <strong>DAGs &gt; transform_and_upsert</strong> and then click on the <strong>Trigger DAG</strong> button in the upper-right corner of the screen:</p>
 <p><img src="images/trigger_dag.png" alt="Screenshot of the Airflow Web UI, showing the &#39;Trigger DAG&#39; button highlighted in the upper-right corner of the &#39;transform_and_upsert&#39; DAG page." width="1000" /></p>
@@ -655,11 +672,10 @@ branch_task &gt;&gt; end_task</code></pre>
 </div>
 </div>
 <div id="wrapping-up" class="section level2">
-<h2>Wrapping Up</h2>
+<h2>Wrapping Up 🎀</h2>
 <p>And that’s it! We’ve defined a complete data pipeline in Airflow that reads data from an S3 bucket, processes it, and upserts it to a PostgreSQL database. <strong>Congratulations if you made it this far! 🎉</strong></p>
-</div>
-<div id="shutting-down-aws-resources" class="section level2">
-<h2>Shutting Down AWS Resources</h2>
+<div id="shutting-down-aws-resources" class="section level3">
+<h3>Shutting Down AWS Resources</h3>
 <p>Please remember to <a href="/post/aws-command-line-data-pipelines-cloud-part-2/#wrap-up-shutting-down-resources-to-minimize-costs">shut down all the AWS resources</a> used in this tutorial after you’re done to save costs and stay within the Free Tier limits. You can do this by running the following commands on your Terminal:</p>
 <pre class="language-bash"><code>aws rds delete-db-instance --db-instance-identifier airflow-postgres --skip-final-snapshot
 
@@ -667,8 +683,9 @@ aws s3 rb s3://$bucket_name --force</code></pre>
 <p>Wait a couple of minutes for the deletion of the database instance and then proceed to delete the security group:</p>
 <pre class="language-bash"><code>aws ec2 delete-security-group --group-id $GROUP_ID</code></pre>
 </div>
+</div>
 <div id="where-to-learn-more" class="section level2">
-<h2>Where To Learn More</h2>
+<h2>Where To Learn More 📚</h2>
 <p>Please keep in mind that I’m still learning these topics, just like you. This means that the code shown here may have significant room for improvement<a href="#fn8" class="footnote-ref" id="fnref8"><sup>8</sup></a>, and you shouldn’t take it as a “gold standard” or authoritative reference, but as a starting point in your data engineering journey.</p>
 <p>If you want to learn more and continue improving your Airflow skills, I strongly recommend checking out the resources shared by Marc Lamberti (<a href="https://www.youtube.com/@MarcLamberti">YouTube channel</a> and <a href="https://marclamberti.com/">website</a>), who seems to be one of the most knowledgeable individuals in this field.</p>
 <p><img src="images/marc_lamberti.png" alt="“A screenshot of the YouTube channel ‘Data with Marc’, which focuses on helping data engineers enhance their skills. The channel has 24K subscribers and features 69 videos. The channel’s avatar is a silhouette of a person against a purple background. The featured video, titled ‘Airflow DAG: Coding your first DAG for Beginners’, has garnered over 208,400 views. Other popular video thumbnails include topics like running Airflow with Docker and demystifying the External Task Sensor, all aimed at educating viewers on various aspects of Apache Airflow" width="1000" /></p>

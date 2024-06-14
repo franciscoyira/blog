@@ -52,10 +52,10 @@
     {{ end }}
 
     <div class="post-content">
-      {{ if or .Params.Toc $.Site.Params.Toc }}
-        <h2>Table of Contents</h2>
-        <aside class="table-of-contents">{{ .TableOfContents }}</aside>
+      {{ if or .Params.Toc $.Page.Params.Toc }}
+        <aside class="table-of-contents">{{ $.Page.TableOfContents }}</aside>
       {{ end }}
+      <div id="post-content-start"></div>
       {{ .Content }}
     </div>
     {{ if eq .Type $.Site.Params.contentTypeName }}

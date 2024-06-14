@@ -2,11 +2,16 @@
 title: 'Building an Airflow Pipeline That Talks
   to AWS — Data Pipelines in the Cloud (III)'
 author: Francisco Yirá
-date: '2024-06-12'
+date: '2024-06-14'
 description: "After covering the basics of Apache Airflow and learning how to interact with Amazon Web Services (AWS) through the command line, this third and last part of the Data Pipelines in the Cloud series puts all the pieces together to build a complete Airflow pipeline that communicates with AWS services such as RDS and S3."
 useRelativeCover: true
 cover: "images/airflow3.png"
 slug: airflow-pipeline-with-aws-data-cloud-part-3
+output:
+  blogdown::html_page:
+    toc: true
+    toc_depth: 2
+toc: true
 categories:
   - data-science
   - cloud
@@ -40,7 +45,7 @@ Welcome back, everyone, to the third part of this series on Data Pipelines in th
 >
 > -   **Part III: You're here.**
 
-## Pre-requisites
+## Pre-requisites 📝
 
 Before moving on, keep in mind that what comes next assumes:
 
@@ -51,7 +56,7 @@ Before moving on, keep in mind that what comes next assumes:
 
 Without further ado, let's go through the data pipeline we'll build today.
 
-## The Data Pipeline
+## The Data Pipeline 🏗️
 
 ![](images/diagram_pipeline.png){alt="Flowchart depicting a data processing workflow with Apache Airflow, AWS S3, and AWS RDS. It starts with a red S3 bucket icon labeled ‘Raw Data’ containing project details, followed by Apache Airflow for data processing. The steps include reading raw CSV from S3, data transformation through pivoting, and upserting transformed data to AWS RDS. The final output is shown as a blue database icon labeled ‘Amazon RDS Database’ with a ‘Final Table’ that has columns for date, work_minutes, and learning_minutes" width="1000"}
 
@@ -61,7 +66,7 @@ Our goal is to implement an Airflow DAG that:
 -   Performs some meaningful **data transformations** in an automated way (more details below about what these transformations are).
 -   **UPSERTS** this transformed data into a **PostgreSQL database** running on Amazon RDS. *UPSERT* means that data corresponding to *new* records will be appended to the table, whereas data about *existing* records will overwrite or update the previous information. A Primary Key column will be used to determine whether a record is new.
 
-## The Input Data
+## The Input Data 📥
 
 ![](images/sandglass.jpeg "Focused work session"){alt="A digital painting of an hourglass with galaxies and celestial bodies contained within, set against a backdrop of swirling cosmic clouds and stars. The hourglass, with its wooden frame and detailed carvings, symbolizes the intertwining of time and space. The scene is mystical and awe-inspiring, with dynamic swirls of orange, yellow, blue, and white clouds, and a bright star shining prominently to the right" width="1000"}
 
@@ -148,7 +153,7 @@ df_pivoted.sample(5, random_state=1989)
 
 As you can see, the whole pipeline (except the UPSERT part, which we still need to write) can be expressed as a few lines of Python code. Still, it performs a meaningful transformation on the data (it isn't just a `print('Hello world')`, [like the dummy DAG we implemented in the first part](/post/data-pipelines-cloud-intro-airflow-docker/)) and outputs a table in a format that may be suitable for dashboards or reports. The main challenge is to perform these transformations in an automated way, under Airflow orchestration, while also interacting with AWS cloud services like S3 and RDS.
 
-## Getting Things Ready
+## Getting Things Ready 🛠️
 
 ### Cloning The Repo
 
@@ -320,7 +325,7 @@ And there you have it! Our Airflow environment is now operational. Now, let's mo
 blogdown::shortcode("subscribe")
 ```
 
-## Building Our Pipeline on Airflow
+## Building Our Pipeline on Airflow 🪂
 
 This section is all about taking a deep dive into the Airflow code that declares our pipeline. This code lives inside the `dags/` folder in a file named `transform_and_upsert.py`.
 
@@ -855,7 +860,7 @@ You can view a visual representation of this DAG on the Airflow Web UI by going 
 
 ![](images/final_dag.png){width="1000" alt="Screenshot of the Airflow Web UI, showing the 'Graph View' of the 'transform_and_upsert' DAG. The graph displays the tasks 'read_combines_new_files_from_s3', 'branch_task', 'pivoting_df', 'upsert_df_to_rds', and 'end_task', with arrows indicating the flow of execution between them."}
 
-## Triggering the DAG for Testing
+## Triggering the DAG for Testing 🚀
 
 Given that our `dag` was set up with `schedule="@monthly"` and `catchup=False`, it will automatically run for the first time on the first day of the next month. However, since we're already on the Airflow UI, we can take the chance to manually trigger it to test if everything is working as expected.
 
@@ -889,11 +894,11 @@ For example, when read_combines_new_files_from_s3 failed while I was writing thi
 
 In the end, it turned out that the problem was that I was passing the wrong Prefix (inputs/ instead of input_data/), which is something that can't be inferred from the logs themselves, but at least **they pointed me in the right direction** and helped me to narrow down the problem. That's their role.
 
-## Wrapping Up
+## Wrapping Up 🎀
 
 And that's it! We've defined a complete data pipeline in Airflow that reads data from an S3 bucket, processes it, and upserts it to a PostgreSQL database. **Congratulations if you made it this far! 🎉**
 
-## Shutting Down AWS Resources
+### Shutting Down AWS Resources
 
 Please remember to [shut down all the AWS resources](/post/aws-command-line-data-pipelines-cloud-part-2/#wrap-up-shutting-down-resources-to-minimize-costs) used in this tutorial after you're done to save costs and stay within the Free Tier limits. You can do this by running the following commands on your Terminal:
 
@@ -909,7 +914,7 @@ Wait a couple of minutes for the deletion of the database instance and then proc
 aws ec2 delete-security-group --group-id $GROUP_ID
 ```
 
-## Where To Learn More
+## Where To Learn More 📚
 
 Please keep in mind that I'm still learning these topics, just like you. This means that the code shown here may have significant room for improvement[^8], and you shouldn't take it as a "gold standard" or authoritative reference, but as a starting point in your data engineering journey.
 
