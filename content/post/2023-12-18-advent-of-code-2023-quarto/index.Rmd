@@ -33,6 +33,22 @@ Moreover, I'm sharing my solutions through a special, advent-of-code-themed webs
 
 I've already posted there solutions [up to day 10](https://adventofcode.franciscoyira.com/2023).
 
+### Solutions with R
+
+- [Day 1](https://adventofcode.franciscoyira.com/2023/day/1/)
+- [Day 2](https://adventofcode.franciscoyira.com/2023/day/2/)
+- [Day 4](https://adventofcode.franciscoyira.com/2023/day/4/)
+- [Day 5](https://adventofcode.franciscoyira.com/2023/day/5/)
+- [Day 9](https://adventofcode.franciscoyira.com/2023/day/9/)
+- [Day 10](https://adventofcode.franciscoyira.com/2023/day/10/)
+
+### Solutions with Python
+
+- [Day 3](https://adventofcode.franciscoyira.com/2023/day/3/)
+- [Day 6](https://adventofcode.franciscoyira.com/2023/day/6/)
+- [Day 7](https://adventofcode.franciscoyira.com/2023/day/7/)
+- [Day 8](https://adventofcode.franciscoyira.com/2023/day/8/)
+
 ## How to get your own Advent of Code website
 
 Of course, I didn't code the website itself on my own. Instead, I used [this amazing Quarto template created by Ella Kaye](https://github.com/EllaKaye/advent-of-code-website-template).

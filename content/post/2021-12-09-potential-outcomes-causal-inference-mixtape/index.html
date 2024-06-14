@@ -16,7 +16,6 @@ tags:
   - potential-outcomes
 ---
 
-<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
 
 
 <p>This article, the second one of <a href="https://www.franciscoyira.com/tags/causal-inference-the-mixtape/">the series</a> about the book <a href="https://mixtape.scunning.com/">Causal Inference: The Mixtape</a>, is all about the <strong>Potential Outcomes notation</strong> and how it enables us to tackle causality questions and understand key concepts in this field<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
@@ -47,7 +46,7 @@ Y_i = D_iY_i^1+(1-D_i)Y_i^0
 \]</span></p>
 <p>Which can be better understood with this meme:</p>
 <div class="figure">
-<img src="images/meme_potential_outcomes.jpg" width="400" alt="" />
+<img src="images/meme_potential_outcomes.jpg" alt="Meme stolen borrowed from the book Causal Inference for the Brave and True" width="400" />
 <p class="caption"><em>Meme <del>stolen</del> borrowed from the book <a href="https://matheusfacure.github.io/python-causality-handbook/01-Introduction-To-Causality.html">Causal Inference for the Brave and True</a></em></p>
 </div>
 <p>The key idea here is that, in the real world, we only know the actual outcome (<span class="math inline">\(Y_i\)</span>), which is the materialization of one of the potential outcomes (<span class="math inline">\(Y_i^1, Y_i^0\)</span>) based on the value taken by <span class="math inline">\(D_i\)</span>: if <span class="math inline">\(D_i=1\)</span>, then <span class="math inline">\(1-D_i=0\)</span> and the equation collapses to <span class="math inline">\(Y_i=Y_i^1\)</span> (and vice versa when <span class="math inline">\(D_i=0\)</span>).</p>
@@ -64,7 +63,7 @@ As we only see one of the two potential outcomes for the unit <span class="math 
 <p>Despite not being able to know the treatment effects for each unit <span class="math inline">\(i\)</span>, under some circumstances we can estimate average effects for a group of units.</p>
 <p>There are different names for these average effects, depending on which group of units we are referring to. The most relevant ones are:</p>
 <ul>
-<li><u><strong>A</strong></u><strong>verage <u>T</u>reatment <u>E</u>ffect (ATE):</strong> It’s the average of the effects on all the units in our analysis.</li>
+<li><span class="ul"><strong>A</strong></span><strong>verage <span class="ul">T</span>reatment <span class="ul">E</span>ffect (ATE):</strong> It’s the average of the effects on all the units in our analysis.</li>
 </ul>
 <p><span class="math display">\[
 \begin{aligned}
@@ -74,7 +73,7 @@ ATE &amp;= E[\delta_i]\\
 \end{aligned}
 \]</span></p>
 <ul>
-<li><u><strong>A</strong></u><strong>verage <u>T</u>reatment Effect on the <u>T</u>reated (ATT):</strong> Similar to the ATE, but only considering the units that actually received the treatment (<span class="math inline">\(|D_i=1\)</span>)<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</li>
+<li><span class="ul"><strong>A</strong></span><strong>verage <span class="ul">T</span>reatment Effect on the <span class="ul">T</span>reated (ATT):</strong> Similar to the ATE, but only considering the units that actually received the treatment (<span class="math inline">\(|D_i=1\)</span>)<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.</li>
 </ul>
 <p><span class="math display">\[
 \begin{aligned}
@@ -86,6 +85,7 @@ ATT &amp;= E[\delta_i|D_i=1]\\
 We must remember that even though some units did receive the treatment, they still have (conceptually) a potential outcome without treatment (<span class="math inline">\(Y_i^0\)</span>). Besides, since the effects <span class="math inline">\(\delta_i\)</span> can be different between units (and usually they are), more often than not the ATE and ATT will have different values too.</p>
 <p>Something problematic here is that the ATE and ATT are still functions of counterfactual terms, and therefore unobservable and impossible to calculate. But we previously had said that, under some circumstances, we could estimate them. Which are these circumstances?</p>
 <p>To explain it, we must introduce a new expression that <em>can</em> be calculated: the <strong>simple difference in outcomes</strong>.</p>
+{{% linkedin_follow %}}
 </div>
 <div id="simple-difference-in-outcomes-sdo" class="section level2">
 <h2>Simple difference in outcomes (SDO)</h2>
@@ -136,16 +136,17 @@ E[Y^1|D=1] - E[Y^0|D=0]
 <p>As a general rule, whenever the variable <span class="math inline">\(D\)</span> is being freely chosen by human beings, there will be dependence between <span class="math inline">\(D\)</span> and the potential outcomes 😵.</p>
 <p>Although we are not <a href="https://en.wikipedia.org/wiki/Homo_economicus"><em>homo economicus</em></a> who make their decisions with perfect information (we don’t know the exact value of the potential outcomes), we do collect information about the available options and their expected outcomes, and we make decisions that we believe will benefit us based on that limited information. This is enough so that such decisions (that is, the <span class="math inline">\(D\)</span> values) are not independent of the potential outcomes.</p>
 <p>In the words of Scott Cunningham: “<em>Rational choice is always pushing against the independence assumption</em>”.</p>
+{{% subscribe %}}
 <p>One of the exceptions to this is <strong>randomization</strong>, precisely because there is no free choice by agents on it. Since we assign values of <span class="math inline">\(D\)</span> randomly to each unit, we impose independence between those values and the potential outcomes. Thus, <strong>the SDO in randomized trials is usually enough to estimate unbiased causal effects</strong><a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>.</p>
 <p><em>Your feedback is welcome! You can send me comments about this article to my <a href="mailto:francisco.yira@outlook.com">email</a>.</em></p>
 </div>
 <div class="footnotes">
 <hr />
 <ol>
-<li id="fn1"><p>The potential outcomes notation was first introduced by <a href="https://www.jstor.org/stable/2245382">Splawa-Neymanen in 1923</a>, and then was popularized <a href="(https://www.fsb.muohio.edu/lij14/420_paper_Rubin74.pdf)">by Rubin in 1974</a>.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
-<li id="fn2"><p>There are cases where the treatment is not binary, but they will be left out of this article in order to keep the explanations simple.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
-<li id="fn3"><p>There is also the ATU (Average Treatment Effect on the Untreated), which is analogous to the ATT but considering only the units which did <em>not</em> receive the treatment. It’s less relevant than the ATE and the ATT, and that’s why I only mention it in a footnote.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
-<li id="fn4"><p>You can see a demonstration of this in <a href="https://mixtape.scunning.com/potential-outcomes.html#independence-assumption">this section</a> of the book.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
-<li id="fn5"><p>I’m saying “usually enough” and not “enough” because despite being randomized, trials still can have biased results due to other problems, such as <a href="https://en.wikipedia.org/wiki/Spillover_(experiment)">spillovers</a>. This can be a topic for another blog post in the future.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn1"><p>The potential outcomes notation was first introduced by <a href="https://www.jstor.org/stable/2245382">Splawa-Neymanen in 1923</a>, and then was popularized <a href="(https://www.fsb.muohio.edu/lij14/420_paper_Rubin74.pdf)">by Rubin in 1974</a>.<a href="#fnref1" class="footnote-back">↩</a></p></li>
+<li id="fn2"><p>There are cases where the treatment is not binary, but they will be left out of this article in order to keep the explanations simple.<a href="#fnref2" class="footnote-back">↩</a></p></li>
+<li id="fn3"><p>There is also the ATU (Average Treatment Effect on the Untreated), which is analogous to the ATT but considering only the units which did <em>not</em> receive the treatment. It’s less relevant than the ATE and the ATT, and that’s why I only mention it in a footnote.<a href="#fnref3" class="footnote-back">↩</a></p></li>
+<li id="fn4"><p>You can see a demonstration of this in <a href="https://mixtape.scunning.com/potential-outcomes.html#independence-assumption">this section</a> of the book.<a href="#fnref4" class="footnote-back">↩</a></p></li>
+<li id="fn5"><p>I’m saying “usually enough” and not “enough” because despite being randomized, trials still can have biased results due to other problems, such as <a href="https://en.wikipedia.org/wiki/Spillover_(experiment)">spillovers</a>. This can be a topic for another blog post in the future.<a href="#fnref5" class="footnote-back">↩</a></p></li>
 </ol>
 </div>
