@@ -11,6 +11,11 @@ categories:
   - causal-inference
   - data-science
   - R
+output:
+  blogdown::html_page:
+    toc: true
+    toc_depth: 2
+toc: true
 tags:
   - causal-inference-the-mixtape
   - books
@@ -74,7 +79,7 @@ $$
 P(X|D=1, p(X)) = P(X|D=0, p(X))
 $$
 
-## Common support: we still need it, but it's easier to achieve now
+## Common Support: We Still Need It, but It’s Easier to Achieve Now
 
 The propensity score can free us from the curse of dimensionality but not from the need for *common support*. However, since there are now fewer dimensions, it's easier to achieve this condition. Instead of needing treatment and control units on *each combination of values of X* (the original confounders), **we just need to have treatment and control units across the propensity score range**.
 
@@ -96,7 +101,7 @@ A slightly more sophisticated way of doing this is to **create bins** based on t
 
 Something interesting about these propensity score checks is that they can be useful even if we're not going to use a Matching-based estimator. If you're doing regression, you can use them as a diagnosis tool to see how extreme is the covariate imbalance your regression is dealing with, and [how much extrapolation it will have to do](https://www.franciscoyira.com/post/matching-in-r-2-differences-regression/#:~:text=Common%20support%20assumption%20versus%20Extrapolation).
 
-## Propensity Scores estimation
+## Propensity Scores Estimation
 
 Many of the properties mentioned above (e.g. the balancing property) refer to a theoretical *true propensity score*. In real life we don't have access to those but we have to use *estimated propensity scores* instead.
 
@@ -274,7 +279,7 @@ As we know, the treated units are left untouched for the ATT estimation. However
 
 > The 1/(1−p), which we did before, sort of brings the representation of the untreated group back to neutral, where everyone is counted equally. But we don't want equal. We want the untreated group to be *like the treated group*, which means weighting them *even more* based on how like the treated group they are. And thus p/(1−p), which is more heavily responsive to p than 1/(1−p) is.
 
-### Visualising the IPTW estimator in action with `gganimate`
+### Visualizing the IPTW estimator in action with `gganimate`
 
 To make all of this even clearer, let's create a `gganimate` plot that shows how the data is being weighted under the ATT estimator. For this, we'll attach the propensity scores to the original `lalonde` dataset and then create two versions of the data:
 
@@ -434,7 +439,7 @@ As a side note, there are ways to use the propensity scores in a more regression
 
 In fact, the IPTW estimators we've seen until now are equivalent to a simple regression model `y ~ d` weighted by the corresponding inverse probability weights. It's easy to conceive extensions to that basic model to account for more complex relationships between the treatment and the outcome.
 
-## Variance of the estimators: bootstrap or analytical formulas?
+## Variance of the Estimators: Bootstrap or Analytical Formulas?
 
 As we come closer to the end of this series, an element the more stats savvy readers may be missing is **standard errors estimation**. After all, 99.99% of the time, we'll get a difference greater than zero between treated and untreated but, without standard errors, we can't tell if that's due to a true causal effect or just because of chance (sample variance).
 
@@ -603,7 +608,7 @@ b_dre <- boot(lalonde, double_robust_estimator, R = 100)
 b_dre
 ```
 
-## Final remarks: the most important question
+## Final Remarks: The Most Important Question
 
 We've seen a lot of methods and estimators on this three-parter. Sometimes the differences between them are pretty clear, but a lot of times they are much more nuanced. However, if you had to bring only one idea home, I think it should be the **Conditional Independence** concept we reviewed [in the first part](https://www.franciscoyira.com/post/matching-in-r-part-1) (also known as "selection on observables") and how *none* of these methods can help you if your data doesn't meet that assumption.
 

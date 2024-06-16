@@ -11,6 +11,11 @@ categories:
   - causal-inference
   - data-science
   - R
+output:
+  blogdown::html_page:
+    toc: true
+    toc_depth: 2
+toc: true
 tags:
   - causal-inference-the-mixtape
   - books
@@ -24,6 +29,18 @@ tags:
 ---
 
 
+<div id="TOC">
+<ul>
+<li><a href="#propensity-scores-101">Propensity Scores 101</a></li>
+<li><a href="#common-support-we-still-need-it-but-its-easier-to-achieve-now">Common Support: We Still Need It, but It’s Easier to Achieve Now</a></li>
+<li><a href="#propensity-scores-estimation">Propensity Scores Estimation</a></li>
+<li><a href="#inverse-probability-of-treatment-weighting-iptw">Inverse Probability of Treatment Weighting (IPTW)</a></li>
+<li><a href="#variance-of-the-estimators-bootstrap-or-analytical-formulas">Variance of the Estimators: Bootstrap or Analytical Formulas?</a></li>
+<li><a href="#double-robust-estimator">Double Robust Estimator</a></li>
+<li><a href="#final-remarks-the-most-important-question">Final Remarks: The Most Important Question</a></li>
+<li><a href="#references">References 📚</a></li>
+</ul>
+</div>
 
 <p>Welcome to the final post of this three-part article about <strong>Matching estimators in R</strong>. First, let’s quickly recap what we’ve seen until now. In <a href="https://www.franciscoyira.com/post/matching-in-r-part-1">the first part</a> we took a look at <em>when</em> we can use these kind of estimators (it’s when the <em>conditional independence assumption</em> holds) and then we dived into some of them, like the <strong>Subclassification estimator</strong>, the <strong>Exact Matching Estimator</strong>, and the <strong>Approximate Matching Estimator</strong>.</p>
 <blockquote>
@@ -48,7 +65,7 @@ tags:
 <p>Something cool about propensity scores is that they help us <strong>avoid the curse of dimensionality</strong>. Instead of dealing with the whole feature-space defined by the covariates X, we “collapse” it into a single variable that contains all the relevant information that explains the treatment assignment. In that sense, propensity scores constitute some sort of <strong>dimensionality reduction</strong>.</p>
 <p>The DAG of a propensity score would be something like this:</p>
 <div class="figure">
-<img src="images/dag_propensity_score.png" alt="DAG of the propensity score. Source: Causal Inference - The Mixtape." width="500" />
+<img src="images/dag_propensity_score.png" width="500" alt="" />
 <p class="caption"><em>DAG of the propensity score. Source: <a href="https://mixtape.scunning.com/matching-and-subclassification.html#propensity-score-methods">Causal Inference - The Mixtape</a>.</em></p>
 </div>
 <p>As in every <a href="https://franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">DAG</a>, assumptions are expressed by the <em>existence</em> of arrows and also by the <em>absence</em> of them. In particular, note that <strong>there is no arrow going directly from X to D</strong>. This means we’re assuming that all the effect of confounders X on D is “mediated” by the propensity score. Put another way, we’re saying X can’t provide any extra information about D after conditioning on the propensity score.</p>
@@ -62,7 +79,7 @@ P(X|D=1, p(X)) = P(X|D=0, p(X))
 \]</span></p>
 </div>
 <div id="common-support-we-still-need-it-but-its-easier-to-achieve-now" class="section level2">
-<h2>Common support: we still need it, but it’s easier to achieve now</h2>
+<h2>Common Support: We Still Need It, but It’s Easier to Achieve Now</h2>
 <p>The propensity score can free us from the curse of dimensionality but not from the need for <em>common support</em>. However, since there are now fewer dimensions, it’s easier to achieve this condition. Instead of needing treatment and control units on <em>each combination of values of X</em> (the original confounders), <strong>we just need to have treatment and control units across the propensity score range</strong>.</p>
 <p>This implies that <strong>the observed propensity scores should be strictly between 0 and 1</strong>. It also implies that:</p>
 <ul>
@@ -71,7 +88,7 @@ P(X|D=1, p(X)) = P(X|D=0, p(X))
 </ul>
 <p>There are several ways of checking this. The most basic (but still useful) is to look at the histogram or density plot of <span class="math inline">\(p(X)\)</span> by treatment status. Here is an example of a density plot where common support doesn’t hold (not even for the ATT).</p>
 <div class="figure">
-<img src="images/density_plot_no_common_support.jpg" alt="Source: https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext" width="550" />
+<img src="images/density_plot_no_common_support.jpg" width="550" alt="" />
 <p class="caption"><em>Source: <a href="https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext">https://www.jclinepi.com/article/S0895-4356(05)00224-6/fulltext</a></em></p>
 </div>
 <p>Note that we don’t need both distributions to look the same (if that was the case, there would be no need for adjustment), but, in order to estimate the ATT, we do need a positive density or weight of the untreated distribution across all the treated group distribution. In the figure above, there is a big chunk in the upper section of the treated group distribution where we can’t find any untreated units, and that’s why we don’t have common support.</p>
@@ -82,7 +99,7 @@ P(X|D=1, p(X)) = P(X|D=0, p(X))
 <p>Something interesting about these propensity score checks is that they can be useful even if we’re not going to use a Matching-based estimator. If you’re doing regression, you can use them as a diagnosis tool to see how extreme is the covariate imbalance your regression is dealing with, and <a href="https://www.franciscoyira.com/post/matching-in-r-2-differences-regression/#:~:text=Common%20support%20assumption%20versus%20Extrapolation">how much extrapolation it will have to do</a>.</p>
 </div>
 <div id="propensity-scores-estimation" class="section level2">
-<h2>Propensity Scores estimation</h2>
+<h2>Propensity Scores Estimation</h2>
 <p>Many of the properties mentioned above (e.g. the balancing property) refer to a theoretical <em>true propensity score</em>. In real life we don’t have access to those but we have to use <em>estimated propensity scores</em> instead.</p>
 <p>After estimation, we can check that the <strong>balancing property</strong> holds by doing a <em>stratification test</em> (<a href="https://users.nber.org/~rdehejia/papers/matching.pdf">Dehejia and Wahba, 2002</a>). This is, looking at bins of our data with similar propensity scores, checking if there are significant differences in their covariates, and thus determining if our propensity scores are “good enough”.</p>
 <p>For the estimation itself, we have to fit a model using <code>d</code> (the treatment assignment) as the response variable and X (the covariates/confounders) as the predictors. A common model choice for this step is <strong>logistic regression</strong>, but we could also use nonparametric machine learning methods such as <strong>gradient boosting</strong> or <strong>random forest</strong><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.</p>
@@ -200,8 +217,8 @@ data(lalonde)</code></pre>
 <blockquote>
 <p>The 1/(1−p), which we did before, sort of brings the representation of the untreated group back to neutral, where everyone is counted equally. But we don’t want equal. We want the untreated group to be <em>like the treated group</em>, which means weighting them <em>even more</em> based on how like the treated group they are. And thus p/(1−p), which is more heavily responsive to p than 1/(1−p) is.</p>
 </blockquote>
-<div id="visualising-the-iptw-estimator-in-action-with-gganimate" class="section level3">
-<h3>Visualising the IPTW estimator in action with <code>gganimate</code></h3>
+<div id="visualizing-the-iptw-estimator-in-action-with-gganimate" class="section level3">
+<h3>Visualizing the IPTW estimator in action with <code>gganimate</code></h3>
 <p>To make all of this even clearer, let’s create a <code>gganimate</code> plot that shows how the data is being weighted under the ATT estimator. For this, we’ll attach the propensity scores to the original <code>lalonde</code> dataset and then create two versions of the data:</p>
 <ul>
 <li><p>A weighted dataset using the ATT inverse weighting formula (i.e. weighting the control units to look more like the treated ones but leaving the treated units untouched).</p></li>
@@ -344,7 +361,7 @@ anim_save(&quot;iptw.gif&quot;, animation_obj)</code></pre>
 </div>
 </div>
 <div id="variance-of-the-estimators-bootstrap-or-analytical-formulas" class="section level2">
-<h2>Variance of the estimators: bootstrap or analytical formulas?</h2>
+<h2>Variance of the Estimators: Bootstrap or Analytical Formulas?</h2>
 <p>As we come closer to the end of this series, an element the more stats savvy readers may be missing is <strong>standard errors estimation</strong>. After all, 99.99% of the time, we’ll get a difference greater than zero between treated and untreated but, without standard errors, we can’t tell if that’s due to a true causal effect or just because of chance (sample variance).</p>
 <p>So, how do we compute standard errors for Matching and Inverse Probability Weighting?</p>
 <p>An option that may look handy for this is <strong>bootstrapping</strong>. This procedure consists of obtaining a lot of samples <em>with replacement</em> from the original dataset and then computing the estimate on each of this samples. The result is a sample distribution of estimates, which can be used to estimate the standard deviation of the estimate itself.</p>
@@ -502,9 +519,9 @@ b_dre</code></pre>
 ## WARNING: All values of t1* are NA</code></pre>
 </div>
 <div id="final-remarks-the-most-important-question" class="section level2">
-<h2>Final remarks: the most important question</h2>
+<h2>Final Remarks: The Most Important Question</h2>
 <p>We’ve seen a lot of methods and estimators on this three-parter. Sometimes the differences between them are pretty clear, but a lot of times they are much more nuanced. However, if you had to bring only one idea home, I think it should be the <strong>Conditional Independence</strong> concept we reviewed <a href="https://www.franciscoyira.com/post/matching-in-r-part-1">in the first part</a> (also known as “selection on observables”) and how <em>none</em> of these methods can help you if your data doesn’t meet that assumption.</p>
-<p>So, <span class="underline"><strong><em>are the confounders directly available in your data as variables you can condition on?</em></strong></span> THIS is the first-order question you should ask yourself before doing anything else. Only if you have reasons to answer “yes!” to this question you can start weighing if you should perform Regression, Subclassification, Exact Matching, Approximate Matching, Inverse Probability Weighting, or use the Double Robust Estimator.</p>
+<p>So, <u><strong><em>are the confounders directly available in your data as variables you can condition on?</em></strong></u> THIS is the first-order question you should ask yourself before doing anything else. Only if you have reasons to answer “yes!” to this question you can start weighing if you should perform Regression, Subclassification, Exact Matching, Approximate Matching, Inverse Probability Weighting, or use the Double Robust Estimator.</p>
 <p>To check if the “selection on observables” is a credible assumption, you should always summarise your current knowledge about the data generating process in a DAG and then see if this DAG shows a way to close all the backdoors by conditioning on observables<a href="#fn9" class="footnote-ref" id="fnref9"><sup>9</sup></a>. The package <code>ggdag</code> and its function <code>ggdag_adjustment_set</code> come in handy for this.</p>
 <p><img src="images/use_the_dag.png" width="550" /></p>
 <p>If, after doing this, you find that some of your confounders are <em>un</em>observable, then, as I said before, none of the estimators we’ve just reviewed are appropriate for estimating the causal effect and you’ll have to look for other causal inference methodologies. The good news is that starting with the next blog post, I’ll start reviewing techniques that deal with unobservable confounders, such as Instrumental Variables, Differences in Differences, and Regression discontinuity design, so stay tuned!</p>
@@ -518,22 +535,22 @@ b_dre</code></pre>
 </ul>
 <p><em>Your feedback is welcome! You can send me comments about this article to my <a href="mailto:francisco.yira@outlook.com">email</a>.</em></p>
 </div>
-<div class="footnotes">
+<div class="footnotes footnotes-end-of-document">
 <hr />
 <ol>
 <li id="fn1"><p>A question you may have here (<em>especially</em> after <a href="https://www.franciscoyira.com/post/matching-in-r-2-differences-regression">Part II</a>) is what’s the point of estimating propensity scores using a parametric method like logistic regression when we could just add the covariates as controls to a one-step multiple linear regression instead. After all, one of the benefits of matching-based methods was allowing for non-linear relationships in a nonparametric fashion but we lose that if we use Regression for the propensity score estimation.</p>
 <p>I looked for an answer to this and found two key advantages of this approach versus the good ol’ one-step regression (<a href="https://stats.stackexchange.com/questions/8604/how-are-propensity-scores-different-from-adding-covariates-in-a-regression-and">source A</a>, <a href="https://stats.stackexchange.com/a/3443/249455">source B</a>).</p>
 <p>The first one is that you get <strong>common support checks in the second stage</strong>. As we saw before, regression extrapolates when there isn’t common support and, what’s worse, it does it <em>quietly</em>. By estimating propensity scores (even with a parametric logistic regression) we gain the chance to look at the histograms/density plots of the scores and use them as a diagnosis tool for how severe is the covariate imbalance. In fact, as it was said before, we have the option of using propensity scores JUST as a diagnosis tool and then dropping them and going ahead with multiple linear regression.</p>
-<p>Another benefit is that, due to dimensionality reduction, we <strong>save degrees of freedom in the second stage</strong> (when the scores are used) by using just a single number (the score) instead of several covariates.<a href="#fnref1" class="footnote-back">↩</a></p></li>
-<li id="fn2"><p>We’re not trying to win a Kaggle competition, but to approximate <span class="math inline">\(p(X)\)</span>, which, as it notation says, depends on X and nothing else.<a href="#fnref2" class="footnote-back">↩</a></p></li>
-<li id="fn3"><p>Lalonde used this data to perform a benchmark between several causal inference techniques from that time and the randomised trial (the “gold standard”). Sadly, most methods did just terrible in the paper, but that doesn’t mean they’re useless on their own: it could just be that the assumptions on which they’re based didn’t hold on this data. That’s why, in all the posts about Matching, there has been such a strong emphasis on Conditional Independence, which is the key assumption required for Matching to return a credible estimate.<a href="#fnref3" class="footnote-back">↩</a></p></li>
-<li id="fn4"><p>Similarly, we could estimate the treatment effect on the <em>untreated</em> (ATU) by weighting only the treated group to make it similar to the unweighted control group.<a href="#fnref4" class="footnote-back">↩</a></p></li>
+<p>Another benefit is that, due to dimensionality reduction, we <strong>save degrees of freedom in the second stage</strong> (when the scores are used) by using just a single number (the score) instead of several covariates.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>We’re not trying to win a Kaggle competition, but to approximate <span class="math inline">\(p(X)\)</span>, which, as it notation says, depends on X and nothing else.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>Lalonde used this data to perform a benchmark between several causal inference techniques from that time and the randomised trial (the “gold standard”). Sadly, most methods did just terrible in the paper, but that doesn’t mean they’re useless on their own: it could just be that the assumptions on which they’re based didn’t hold on this data. That’s why, in all the posts about Matching, there has been such a strong emphasis on Conditional Independence, which is the key assumption required for Matching to return a credible estimate.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>Similarly, we could estimate the treatment effect on the <em>untreated</em> (ATU) by weighting only the treated group to make it similar to the unweighted control group.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
 <li id="fn5"><p>An alternative version of the <code>mutate(iptw = ...</code> line that you may see elsewhere is:</p>
 <pre class="r"><code> iptw = outcome * (treatment - prop_score) / (prop_score * (1 - prop_score))</code></pre>
-<p>This is actually the same that the <code>ifelse</code> logic shown before. When <code>treatment==1</code>, it collapses to <code>outcome/prop_score</code>, and when <code>treatment==0</code>, it simplifies to <code>-outcome/(1-prop_score)</code>. IMHO the <code>ifelse</code> version is clearer/more explicit, but just know that if you see this other expression in textbooks, it’s the same thing.<a href="#fnref5" class="footnote-back">↩</a></p></li>
-<li id="fn6"><p>There is an alternative formulation of this technique which consist in capping out the weights at some value (e.g. 20). If a unit ends up with a weight higher than that, we just change its weight to the maximum value. This doesn’t drop observations but introduces bias in the estimate.<a href="#fnref6" class="footnote-back">↩</a></p></li>
-<li id="fn7"><p>They key thing to remember is that you have to bootstrap <em>all the steps</em>, not just the last part.<a href="#fnref7" class="footnote-back">↩</a></p></li>
-<li id="fn8"><p>For a more detailed explanation of this, see <em>“On The Failure Of The Bootstrap for Matching Estimators”</em> by <a href="https://economics.mit.edu/files/11862">Abadie and Imbens (2008)</a>.<a href="#fnref8" class="footnote-back">↩</a></p></li>
-<li id="fn9"><p>If you don’t understand what this last sentence mean, check the <a href="https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">Introduction to DAGs</a> blog post.<a href="#fnref9" class="footnote-back">↩</a></p></li>
+<p>This is actually the same that the <code>ifelse</code> logic shown before. When <code>treatment==1</code>, it collapses to <code>outcome/prop_score</code>, and when <code>treatment==0</code>, it simplifies to <code>-outcome/(1-prop_score)</code>. IMHO the <code>ifelse</code> version is clearer/more explicit, but just know that if you see this other expression in textbooks, it’s the same thing.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn6"><p>There is an alternative formulation of this technique which consist in capping out the weights at some value (e.g. 20). If a unit ends up with a weight higher than that, we just change its weight to the maximum value. This doesn’t drop observations but introduces bias in the estimate.<a href="#fnref6" class="footnote-back">↩︎</a></p></li>
+<li id="fn7"><p>They key thing to remember is that you have to bootstrap <em>all the steps</em>, not just the last part.<a href="#fnref7" class="footnote-back">↩︎</a></p></li>
+<li id="fn8"><p>For a more detailed explanation of this, see <em>“On The Failure Of The Bootstrap for Matching Estimators”</em> by <a href="https://economics.mit.edu/files/11862">Abadie and Imbens (2008)</a>.<a href="#fnref8" class="footnote-back">↩︎</a></p></li>
+<li id="fn9"><p>If you don’t understand what this last sentence mean, check the <a href="https://www.franciscoyira.com/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">Introduction to DAGs</a> blog post.<a href="#fnref9" class="footnote-back">↩︎</a></p></li>
 </ol>
 </div>
