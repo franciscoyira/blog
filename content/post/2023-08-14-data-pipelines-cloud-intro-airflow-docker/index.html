@@ -7,6 +7,11 @@ useRelativeCover: true
 cover: "images/cover.jpeg"
 coverCaption: "My attempt of using Stable Diffussion to depict something cloud-computery."
 description: Learn the essentials of Apache Airflow for creating scalable and automated data pipelines in the cloud with this comprehensive, step-by-step beginner’s guide. Discover what problem Airflow solves and under what circumstances is better to use it and run your first Airflow DAG on Docker with the Linux subsystem for Windows.
+output:
+  blogdown::html_page:
+    toc: true
+    toc_depth: 2
+toc: true
 categories:
   - data-science
   - tutorial
@@ -19,6 +24,17 @@ tags:
 ---
 
 
+<div id="TOC">
+<ul>
+<li><a href="#what-problem-does-airflow-solve">What problem does Airflow solve?</a></li>
+<li><a href="#airflow-the-orchestrator-of-data-pipelines">Airflow, the Orchestrator of Data Pipelines</a></li>
+<li><a href="#how-to-declare-our-pipelines-in-airflow-introducing-dag.py">How to declare our pipelines in Airflow: introducing <em>dag.py</em></a></li>
+<li><a href="#how-to-install-airflow-and-run-the-dag">How to install Airflow and run the DAG</a></li>
+<li><a href="#installing-airflow-on-the-windows-subsystem-for-linux">Installing Airflow on the Windows Subsystem for Linux</a></li>
+<li><a href="#deploying-our-dag">Deploying our DAG</a></li>
+<li><a href="#wrap-up-we-did-it">Wrap Up: We did it!</a></li>
+</ul>
+</div>
 
 <p>After a long hiatus (sorry about that 😳), I’m excited to post again on this blog and share with you what I’ve been learning recently: how to use Apache Airflow and Docker to build scalable data pipelines that interact with AWS cloud services, such as S3 (object storage) and RDS (relational databases).</p>
 <p>If you’re new to Airflow and curious about what it’s good for (maybe you’ve heard some data engineers talking about it or have seen it on data science job postings?), then this will be a great place to start, because the post won’t assume any previous knowledge about it.</p>
@@ -51,31 +67,31 @@ tags:
 <li><p>Your pipelines are becoming more critical in your organisation so you’re starting to develop a dashboard to check their status and receive alerts when something goes wrong.</p></li>
 </ul>
 <p>All of these involve using some features (logging, scalability, dependencies, monitoring, etc) that you <em>technically</em> can code on your own, but why waste on that time if someone else already has done this for you? <strong>This is where Airflow comes in handy</strong>.</p>
-<div id="airflow-the-orchestrator-of-data-pipelines" class="section level3">
-<h3>Airflow, the orchestrator of data pipelines</h3>
+</div>
+<div id="airflow-the-orchestrator-of-data-pipelines" class="section level2">
+<h2>Airflow, the Orchestrator of Data Pipelines</h2>
 <p><img src="images/airflow_orchestra.jpg" /></p>
 <p>Apache Airflow can be defined as an <strong>orchestrator for complex data flows</strong>. Just like a music conductor coordinates the different instruments and sections of an orchestra to produce harmonious sound, Airflow coordinates your pipelines to make sure they complete the tasks you want them to do, even when they depend on each other in very complex ways.</p>
 <p>The analogy falls short, however, in depicting the full range of Airflow benefits: it’s not only the coordination but also the <strong>monitoring</strong>, <strong>logging</strong> and <strong>scaling</strong>.</p>
 <p>For example, Airflow provides an extremely thorough web UI that allows you to <strong>monitor</strong> the status and history of your pipelines, sparing you the need to develop your own dashboard.</p>
 <div class="figure">
-<img src="images/airflow_ui.png" alt="Airflow UI: Tree View of a single pipeline that allows you to see the state and history of each of the tasks in a pipeline and even how they relate to each other!" />
+<img src="images/airflow_ui.png" alt="" />
 <p class="caption"><em>Airflow UI: Tree View of a single pipeline that allows you to see the state and history of each of the tasks in a pipeline and even how they relate to each other!</em></p>
 </div>
 <p>The same UI gives you access to <strong>detailed logs</strong>, which can be used to to debug your pipeline’s code when a task is failing. You can also receive <strong>mail</strong> <strong>alerts</strong> when a task fails or exceeds a certain duration, and configure Airflow to automatically <strong>re-try tasks</strong> that fail under certain conditions. And when fixing the error requires manually modifying your code, you can <strong>re-run only the failing tasks</strong> and their downstream dependencies, while keeping the upstream tasks untouched, thus saving time and processing power.</p>
 <div class="figure">
-<img src="images/logs_airflow.png" alt="Accessing tasks’ logs on Airflow’s UI. Again, this is something you would have to implement by yourself if you used Cron Jobs, but which you get for free with Airflow." width="850" />
+<img src="images/logs_airflow.png" width="850" alt="" />
 <p class="caption"><em>Accessing tasks’ logs on Airflow’s UI. Again, this is something you would have to implement by yourself if you used Cron Jobs, but which you get for free with Airflow.</em></p>
 </div>
 <p>Airflow also helps you <strong>better manage your computing resources</strong> by setting up a queue of tasks that get assigned to the available computers (called nodes or workers), and by letting you <strong>scale up or down</strong> the pool of nodes dedicated to your tasks. This allows you to run your pipelines faster or to lower your cloud computing bill, depending on your needs</p>
 {{% linkedin_follow %}}
 <p>Finally, with Airflow you also get <strong>extensibility</strong>, which makes it easy to re-use code across pipelines and teams. For example, a data engineer on your team can create a parametrised <em>Operator</em> (more on them later!) that performs a frequent task on your company’s data warehouse. Then you can just reuse that operator instead of having to code the task on your own. Even better, you can find ready-to-use extensions on the <a href="https://airflow.apache.org/plugins.html">Airflow plugin repository</a> so most of the time nobody in your team will have to write anything from scratch.</p>
-</div>
 <div id="do-you-really-need-airflow" class="section level3">
 <h3>Do you <em>really</em> need Airflow?</h3>
 <p>All of this sounds pretty neat, right? You may even be wondering why anyone would not want to use Airflow for their data pipelines. Here the music director analogy becomes appropriate again: <strong>you wouldn’t hire a music conductor to direct a solo performance or a small band</strong>. If your pipeline involves few steps and has no complex dependency logic, then you’ll spend more time and resources setting up Airflow than you’ll gain from using it, and you’ll be better off with a simpler tool, like a Cron Job.</p>
 <p>One way to think about Airflow is as a <strong>lesser evil</strong>: you pay up-front for a lot of complexity <del>and annoyance</del> in order to get a more scalable and robust system on which each additional pipeline or component adds less marginal complexity.</p>
 <div class="figure">
-<img src="images/airflow_complexity.png" alt="This graph is intentionally drawn by hand so you don’t take it too seriously." />
+<img src="images/airflow_complexity.png" alt="" />
 <p class="caption"><em>This graph is intentionally drawn by hand so you don’t take it too seriously.</em></p>
 </div>
 </div>
@@ -145,7 +161,7 @@ from datetime import datetime, timedelta</code></pre>
 <li><p><code>start_date</code> indicates the moment when the DAG becomes active (i.e. when the execution schedule begins). If <code>start_date</code> is in the future, the DAG will wait until that moment to run for the first time. If it’s in the past, then what happens depends on the <code>catchup</code> parameter, since you may have some <em>missed executions.</em> For example, with a <em>daily</em> execution schedule and a <code>start_date</code> set to 7 days ago, you would have <em>7 missed executions</em>. If <code>catchup=True</code>, Airflow will try to run those missing executions (a process known as <em>backfilling)</em>. If it’s <code>catchup=False</code>, Airflow will skip those past executions and only try to run the next scheduled execution.</p></li>
 </ul>
 <div class="figure">
-<img src="images/airflow_catchup.png" alt="Diagram illustrating how catchup works. In this example, start_date is set to the beginning of 2019 but the current date is in the middle of 2022. Since the execution schedule is yearly, we have 3 missed executions, which Airflow will try to run if catchup=True." />
+<img src="images/airflow_catchup.png" alt="" />
 <p class="caption"><em>Diagram illustrating how catchup works. In this example, start_date is set to the beginning of 2019 but the current date is in the middle of 2022. Since the execution schedule is yearly, we have 3 missed executions, which Airflow will try to run if catchup=True.</em></p>
 </div>
 <ul>
@@ -195,13 +211,14 @@ from datetime import datetime, timedelta</code></pre>
 </ul>
 <p>Also, proficiency with <strong>Docker</strong> is another valuable skill if we’re planning to immerse ourselves in the realms of data engineering and cloud computing.</p>
 <div class="figure">
-<img src="images/realms_data_emgineering.jpeg" alt="The realms of data engineering and cloud computing." width="650" />
+<img src="images/realms_data_emgineering.jpeg" width="650" alt="" />
 <p class="caption"><em>The realms of data engineering and cloud computing.</em></p>
 </div>
 <p>While we could technically run Airflow directly on WSL/Linux without Docker, by leveraging Docker features, such as Docker Compose files (which are like cooking recipes for software environments), we can ensure the reproducibility of our environment and avoid the hassle of setting up each Airflow component manually. <strong>By defining the entire process using these ‘recipes,’ we get a consistent set of instructions that reduces the chance of errors and ensures we’ll end up with the same Airflow environment wherever we execute those instructions</strong><a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a>.</p>
 <p>So, off we go!</p>
-<div id="installing-airflow-on-the-windows-subsystem-for-linux" class="section level3">
-<h3>Installing Airflow on the Windows Subsystem for Linux</h3>
+</div>
+<div id="installing-airflow-on-the-windows-subsystem-for-linux" class="section level2">
+<h2>Installing Airflow on the Windows Subsystem for Linux</h2>
 <p><img src="images/penguin_pinwheel_window.jpeg" width="650" /></p>
 <p>Before we install Airflow this way, we need to make sure that we have the following prerequisites:</p>
 <ul>
@@ -210,7 +227,7 @@ from datetime import datetime, timedelta</code></pre>
 <li><p><strong>Ubuntu 20.04 LTS installed on WSL 2.0.</strong> After enabling WSL you can install it <a href="https://apps.microsoft.com/store/detail/ubuntu-20046-lts/9MTTCL66CPXJ?hl=en-us&amp;gl=us">directly from the Microsoft Store</a>. Then it will appear as an app on your Start Menu. You just click on it and follow the instructions to configure your UNIX user account<a href="#fn7" class="footnote-ref" id="fnref7"><sup>7</sup></a>.</p></li>
 </ul>
 <div class="figure">
-<img src="images/launching_ubuntu_windows.png" alt="Launching Ubuntu on Windows 11" />
+<img src="images/launching_ubuntu_windows.png" alt="" />
 <p class="caption"><em>Launching Ubuntu on Windows 11</em></p>
 </div>
 <p>Next, we launch the Ubuntu Bash and run the following commands (for updating the system and <code>python3</code> and installing <code>pip</code>).</p>
@@ -253,8 +270,8 @@ docker ps</code></pre>
 <p>If you see something like the screenshot below, congratulations! You’re looking at the UI of your very own self-hosted Airflow instance 🙌🏽👏🏽🥳🎉🪅</p>
 <p><img src="images/airflow_ui_hello.png" /></p>
 </div>
-<div id="deploying-our-dag" class="section level3">
-<h3>Deploying our DAG</h3>
+<div id="deploying-our-dag" class="section level2">
+<h2>Deploying our DAG</h2>
 <p>Let’s wrap things up by deploying our DAG to Airflow. To do this, we simply need to <strong>copy the code of our DAG as a .py file into the ‘<code>dags</code>’ folder</strong> of our Airflow environment.</p>
 <p>Since there are various ways to accomplish this, I’ll offer two methods:</p>
 <ul>
@@ -297,9 +314,8 @@ docker ps</code></pre>
 <p><img src="images/dag_success.png" /></p>
 </div>
 </div>
-</div>
-<div id="we-did-it" class="section level2">
-<h2>We did it!</h2>
+<div id="wrap-up-we-did-it" class="section level2">
+<h2>Wrap Up: We did it!</h2>
 <p><img src="images/dora.png" title="&#39;Navigated to the dags, folder with such ease, Created tutorial_dags, it was such a breeze, Opened in VS Code, edited the file, Hit the play button, now we&#39;re running in style!&#39; - ChatGPT when I asked for a Dora The Explorer song about Airflow" /></p>
 <p>Congratulations! You successfully created and ran your first Airflow DAG using Docker, and you are starting to unlock the power of Airflow to automate your data workflows! 🎉</p>
 <p>In this post, you learnt:</p>
@@ -321,17 +337,17 @@ docker ps</code></pre>
 </ul>
 </div>
 </div>
-<div class="footnotes">
+<div class="footnotes footnotes-end-of-document">
 <hr />
 <ol>
-<li id="fn1"><p>A task scheduler for Unix-based operating systems.<a href="#fnref1" class="footnote-back">↩</a></p></li>
-<li id="fn2"><p>Yes, we’re talking about DAGs <a href="/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">again</a>, but not the same kind. Here, DAGs are for managing tasks and workflows, not for modeling causality. Still, Airflow DAGs will be more intuitive to you if you know causal DAGs because both share the same logic.<a href="#fnref2" class="footnote-back">↩</a></p></li>
-<li id="fn3"><p>Fun fact: You’re not obliged to name this object <code>dag</code>. It can be assigned to any valid variable name. However, it’s a convention and best practice to name it <code>dag</code> for readability and standardisation reasons, much like predictors are named <code>X</code> and the response variable is named <code>y</code> in <code>sklearn</code>.<a href="#fnref3" class="footnote-back">↩</a></p></li>
-<li id="fn4"><p>Keep in mind that indentation is necessary to tell Python that these tasks are part of the previously declared DAG.<a href="#fnref4" class="footnote-back">↩</a></p></li>
-<li id="fn5"><p>These templates are known as <em>Jinja templates</em> and are especially useful when you want your task to do something using the execution date as a parameter (for example, creating a temporary SQL table that includes the execution date in the name). It’s important to note that this execution date corresponds to the scheduled execution date, not the actual execution date. How could these two be different? Well, remember the case when you have missing executions, and Airflow tries to catch up on them. For these, the execution date will be the original date on which they were supposed to run, according to the DAG’s schedule. Another possible scenario is that a DAG fails to run on the scheduled date (e.g., 1st January), and then you attempt to run it again on a later date (5th January). In this case, the execution date will still be 1st January when you try to re-run the DAG on 5th January.<a href="#fnref5" class="footnote-back">↩</a></p></li>
-<li id="fn6"><p>The alternative to Docker Compose would be to execute A LOT of instructions on Bash, line by line. This is a manual and error-prone process that can lead to misconfigurations, version mismatches, and a bunch of other issues that we don’t want to deal with.<a href="#fnref6" class="footnote-back">↩</a></p></li>
-<li id="fn7"><p>I would also recommend installing the <a href="https://apps.microsoft.com/store/detail/windows-terminal/9N0DX20HK701?hl=es-cl&amp;gl=cl&amp;rtc=1">Windows Terminal</a>, but this is very much optional.<a href="#fnref7" class="footnote-back">↩</a></p></li>
-<li id="fn8"><p>If things didn’t go well, you can restart the process by running <code>docker compose down</code> to shut down the containers, followed by <code>docker compose up -d</code> to start them again. Finally, check the status once more with <code>docker ps</code>.<a href="#fnref8" class="footnote-back">↩</a></p></li>
-<li id="fn9"><p>In the meanwhile, I recommend you to continue exploring the different ways the Airflow UI lets you monitor your DAGs’ status. Some are more helpful than others, but all are worth a peek.<a href="#fnref9" class="footnote-back">↩</a></p></li>
+<li id="fn1"><p>A task scheduler for Unix-based operating systems.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>Yes, we’re talking about DAGs <a href="/post/2021-07-11-diagramas-causalidad-cap-3-causal-inference-mixtape/">again</a>, but not the same kind. Here, DAGs are for managing tasks and workflows, not for modeling causality. Still, Airflow DAGs will be more intuitive to you if you know causal DAGs because both share the same logic.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>Fun fact: You’re not obliged to name this object <code>dag</code>. It can be assigned to any valid variable name. However, it’s a convention and best practice to name it <code>dag</code> for readability and standardisation reasons, much like predictors are named <code>X</code> and the response variable is named <code>y</code> in <code>sklearn</code>.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>Keep in mind that indentation is necessary to tell Python that these tasks are part of the previously declared DAG.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="fn5"><p>These templates are known as <em>Jinja templates</em> and are especially useful when you want your task to do something using the execution date as a parameter (for example, creating a temporary SQL table that includes the execution date in the name). It’s important to note that this execution date corresponds to the scheduled execution date, not the actual execution date. How could these two be different? Well, remember the case when you have missing executions, and Airflow tries to catch up on them. For these, the execution date will be the original date on which they were supposed to run, according to the DAG’s schedule. Another possible scenario is that a DAG fails to run on the scheduled date (e.g., 1st January), and then you attempt to run it again on a later date (5th January). In this case, the execution date will still be 1st January when you try to re-run the DAG on 5th January.<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+<li id="fn6"><p>The alternative to Docker Compose would be to execute A LOT of instructions on Bash, line by line. This is a manual and error-prone process that can lead to misconfigurations, version mismatches, and a bunch of other issues that we don’t want to deal with.<a href="#fnref6" class="footnote-back">↩︎</a></p></li>
+<li id="fn7"><p>I would also recommend installing the <a href="https://apps.microsoft.com/store/detail/windows-terminal/9N0DX20HK701?hl=es-cl&amp;gl=cl&amp;rtc=1">Windows Terminal</a>, but this is very much optional.<a href="#fnref7" class="footnote-back">↩︎</a></p></li>
+<li id="fn8"><p>If things didn’t go well, you can restart the process by running <code>docker compose down</code> to shut down the containers, followed by <code>docker compose up -d</code> to start them again. Finally, check the status once more with <code>docker ps</code>.<a href="#fnref8" class="footnote-back">↩︎</a></p></li>
+<li id="fn9"><p>In the meanwhile, I recommend you to continue exploring the different ways the Airflow UI lets you monitor your DAGs’ status. Some are more helpful than others, but all are worth a peek.<a href="#fnref9" class="footnote-back">↩︎</a></p></li>
 </ol>
 </div>

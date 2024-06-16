@@ -6,6 +6,11 @@ description: Welcome back to the 'Data Pipelines in the Cloud' series! In the fi
 useRelativeCover: true
 cover: "images/airflow2_resized.png"
 slug: aws-command-line-data-pipelines-cloud-part-2
+output:
+  blogdown::html_page:
+    toc: true
+    toc_depth: 2
+toc: true
 categories:
   - data-science
   - cloud
@@ -43,7 +48,7 @@ In this second part, we'll get closer to what an actual Airflow pipeline in prod
 >
 > -   [Part III: Building an Airflow Pipeline That Talks to AWS.](/post/airflow-pipeline-with-aws-data-cloud-part-3/)
 
-## First Things First: Setting Up Your AWS Environment
+## Setting Up Your AWS Environment
 
 If you're reading this, there is some chance you already have an AWS account up and running. In that case, just jump to [the next section](#introducing-our-data-pipeline-or-what-are-we-trying-to-do-anyway). If not, just follow these steps:
 
@@ -201,7 +206,7 @@ However, since AWS (intriguingly) doesn't allow users to set hard limits on thei
 
 Fortunately, this is another area where *programmatic control* of AWS (using AWS through the command line or SDK) comes in handy. If scripts and CLI commands were used to turn on cloud resources, similar scripts could be employed to shut them down once they're no longer needed, effectively minimizing the risk of expensive human slips.
 
-## How Much Will I Have to Pay to Follow This Tutorial?
+### How Much Will I Have to Pay to Follow This Tutorial?
 
 If your heart skips a beat when reading words like *astronomic bill*, you may also be wondering exactly how much money you will have to pay to follow the upcoming part of this tutorial. The answer is **less than 1 cent (0.01 USD)** under two assumptions: 1) your AWS Account is new, and 2) you turn off everything we use after completing the tutorial.
 
@@ -225,7 +230,7 @@ Now, it's time to examine our pipeline's input data and the **transformations we
 
 As you can see, the data is rather simple, and the transformations are straightforward (akin to a short `pandas` or `dplyr` data wrangling script), but the challenge is to perform them in an **automated and unsupervised way under Airflow's orchestration** while also interacting with cloud APIs and services.
 
-## Our AWS architecture
+## Provisioning AWS Services for Our Pipeline
 
 Let's explore the AWS services we can use to implement this pipeline.
 
@@ -463,7 +468,7 @@ Wait a couple minutes for the deletion of the instance to complete and then dele
 aws ec2 delete-security-group --group-id $GROUP_ID
 ```
 
-## Feedback Survey
+### Feedback Survey
 
 I hope you enjoyed this post and found it useful. If you have any feedback, please let me know by filling out the survey below. It will take less than 2 minutes, and it will help me improve the content of this blog. Thank you!
 

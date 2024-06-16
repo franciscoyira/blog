@@ -7,6 +7,11 @@ useRelativeCover: true
 cover: "images/cover.jpeg"
 coverCaption: "My attempt of using Stable Diffussion to depict something cloud-computery."
 description: Learn the essentials of Apache Airflow for creating scalable and automated data pipelines in the cloud with this comprehensive, step-by-step beginner’s guide. Discover what problem Airflow solves and under what circumstances is better to use it and run your first Airflow DAG on Docker with the Linux subsystem for Windows.
+output:
+  blogdown::html_page:
+    toc: true
+    toc_depth: 2
+toc: true
 categories:
   - data-science
   - tutorial
@@ -68,7 +73,7 @@ However, as your pipelines grow in number and complexity, you may reach a point 
 
 All of these involve using some features (logging, scalability, dependencies, monitoring, etc) that you *technically* can code on your own, but why waste on that time if someone else already has done this for you? **This is where Airflow comes in handy**.
 
-### Airflow, the orchestrator of data pipelines
+## Airflow, the Orchestrator of Data Pipelines
 
 ![](images/airflow_orchestra.jpg)
 
@@ -262,7 +267,7 @@ While we could technically run Airflow directly on WSL/Linux without Docker, by 
 
 So, off we go!
 
-### Installing Airflow on the Windows Subsystem for Linux
+## Installing Airflow on the Windows Subsystem for Linux
 
 ![](images/penguin_pinwheel_window.jpeg){width="650"}
 
@@ -363,7 +368,7 @@ If you see something like the screenshot below, congratulations! You're looking 
 
 ![](images/airflow_ui_hello.png)
 
-### Deploying our DAG
+## Deploying our DAG
 
 Let's wrap things up by deploying our DAG to Airflow. To do this, we simply need to **copy the code of our DAG as a .py file into the '`dags`' folder** of our Airflow environment.
 
@@ -425,7 +430,7 @@ If you're in the Graph view, you should then see how each task in the DAG change
 
 ![](images/dag_success.png)
 
-## We did it!
+## Wrap Up: We did it!
 
 ![](images/dora.png "'Navigated to the dags, folder with such ease, Created tutorial_dags, it was such a breeze, Opened in VS Code, edited the file, Hit the play button, now we're running in style!' - ChatGPT when I asked for a Dora The Explorer song about Airflow")
 

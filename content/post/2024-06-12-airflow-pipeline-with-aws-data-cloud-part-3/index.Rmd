@@ -3,7 +3,7 @@ title: 'Building an Airflow Pipeline That Talks
   to AWS — Data Pipelines in the Cloud (III)'
 author: Francisco Yirá
 date: '2024-06-14'
-description: "After covering the basics of Apache Airflow and learning how to interact with Amazon Web Services (AWS) through the command line, this third and last part of the Data Pipelines in the Cloud series puts all the pieces together to build a complete Airflow pipeline that communicates with AWS services such as RDS and S3."
+description: "This tutorial is a complete guide to building an end-to-end data pipeline with Apache Airflow that communicates with AWS services like RDS (relational database) and S3 (object storage) to perform data transformations automatically and efficiently."
 useRelativeCover: true
 cover: "images/airflow3.png"
 slug: airflow-pipeline-with-aws-data-cloud-part-3
