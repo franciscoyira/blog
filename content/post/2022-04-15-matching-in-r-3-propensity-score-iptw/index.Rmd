@@ -7,6 +7,7 @@ useRelativeCover: true
 cover: "images/cover.jpg"
 coverCaption: "[Woman Holding a Balance, c. 1664](https://www.nga.gov/collection/art-object-page.1236.html)"
 isMath: "true"
+description: In the last part of this series about Matching estimators in R, we'll look at Propensity Scores as a way to solve covariate imbalance while handling the curse of dimensionality, and to how implement a Propensity Score estimator using the `twang` package in R. We'll also explore the importance of common support, the inverse probability weighting estimator (IPTW) and the double robust estimator, which combines a regression specification with a matching-based model in order to obtain a good estimate even when there is something wrong with one of the two underlying models.
 categories:
   - causal-inference
   - data-science
