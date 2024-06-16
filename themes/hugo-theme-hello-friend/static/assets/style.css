@@ -15,6 +15,7 @@
   padding-bottom: 15px;
   padding-left: 25px; /* Slightly increased padding for better spacing */
   margin: 0 auto 25px; /* Centered horizontally with auto margins and adjusted bottom margin for flow */
+  color: #292a2d;
   
   border-radius: 10px; /* Smoother border radius */
   box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);

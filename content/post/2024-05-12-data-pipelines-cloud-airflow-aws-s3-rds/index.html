@@ -30,8 +30,8 @@ tags:
 <ul>
 <li><a href="#setting-up-your-aws-environment">Setting Up Your AWS Environment</a></li>
 <li><a href="#setting-up-the-aws-command-line-interface-cli">Setting up the AWS Command Line Interface (CLI)</a></li>
-<li><a href="#avoiding-bill-surprises-the-importance-of-turning-off-what-we-dont-use">Avoiding Bill Surprises: The Importance of Turning Off What We Don’t Use</a></li>
-<li><a href="#introducing-our-data-pipeline-or-what-are-we-trying-to-do-anyway">Introducing Our Data Pipeline (or <em>What Are We Trying to Do Anyway?</em>)</a></li>
+<li><a href="#avoiding-bill-surprises-turning-off-what-we-dont-use">Avoiding Bill Surprises: Turning Off What We Don’t Use</a></li>
+<li><a href="#introducing-our-data-pipeline-or-what-are-we-trying-to-do-anyway">Our Data Pipeline (or <em>What Are We Trying to Do Anyway?</em>)</a></li>
 <li><a href="#provisioning-aws-services-for-our-pipeline">Provisioning AWS Services for Our Pipeline</a></li>
 <li><a href="#wrap-up-shutting-down-resources-to-minimize-costs">Wrap Up: Shutting Down Resources to Minimize Costs</a></li>
 </ul>
@@ -139,8 +139,8 @@ cat ~/.aws/credentials</code></pre>
 <p><img src="images/aws_art_deco.png" title="Using AWS, Art-Deco style." alt="Art deco-style illustration of a person interacting with an ‘AWS’ labelled device, surrounded by geometric patterns and cloud computing icons, in black, white, and beige tones." /></p>
 </div>
 </div>
-<div id="avoiding-bill-surprises-the-importance-of-turning-off-what-we-dont-use" class="section level2">
-<h2>Avoiding Bill Surprises: The Importance of Turning Off What We Don’t Use</h2>
+<div id="avoiding-bill-surprises-turning-off-what-we-dont-use" class="section level2">
+<h2>Avoiding Bill Surprises: Turning Off What We Don’t Use</h2>
 <p>Before we continue, a cautionary note. As I’ve been mentioning, having control over cloud resources is a <em>great power</em>, so it comes with a <em>great responsibility</em>. A great <strong><em>financial</em></strong> responsibility, to be specific: cloud services are like utilities where you pay for what you use (the famous <em>pay-as-you-go</em> model). This is usually regarded as a <a href="https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html">big advantage of the cloud</a>: it eliminates the need for a huge upfront cost of purchasing servers and other hardware just to get your project up and running. And this is especially true when there is uncertainty about the amount and type of computing and storage needed in the future (i.e. almost always).</p>
 <p>However, since AWS (intriguingly) doesn’t allow users to set hard limits on their spending, there is always the risk of leaving stuff turned on by mistake and then getting an astronomic bill at the end of the month<a href="#fn8" class="footnote-ref" id="fnref8"><sup>8</sup></a>. So, yes, it’s <strong>extremely important to avoid <em>oopsies</em> on this front</strong><a href="#fn9" class="footnote-ref" id="fnref9"><sup>9</sup></a>.</p>
 <div class="figure">
@@ -156,7 +156,7 @@ cat ~/.aws/credentials</code></pre>
 </div>
 </div>
 <div id="introducing-our-data-pipeline-or-what-are-we-trying-to-do-anyway" class="section level2">
-<h2>Introducing Our Data Pipeline (or <em>What Are We Trying to Do Anyway?</em>)</h2>
+<h2>Our Data Pipeline (or <em>What Are We Trying to Do Anyway?</em>)</h2>
 <p>Now, it’s time to examine our pipeline’s input data and the <strong>transformations we’ll apply to it</strong>. The details of all of this will be covered in the next post, but for now, suffice to say that our input is a sample of <a href="https://en.wikipedia.org/wiki/Pomodoro_Technique"><em>focused work</em></a> sessions that have a Start and End datetime and the pipeline will perform the following transformations:</p>
 <ul>
 <li>Read the source data.</li>
