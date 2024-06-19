@@ -156,10 +156,7 @@ df_pivoted.sample(5, random_state=1989)</code></pre>
 </ul>
 <p>The goal is to end up with a table that contains up-to-date information for each <code>Start Date</code> but no duplicate records.</p></li>
 </ul>
-<div class="figure">
-<img src="images/upsert.png" width="900" alt="" />
-<p class="caption">A flowchart with an oval in the center containing the question ‘Key Exists?’ inside the oval. Two arrows emerge from the oval, labeled ‘Yes’ and ‘No’. The ‘Yes’ arrow points to a rectangle labeled ‘UPDATE’, indicating that if the key exists, it should be updated. The ‘No’ arrow points to another rectangle labeled ‘INSERT’, indicating that if the key does not exist, a new one should be inserted.</p>
-</div>
+<p><img src="images/upsert.png" alt="A flowchart with an oval in the center containing the question ‘Key Exists?’ inside the oval. Two arrows emerge from the oval, labeled ‘Yes’ and ‘No’. The ‘Yes’ arrow points to a rectangle labeled ‘UPDATE’, indicating that if the key exists, it should be updated. The ‘No’ arrow points to another rectangle labeled ‘INSERT’, indicating that if the key does not exist, a new one should be inserted." width="900" /></p>
 <p>As you can see, the whole pipeline (except the UPSERT part, which we still need to write) can be expressed as a few lines of Python code. Still, it performs a meaningful transformation on the data (it isn’t just a <code>print('Hello world')</code>, <a href="/post/data-pipelines-cloud-intro-airflow-docker/">like the dummy DAG we implemented in the first part</a>) and outputs a table in a format that may be suitable for dashboards or reports. The main challenge is to perform these transformations in an automated way, under Airflow orchestration, while also interacting with AWS cloud services like S3 and RDS.</p>
 </div>
 <div id="getting-things-ready" class="section level2">
@@ -254,10 +251,7 @@ docker compose up airflow-init
 docker compose up -d
 docker ps</code></pre>
 <p>Some commands may take a while, but after they’re finished you should be able to access the Airflow Web UI through <a href="http://localhost:8080/">localhost:8080</a> on your web browser:</p>
-<div class="figure">
-<img src="images/airflow_login.png" width="1000" alt="" />
-<p class="caption">Login interface for Airflow on a web browser. The URL indicates it’s hosted on localhost. The ‘Sign In’ section has fields for entering ‘Username’ and ‘Password’.</p>
-</div>
+<p><img src="images/airflow_login.png" alt="Login interface for Airflow on a web browser. The URL indicates it’s hosted on localhost. The ‘Sign In’ section has fields for entering ‘Username’ and ‘Password’." width="1000" /></p>
 <p>Here you can log in using <code>airflow</code> as username and <code>airflow</code> as a password.</p>
 <p>Lastly, we must add a variable to the Airflow environment indicating the name of our S3 bucket. You can do that directly from the Airflow Web UI by <strong>going to the Admin menu &gt; Variables &gt; ‘+’ button.</strong></p>
 <p><img src="images/add_variable.png" alt="Screenshot of the Airflow Web UI, highlighting the button &#39;Variables&#39; under the Admin menu, and the light blue Plus button, below the Search box in the List Variable section" width="1000" /></p>
