@@ -13,7 +13,7 @@
   content="{{ with .Params.Keywords }}{{ delimit . ", " }}{{ else }}{{ $.Site.Params.Keywords }}{{ end }}"
 />
 <meta name="robots" content="noodp" />
-<link rel="canonical" href="{{ .Permalink }}" />
+<link rel="canonical" href="{{ .RelPermalink }}" />
 
 <!-- head custom -->
 {{- partial "prepended_head.html" . }}

@@ -40,7 +40,7 @@
     {{ if .Params.Cover }}
       <figure class="post-cover">
         {{ if .Params.UseRelativeCover }}
-          <img src="{{ (printf "%s%s" .Permalink .Params.Cover ) }}" alt="{{ .Params.CoverAlt | plainify | default .Title }}" />
+          <img src="{{ (printf "%s%s" .RelPermalink .Params.Cover ) }}" alt="{{ .Params.CoverAlt | plainify | default .Title }}" />
         {{ else }}
           <img src="{{ .Params.Cover | absURL }}" alt="{{ .Params.CoverAlt | plainify | default .Title }}" />
         {{ end }}
@@ -70,7 +70,7 @@
           <div class="pagination__buttons">
             {{ if .NextInSection }}
               <span class="button previous">
-                <a href="{{ .NextInSection.Permalink }}">
+                <a href="{{ .NextInSection.RelPermalink }}">
                   <span class="button__icon">←</span>
                   <span class="button__text">{{ .NextInSection.Title }}</span>
                 </a>
@@ -78,7 +78,7 @@
             {{ end }}
             {{ if .PrevInSection }}
               <span class="button next">
-                <a href="{{ .PrevInSection.Permalink }}">
+                <a href="{{ .PrevInSection.RelPermalink }}">
                   <span class="button__text">{{ .PrevInSection.Title }}</span>
                   <span class="button__icon">→</span>
                 </a>
