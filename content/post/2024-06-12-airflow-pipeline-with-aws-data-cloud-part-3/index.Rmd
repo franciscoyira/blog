@@ -149,7 +149,7 @@ df_pivoted.sample(5, random_state=1989)
 
     The goal is to end up with a table that contains up-to-date information for each `Start Date` but no duplicate records.
 
-![A flowchart with an oval in the center containing the question ‘Key Exists?’ inside the oval. Two arrows emerge from the oval, labeled ‘Yes’ and ‘No’. The ‘Yes’ arrow points to a rectangle labeled ‘UPDATE’, indicating that if the key exists, it should be updated. The ‘No’ arrow points to another rectangle labeled ‘INSERT’, indicating that if the key does not exist, a new one should be inserted.](images/upsert.png){width="900"}
+![](images/upsert.png){width="900" alt="A flowchart with an oval in the center containing the question ‘Key Exists?’ inside the oval. Two arrows emerge from the oval, labeled ‘Yes’ and ‘No’. The ‘Yes’ arrow points to a rectangle labeled ‘UPDATE’, indicating that if the key exists, it should be updated. The ‘No’ arrow points to another rectangle labeled ‘INSERT’, indicating that if the key does not exist, a new one should be inserted."}
 
 As you can see, the whole pipeline (except the UPSERT part, which we still need to write) can be expressed as a few lines of Python code. Still, it performs a meaningful transformation on the data (it isn't just a `print('Hello world')`, [like the dummy DAG we implemented in the first part](/post/data-pipelines-cloud-intro-airflow-docker/)) and outputs a table in a format that may be suitable for dashboards or reports. The main challenge is to perform these transformations in an automated way, under Airflow orchestration, while also interacting with AWS cloud services like S3 and RDS.
 
@@ -305,7 +305,7 @@ docker ps
 
 Some commands may take a while, but after they're finished you should be able to access the Airflow Web UI through [localhost:8080](http://localhost:8080/) on your web browser:
 
-![Login interface for Airflow on a web browser. The URL indicates it’s hosted on localhost. The ‘Sign In’ section has fields for entering ‘Username’ and ‘Password’.](images/airflow_login.png){width="1000"}
+![](images/airflow_login.png){width="1000" alt="Login interface for Airflow on a web browser. The URL indicates it’s hosted on localhost. The ‘Sign In’ section has fields for entering ‘Username’ and ‘Password’."}
 
 Here you can log in using `airflow` as username and `airflow` as a password.
 
