@@ -16,9 +16,42 @@
       </div>
     {{ end }}
   </div>
+  <div class="buy-me-a-coffee">
+    <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" 
+      data-name="bmc-button" 
+      data-slug="franciscoyira" 
+      data-color="#FFDD00" 
+      data-emoji="☕" 
+      data-font="Inter" 
+      data-text="Buy me a coffee" >
+    </script>
+  </div>
 </footer>
 
 <script src="{{ "assets/main.js" | absURL }}"></script>
 <script src="{{ "assets/prism.js" | absURL }}"></script>
 
 {{- partial "extended_footer.html" . }}
+<style>
+  /* Existing styles... */
+  
+  /* New styles for the Buy me a coffee button */
+  .buy-me-a-coffee {
+    color: #000000;
+    /* left align the text */
+    text-align: left;
+    position: fixed;
+    bottom: 20px;
+    /* add a nice shadow */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    right: 20px; /* Changed to right for bottom right corner */ }
+  
+  /* Adjustments for narrow screens */
+  @media (max-width: 480px) {
+    .buy-me-a-coffee {
+      right: 10px; /* Adjust position for smaller screens */
+      bottom: 10px;
+    }
+  }
+  </style>
