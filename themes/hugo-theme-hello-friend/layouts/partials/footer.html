@@ -18,6 +18,18 @@
   </div>
   <a class="subscribe-button2" href="/subscribe/">🔔 Don't miss out on new articles</a>
 
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Example: Hide the button if the URL includes '/specific-page'
+        if (window.location.pathname.includes('/subscribe')) {
+            var subscribeButton = document.querySelector('.subscribe-button2');
+            if (subscribeButton) {
+                subscribeButton.style.display = 'none';
+            }
+        }
+    });
+    </script>
+
 </footer>
 
 <script src="{{ "assets/main.js" | absURL }}"></script>
