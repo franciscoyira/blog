@@ -16,9 +16,35 @@
       </div>
     {{ end }}
   </div>
+  <a class="subscribe-button2" href="/subscribe/">🔔 Don't miss out on new articles</a>
+
 </footer>
 
 <script src="{{ "assets/main.js" | absURL }}"></script>
 <script src="{{ "assets/prism.js" | absURL }}"></script>
 
 {{- partial "extended_footer.html" . }}
+
+<style>
+  .subscribe-button2 {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: inline-block;
+    background-color: #fe568a;
+    color: white !important; /* Change text color to white */
+    border: 2px solid #b13c60;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-weight: 800;
+    padding: 15px 15px;
+    text-decoration: none;
+    border-radius: 30px;
+    transition: all 0.3s;
+    z-index: 1000; /* Ensure it stays on top of other elements */
+  }
+
+  .subscribe-button2:hover {
+      background-color: #b13c60;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); /* Increase shadow on hover */
+  }
+</style>
