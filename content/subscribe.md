@@ -4,7 +4,6 @@ date: '2021-08-01'
 ---
 
 Sign up to receive my latest blog posts directly in your inbox.
-
 <!-- Begin Mailchimp Signup Form -->
 
 <div id="mc_embed_signup">
@@ -28,7 +27,7 @@ Sign up to receive my latest blog posts directly in your inbox.
         <div class="response" id="mce-success-response" style="display:none"></div>
         <!-- real people should not fill this in and expect good things - do not remove this or risk form bot signups-->
     <div style="position: absolute; left: -5000px;" aria-hidden="true"><input type="text" name="b_88de9b935b8985cfde91ed5fa_190d593590" tabindex="-1" value=""></div>
-<div class="clear"><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" style="height:35px; width:190px; font-size:20px"></div>
+<div class="clear"><input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" style="height:55px; width:220px; font-size:30px"></div>
     </div>
 </form>
 
@@ -36,14 +35,9 @@ Sign up to receive my latest blog posts directly in your inbox.
 
 <!--End mc_embed_signup-->
 
-If you can't see the signup form above, [sign up here](https://franciscoyira.us5.list-manage.com/subscribe?u=88de9b935b8985cfde91ed5fa&id=190d593590).
+*You can take a look at the [archive](/archive) to see what kind of posts can you expect.*
 
-## Privacy commitment
-
--   Your e-mail will be shared with MailChimp, the service I'm using for delivering the newsletter.
--   Your e-mail WILL NOT be shared with anyone else.
--   You will ONLY receive the content you're subscribing to.
--   You can unsubscribe or change your preferences at any moment.
+If you can't see the signup form above (e.g. due to content blockers), please [sign up here](https://franciscoyira.us5.list-manage.com/subscribe?u=88de9b935b8985cfde91ed5fa&id=190d593590).
 
 ## Subscribe via RSS
 
@@ -52,3 +46,10 @@ You can also subscribe through RSS using the following feeds:
 -   📰 [All content](https://www.franciscoyira.com/post/index.xml)
 
 -   📰 [Data Science only](https://www.franciscoyira.com/categories/data-science/index.xml)
+
+## Privacy commitment 🔒
+
+-   Your e-mail will only be shared with MailChimp, the service I'm using for delivering the newsletter.
+-   Your e-mail WILL NOT be shared with anyone else.
+-   You will ONLY receive the content you're subscribing to.
+-   You can unsubscribe or change your preferences at any moment.
