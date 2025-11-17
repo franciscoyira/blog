@@ -2,12 +2,20 @@
 title: Comment valider les jointures de DataFrames avec Python
 author: Francisco Yirá
 date: '2025-11-15'
-slug: [validate-dataframe-join-python-polars-pandas]
+slug: "validate-dataframe-join-python-polars-pandas"
 useRelativeCover: true
+output: blogdown::html
 cover: "images/validate_joins_cover.png"
 description: 'Apprenez à valider facilement l’unicité des clés lors des jointures de DataFrames avec `pandas` et `polars` grâce à l’argument validate de la méthode `.join()`. Cet article montre comment détecter les doublons dès le début, gérer les erreurs avec `try`/`except` et inspecter les clés problématiques pour préserver l’intégrité de vos données, avec des exemples pratiques en Polars et Pandas.'
-categories: [data-science, python, polars]
-tags: [join, data-wrangling, flashcards-ds]
+categories:
+  - data-science
+  - python
+  - polars
+tags:
+  - english-only-ds
+  - join
+  - data-wrangling
+  - flashcards-ds
 ---
 
 Est-ce que tu as déjà passé longtemps à dépanner un problème avec tes données, pour finalement te rendre compte que le problème venait simplement du fait que les clés d'une jointure entre DataFrames n'étaient pas uniques?
