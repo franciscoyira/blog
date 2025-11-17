@@ -22,7 +22,7 @@ paginate = 5
 [languages]
   [languages.en]
     title = "francisco yirá's blog"
-    subtitle = "data science, tech, and +"
+    subtitle = "data science and analytics"
     keywords = ""
     copyright = ""
     menuMore = "More"
@@ -128,3 +128,46 @@ paginate = 5
           url = "https://cv.franciscoyira.com/#projects"
           weight = 2
 
+  [languages.fr]
+      title = "blog de francisco yirá"
+      subtitle = "science des données et analytique"
+      keywords = ""
+      copyright = ""
+      menuMore = "Plus"
+      writtenBy = "Écrit par"
+      readMore = "Lire la suite"
+      readOtherPosts = "Lire d'autres articles"
+      newerPosts = "Articles plus récents"
+      olderPosts = "Articles plus anciens"
+      minuteReadingTime = "min de lecture"
+      dateFormatSingle = "2006-01-02"
+      dateFormatList = "2006-01-02"
+
+      [languages.fr.params.logo]
+        logoText = "blog de francisco yirá"
+        logoHomeLink = "/fr/"
+
+      [languages.fr.menu]
+        [[languages.fr.menu.main]]
+          identifier = "archive"
+          name = "Archives"
+          url = "/fr/archive"
+        [[languages.fr.menu.main]]
+          identifier = "About"
+          name = "À propos"
+          url = "https://cv.franciscoyira.com"
+        [[languages.fr.menu.main]]
+          identifier = "subscribe"
+          name = "📩 S'abonner"
+          url = "/subscribe"
+          weight = 1
+        [[languages.fr.menu.main]]
+          identifier = "change_lang_en"
+          name = "English"
+          url = "/"
+          weight = 3
+        [[languages.fr.menu.main]]
+          identifier = "cv"
+          name = "CV/Portfolio"
+          url = "https://cv.franciscoyira.com/#projects"
+          weight = 2
