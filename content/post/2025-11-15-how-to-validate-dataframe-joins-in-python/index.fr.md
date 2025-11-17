@@ -12,9 +12,9 @@ tags: [join, data-wrangling, flashcards-ds]
 
 Est-ce que tu as déjà passé longtemps à dépanner un problème avec tes données, pour finalement te rendre compte que le problème venait simplement du fait que les clés d'une jointure entre DataFrames n'étaient pas uniques?
 
-Il s'avère que les bibliothèques pandas et polars offrent un moyen très simple de résoudre cet ennui: l'argument `validate` dans la méthode `.join()`. Cet argument détecte les clés dupliquées dès le début dans ton pipeline et arrête l'exécution si la contrainte d'unicité n'est pas respectée. Ça peut devenir très pratique pour éviter le doublonnage silencieux de lignes qui dissiperait l'intégrité de nos données.
+Il s'avère que les bibliothèques pandas et polars offrent un moyen très simple de résoudre cet ennui: l'argument `validate` dans la méthode `.join()`. Cet argument détecte les clés dupliquées dès le début dans ton pipeline et arrête l'exécution si la contrainte d'unicité n'est pas respectée. C'est très pratique pour éviter le doublonnage silencieux de lignes qui dissiperait l'intégrité de nos données.
 
-La meilleure partie c'est que pour implémenter ça tu dois ajouter moins d'une ligne de code!
+Le miuex, c'est que pour implémenter ça tu dois ajouter moins d'une ligne de code!
 
 ![flashcard](images/flashcard_validate_joins_fr.png)
 
@@ -24,9 +24,9 @@ La valeur prédéterminée de `validate` est `"m:m"` (plusieurs-à-plusieurs). �
 - `"m:1"` (plusieurs-à-un): vérifie l'unicité dans le(s) clé(s) du DataFrame droit.
 - `"1:1"` (un-à-un): vérifie l'unicité dans les deux DataFrames.
 
-Encore, s'il y a un problème avec la contrainte d'unicité, l'exécution de notre script sera arrêtée (on va voir une `exception.ComputeError` si on utilise la méthode avec polars).
+Encore une fois, s'il y a un problème avec la contrainte d'unicité, l'exécution de notre script sera arrêtée (on va voir une `exception.ComputeError` si on utilise la méthode avec polars).
 
-Ci-dessous on peut voir une exemple de comment utiliser cet argument avec polars:
+Ci-dessous, un exemple de comment utiliser cet argument avec polars:
 
 ```python
 import polars as pl
@@ -97,9 +97,6 @@ try:
     catalogue.merge(prix, on="id_produit", how="left", validate="one_to_one")
 except pd.errors.MergeError as e:
     # quelque chose que tu veux faire si une erreur est trouvée
-    dupliques = prix.groupby("id_produit").size().loc[lambda x: x > 1]
-    print(dupliques)
-
 ```
 
 ## Références
