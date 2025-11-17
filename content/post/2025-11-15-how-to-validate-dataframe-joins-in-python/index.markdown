@@ -2,7 +2,7 @@
 title: How to validate DataFrame joins in Python
 author: Francisco Yirá
 date: '2025-11-15'
-slug: [validate-dataframe-join-python-polars-pandas]
+slug: "validate-dataframe-join-python-polars-pandas"
 useRelativeCover: true
 cover: "images/validate_joins_cover.png"
 description: "Ever spent too much time debugging a data issue, only to realize it was caused by a join where the keys weren't *actually* unique? Turns out, both `polars` AND `pandas` have a handy option that allows to **detect duplicate keys** early on, saving us from data explosions passing through silently an causing havoc downstream."
