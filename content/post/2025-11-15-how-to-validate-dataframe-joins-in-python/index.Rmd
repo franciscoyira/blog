@@ -34,7 +34,7 @@ If the uniqueness constraints are not met, an error will be raised (we'll see an
 
 Below we can see an example of how to use `validate` with joins in `polars`:
 
-```python
+```{python, eval=FALSE}
 import polars as pl
 
 catalog = pl.DataFrame({
@@ -59,7 +59,7 @@ polars.exceptions.ComputeError: join keys did not fulfill 1:1 validation
 
 If we want to handle the error gracefully, we can wrap the join code in a `try`/`except` block. This allows us to inspect the keys that violated the uniqueness constraint, log the issue or take some other action.
 
-```python
+```{python, eval=FALSE}
 try:
     catalog.join(prices, on="product_id", how="left", validate="1:1")
 except pl.exceptions.ComputeError as e:
@@ -87,7 +87,7 @@ shape: (1, 2)
 
 If you're using `pandas` instead of `polars` (😬😅), the code is almost the same, provided you're using version 1.5.0 or later (and you can still add the check to the `.merge` method):
 
-```python
+```{python, eval=FALSE}
 import pandas as pd
 
 catalog = pd.DataFrame({
