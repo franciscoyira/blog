@@ -76,7 +76,7 @@ shape: (1, 2)
 └────────────┴─────┘
 ```
 
-{{% subscribe %}}
+{{% linkedin_follow %}}
 
 If you're using `pandas` instead of `polars` (😬😅), the code is almost the same, provided you're using version 1.5.0 or later (and you can still add the check to the `.merge` method):
 
